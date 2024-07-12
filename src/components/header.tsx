@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Menu, Package2, Search } from "lucide-react";
+import { Menu, Clapperboard, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,17 +14,17 @@ export default function Header() {
           href="/"
           className="flex items-center gap-2 text-lg font-semibold md:text-base"
         >
-          <Package2 className="h-6 w-6" />
+          <Clapperboard className="h-6 w-6" />
           <span className="sr-only">Acme Inc</span>
         </Link>
         <Link
-          href="/"
+          href="/ai/dashboard"
           className="text-foreground transition-colors hover:text-foreground"
         >
           Dashboard
         </Link>
         <Link
-          href="/playground"
+          href="/ai/playground"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
           Playground
@@ -61,7 +61,7 @@ export default function Header() {
               href="#"
               className="flex items-center gap-2 text-lg font-semibold"
             >
-              <Package2 className="h-6 w-6" />
+              <Clapperboard className="h-6 w-6" />
               <span className="sr-only">Acme Inc</span>
             </Link>
             <Link href="#" className="hover:text-foreground">

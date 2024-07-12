@@ -11,7 +11,7 @@ import {
 import { CircleUser } from "lucide-react";
 
 export default function HeaderAccount() {
-  const isLoigedIn = false; // Replace with actual login status
+  const isLoigedIn = true; // Replace with actual login status
   return (
     <>
       {!isLoigedIn && (

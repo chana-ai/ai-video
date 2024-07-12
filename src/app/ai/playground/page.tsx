@@ -34,12 +34,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import HeaderAccount from "@/components/header-account";
+import Header from "../header";
 
 export default function Playground() {
   return (
     <>
-      <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
-        <h1 className="text-xl font-semibold">Playground</h1>
+      <Header title="Playground">
         <Drawer>
           <DrawerTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden">
@@ -158,10 +158,7 @@ export default function Playground() {
             </form>
           </DrawerContent>
         </Drawer>
-        <div className="ml-auto gap-1.5 text-sm">
-          <HeaderAccount />
-        </div>
-      </header>
+      </Header>
       <main className="grid flex-1 gap-4 overflow-auto p-4 md:grid-cols-2 lg:grid-cols-3">
         <div
           className="relative hidden flex-col items-start gap-8 md:flex"
