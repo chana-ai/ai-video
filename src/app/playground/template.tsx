@@ -1,12 +1,11 @@
 import {
-  Book,
-  Bot,
-  Code2,
+  Boxes,
+  FileVideo2,
   LifeBuoy,
   Settings2,
   SquareTerminal,
   SquareUser,
-  Triangle,
+  Clapperboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +21,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
         <aside className="inset-y fixed  left-0 z-20 flex h-full flex-col border-r">
           <div className="border-b p-2">
             <Button variant="outline" size="icon" aria-label="Home">
-              <Triangle className="size-5 fill-foreground" />
+              <Clapperboard className="size-5" />
             </Button>
           </div>
           <nav className="grid gap-1 p-2">
@@ -31,7 +30,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-lg bg-muted"
+                  className="rounded-lg"
                   aria-label="Playground"
                 >
                   <SquareTerminal className="size-5" />
@@ -46,14 +45,14 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-lg"
-                  aria-label="Models"
+                  className="rounded-lg bg-muted"
+                  aria-label="Materials"
                 >
-                  <Bot className="size-5" />
+                  <Boxes className="size-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={5}>
-                Models
+                Materials
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -62,28 +61,13 @@ export default function Template({ children }: { children: React.ReactNode }) {
                   variant="ghost"
                   size="icon"
                   className="rounded-lg"
-                  aria-label="API"
+                  aria-label="Video"
                 >
-                  <Code2 className="size-5" />
+                  <FileVideo2 className="size-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={5}>
-                API
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-lg"
-                  aria-label="Documentation"
-                >
-                  <Book className="size-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={5}>
-                Documentation
+                Video
               </TooltipContent>
             </Tooltip>
             <Tooltip>

@@ -33,13 +33,13 @@ export default function Header() {
           href="#"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          Products
+          Document
         </Link>
         <Link
           href="#"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          Customers
+          Pricing
         </Link>
         <Link
           href="#"

@@ -1,19 +1,10 @@
 import {
   Bird,
-  Book,
-  Bot,
-  Code2,
   CornerDownLeft,
-  LifeBuoy,
   Mic,
   Paperclip,
   Rabbit,
   Settings,
-  Settings2,
-  Share,
-  SquareTerminal,
-  SquareUser,
-  Triangle,
   Turtle,
 } from "lucide-react";
 
