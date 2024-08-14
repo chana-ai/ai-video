@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -11,45 +13,110 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { useEffect, useState } from "react";
+import { sendStatusCode } from "next/dist/server/api-utils";
+import {openAxios } from '@/lib/axios';
+import { useRouter } from 'next/navigation';
+
 export default function LoginForm() {
+
+  const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState('');
+  const router = useRouter()
+
+  const onPhoneChange = (e) => {
+    setPhone(e.target.value)
+  }
+
+  const onEmailChange = (e) => {
+    setEmail(e.target.value);
+  }
+
+  useEffect(()=>{
+    if(confirmPassword != password){
+      setErrorMessage("两次密码不一致")
+    }else{
+      setErrorMessage('');
+    }
+
+  }, [confirmPassword, password])
+   
+  const onConfirmPasswordChanged = (e) => {
+    setConfirmPassword(e.target.value)
+  }
+  
+  const onPasswordChange = (e) => {
+    setPassword(e.target.value)
+  }
+
+  const createUser = async (event) =>{
+    event.preventDefault();
+    if (password != confirmPassword) {
+      setErrorMessage('两次密码不一致');
+      return;
+    }
+    console.log("phone: "+ phone + " email: " + email + " password:"+ password)
+
+    try{
+      openAxios.post("/user/register", {
+        "phoneNumber": phone,
+        "password": password, 
+        "email": email
+      }).then(() => {
+        alert("创建账号成功，点击确认")
+        router.push('/auth/login')
+      }).catch((error) => {
+        console.log(error)
+      });
+      ;
+    }catch(error){
+      console.error(error)
+      setErrorMessage("注册失败，请稍后再试")
+    }
+    
+
+  }
   return (
     <Card className="mx-auto max-w-sm">
       <CardHeader>
         <CardTitle className="text-xl">Sign Up</CardTitle>
         <CardDescription>
-          Enter your information to create an account
+          请输入你的注册信息
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <div className="grid grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="first-name">First name</Label>
-              <Input id="first-name" placeholder="Max" required />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="last-name">Last name</Label>
-              <Input id="last-name" placeholder="Robinson" required />
+              <Label htmlFor="first-name">*手机号(以861开头)</Label>
+              <Input id="phone" placeholder="手机号" onChange={onPhoneChange} required />
             </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email 地址</Label>
             <Input
               id="email"
               type="email"
               placeholder="m@example.com"
+              onChange={onEmailChange}
               required
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" />
+            <Label htmlFor="password">Password(长度8~20之间)</Label>
+            <Input id="password" type="password" onChange={onPasswordChange} />
           </div>
-          <Button type="submit" className="w-full">
+          <div className="grid gap-2">
+            <Label htmlFor="password">重新输入一遍密码</Label>
+            <Input id="confir" type="password" onChange={onConfirmPasswordChanged}/>
+          
+          </div>
+          <div style={{ color: 'red' }}>{errorMessage} </div>
+          <Button type="submit" className="w-full" onClick={createUser}>
             Create an account
-          </Button>
-          <Button variant="outline" className="w-full">
-            Sign up with GitHub
           </Button>
         </div>
         <div className="mt-4 text-center text-sm">

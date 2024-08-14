@@ -1,6 +1,20 @@
+"use client";
+
+import { useEffect } from "react";
 import Header from "../header";
 
+import axios from 'axios';
+
 export default function Materials() {
+
+useEffect(()=>{
+  axios.post('/material/search', {})
+  .then((res)=>{
+    console.log("get result")
+  })
+}, []);
+
+
   return (
     <>
       <Header title="Materials"></Header>
