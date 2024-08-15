@@ -14,8 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { useEffect, useState } from "react";
-import { sendStatusCode } from "next/dist/server/api-utils";
-import {openAxios } from '@/lib/axios';
+import {instance } from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
@@ -61,7 +60,7 @@ export default function LoginForm() {
     console.log("phone: "+ phone + " email: " + email + " password:"+ password)
 
     try{
-      openAxios.post("/user/register", {
+      instance.post("/user/register", {
         "phoneNumber": phone,
         "password": password, 
         "email": email

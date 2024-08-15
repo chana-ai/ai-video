@@ -1,6 +1,7 @@
 
 const USER_ID = "userId";
 const CREDENTIALS = "credentials";
+const PHONE = "phone";
 
 export const setUserId = (userId: string) =>{
     localStorage.setItem(USER_ID, userId);
@@ -16,4 +17,11 @@ export const getCredentials = ()=>{
 
 export const setCredentials = (credential: string) =>{
     localStorage.setItem(CREDENTIALS, credential);
+}
+
+export const setPhone = (phone: string)=>{
+    localStorage.setItem(PHONE, phone);
+}
+export const getPhone = () =>{
+    return localStorage.getItem(PHONE);
 }
