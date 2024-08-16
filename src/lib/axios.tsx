@@ -5,12 +5,6 @@ import {getCredentials, getUserId} from '@/lib/localcache';
 
 const HOST = process.env.PROD == "prod"?"":"http://localhost:8080";
 
-// export const openAxios = axios.create({
-//     baseURL: `${HOST}`,
-//     timeout: 20000,
-//     headers: {'x-chana': 'web-client'}  
-// });
-
 export const instance = axios.create({
     baseURL: `${HOST}`,
     timeout: 10000,
@@ -22,8 +16,10 @@ instance.interceptors.request.use(config => {
     // config 请求的所有信息
     // console.log(config);
     // 响应成功的返回
-    if(getCredentials()!=""){
-        config.headers['access-token'] = getCredentials();
+   let  token  =  getCredentials();
+    if( token!=""){
+        console.log("token "+token)
+        config.headers['satoken'] = token
         config.headers['userId'] = getUserId()    
     }
     return config // 将配置完成的config对象返回出去 如果不返回 请求讲不会进行
@@ -36,14 +32,20 @@ instance.interceptors.request.use(config => {
 // 添加响应拦截器
 instance.interceptors.response.use(function (response) {
     //Here HttpCode: 200
-	console.log("Received message: "+response.data.code);
     if(response.data.code && response.data.code != 200){
         //Monitor non-200 code response in the body
+        /**
+         * switch(response.data.code){
+         *  case 60x: 
+         *  case 61x: 
+         *  case 62x:
+         * }
+         */
         console.log("Some business exception: " + response.data.message);
         return Promise.reject({'message': response.data.message});
     }
 
-	return response;
+	return response.data;
   }, function (error) {
 	// Here 
 	return Promise.reject(error);

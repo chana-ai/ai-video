@@ -44,58 +44,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { useEffect } from "react";
-import httpInstance from '@/lib/axios';
-import {getUserId} from '@/lib/localcache';
-
-
-
-
-const testInstance = axios.create({
-  baseURL: 'wwww.baidu.com',
-  timeout: 1000,
-});
-
+import { useEffect, useState } from "react";
+import {instance} from '@/lib/axios';
 
 export default function Dashboard() {
 
+  const [summary, setSummary] = useState({
+    completed: 0,
+    processing: 0, 
+    fail: 0,
+    total: 0
+  });
+  
+  const [balance, setBalance] = useState(0.0);
+
   useEffect(()=>{
-    httpInstance.instance.get('/dashboard/summary', {
-      params: {
-        'userId': getUserId()
-      }
-    }).then((res) => {
-        console.log("UserSummary is: "+ res);
-        /**
-         * {
-         *    code: 200,
-         *    data: {
-         *      "completed": 0 , 
-         *      "processing": 0, 
-         *      "failed": 0, 
-         *      "total": 0
-         *    }
-         * }
-         */
-        //Fill the div info
+    instance.get('/dashboard/countVideoSummary').then((res) => {
+        setSummary(res.data)
+        console.log("UserSummary is: "+ JSON.stringify(res.data))
+  });
+}, []);  
+
+  useEffect(()=>{
+    instance.get('/user/getCredits').then((res) => {
+        console.log("getCredit is: "+ JSON.stringify(res.data));
+        setBalance(res.data.credit);  
+      
     });
+  }, [])
+
   
-  
-    httpInstance.instance.get('/user/getCredits', {
-    }).then((res) => {
-        console.log("UserSummary is: "+ res);
-        /**
-         * {
-         *    code: 200,
-         *    data: {
-         *      "credit": 2.0 , 
-         *    }
-         * }
-         */
-        //Fill the div info
-    });
-  
-  });  
 
   return (
     <>
@@ -105,35 +83,40 @@ export default function Dashboard() {
           <Card x-chunk="dashboard-01-chunk-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium font-bold">
-                Dashboard Summary
+                视频总数 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% from last month
-              </p>
-              <li>1</li>
-              <li>2</li>
+              <div className="text-2xl font-bold">{summary.total}</div>
+             
+              <li> 进行中 {/** <p className="text-xs text-muted-foreground">  */} 
+                {summary.processing}
+              </li>
+              <li> 成功完成 {/** <p className="text-xs text-muted-foreground">  */} 
+                {summary.completed}
+              </li>
+              <li> 失败 {/** <p className="text-xs text-muted-foreground">  */} 
+                {summary.fail}
+              </li>
             </CardContent>
           </Card>
           <Card x-chunk="dashboard-01-chunk-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Subscriptions
+                余额
               </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              {/* <Users className="h-4 w-4 text-muted-foreground" /> */}
+              {/* <DollarSign className="h-4 w-4 text-muted-foreground" /> */}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+2350</div>
-              <p className="text-xs text-muted-foreground">
-                +180.1% from last month
-              </p>
+              <div className="font-bold"> {balance} </div>
+              {/* <p className="text-xs text-muted-foreground">
+                {balance}
+              </p> */}
             </CardContent>
           </Card>
         </div>
-        <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+        {/* <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
           <Card className="xl:col-span-2" x-chunk="dashboard-01-chunk-4">
             <CardHeader className="flex flex-row items-center">
               <div className="grid gap-2">
@@ -191,7 +174,7 @@ export default function Dashboard() {
               </Table>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
       </main>
     </>
   );
