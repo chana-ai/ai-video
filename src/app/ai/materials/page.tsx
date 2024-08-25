@@ -16,16 +16,18 @@ import { Button } from "@/components/ui/button";
 
 import instance from '@/lib/axios';
 import CreateMaterial from './create';
-
-import Link from "next/link";
-import { Currency } from "lucide-react";
-
+import CreateAIMaterial from './createAI';
 
 
 export default function Materials() {
 
   const [materials, setMaterials] = useState({
-    records: [],
+    records: [{
+      'id': 1,
+      'name': "登山的照片",
+      'tagName': "登山",
+      'mode': "UPLOADED"
+    }],
     total: 1,
     size: 10,
     current: 1,
@@ -37,15 +39,17 @@ export default function Materials() {
   const [createFlag, setCreateFlag] = useState(false);
   const [createAIFlag, setCreatAIFlag] = useState(false);
 
+  
 
   useEffect(()=>{
-    instance.post('/material/search', {
-    }).then((res)=>{
-      console.log("get result " + JSON.stringify(res.data))
-      setMaterials(res.data)
-    })
-  }, []);
-
+    //TODO: debug 影藏初始化
+    // instance.post('/material/search', {
+    // }).then((res)=>{
+    //   console.log("get result " + JSON.stringify(res.data))
+    //   setMaterials(res.data)
+    // })
+      }
+  , []);
 
   //删除某一条记录
   const deleteMaterial= (materialId)=>{
@@ -90,69 +94,76 @@ export default function Materials() {
   }
 
   const handleCreateMaterial = ()=>{
-    alert("Test...")
     setCreateFlag(!createFlag);
   }
 
   const handleCreateAIMaterial = ()=>{
-    alert ("AI")
+    setCreatAIFlag(!createAIFlag)
   }
+
+  const displayTable = ()=>{
+    return <><div className="text-lg font-semibold">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>素材名</TableHead>
+              <TableHead>
+                标签列表
+              </TableHead>
+              <TableHead>
+                类型
+              </TableHead>
+              <TableHead>
+                最后更新日期
+              </TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {materials.records.map((material, index) => (
+              <TableRow>
+                <TableCell><div className="font-medium"> {material.id}</div></TableCell>
+                <TableCell><div className="font-medium"> {material.name}</div></TableCell>
+                <TableCell><div className="font-medium"> {material.tagNames}</div></TableCell>
+                <TableCell><div className="font-medium"> {material.mode == "UPLOADED" ? "自有" : "AI生成"}</div></TableCell>
+                <TableCell><div className="font-medium"> {material.updateTime}</div></TableCell>
+                <TableCell> <Button> Edit</Button>  <Button onClick={() => deleteMaterial(material.id)}>Delete</Button></TableCell>
+
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        {/* 分页控件 */}
+        <div className="pagifont-mediumation">
+          <button onClick={() => handlePageChange(materials.current - 1)} disabled={materials.current === 1}>
+            上一页
+          </button>
+          <span>
+            第{materials.current}页 / 共{materials.total}页, 每页{materials.size}条
+          </span>
+          <button onClick={() => handlePageChange(materials.current + 1)} disabled={materials.current === materials.total}>
+            下一页
+          </button>
+        </div>
+      </div>
+      <div>
+          <a>
+            <Button onClick={handleCreateMaterial}>创建</Button>
+          </a>
+      </div>
+      <div><Button onClick={handleCreateAIMaterial}>新建AI素材</Button></div></>
+  }
+
+
   return (
     <>
       <Header title= { !createFlag&&!createAIFlag?"Materials":createFlag?"创建素材":"创建AI素材"}></Header>
       <main className="grid flex-1 gap-4 overflow-auto p-4 md:grid-cols-2 lg:grid-cols-3">
       {
           !createFlag && !createAIFlag?
-          (<><div className="text-lg font-semibold">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>素材名</TableHead>
-                    <TableHead>
-                      标签列表
-                    </TableHead>
-                    <TableHead>
-                      类型
-                    </TableHead>
-                    <TableHead>
-                      最后更新日期
-                    </TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {materials.records.map((material, index) => (
-                    <TableRow>
-                      <TableCell><div className="font-medium"> {material.id}</div></TableCell>
-                      <TableCell><div className="font-medium"> {material.name}</div></TableCell>
-                      <TableCell><div className="font-medium"> {material.tagNames}</div></TableCell>
-                      <TableCell><div className="font-medium"> {material.mode == "UPLOADED" ? "自有" : "AI生成"}</div></TableCell>
-                      <TableCell><div className="font-medium"> {material.updateTime}</div></TableCell>
-                      <TableCell> <Button> Edit</Button>  <Button onClick={() => deleteMaterial(material.id)}>Delete</Button></TableCell>
-
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* 分页控件 */}
-              <div className="pagifont-mediumation">
-                <button onClick={() => handlePageChange(materials.current - 1)} disabled={materials.current === 1}>
-                  上一页
-                </button>
-                <span>
-                  第{materials.current}页 / 共{materials.total}页, 每页{materials.size}条
-                </span>
-                <button onClick={() => handlePageChange(materials.current + 1)} disabled={materials.current === materials.total}>
-                  下一页
-                </button>
-              </div>
-            </div><div>
-                <a>
-                  <Button onClick={handleCreateMaterial}>创建</Button>
-                </a>
-              </div><div><Button onClick={handleCreateAIMaterial}>新建AI素材</Button></div></>): (<CreateMaterial></CreateMaterial>)
+          (displayTable()): createFlag?(<CreateMaterial></CreateMaterial>): (<CreateAIMaterial></CreateAIMaterial>)
       }
 
      

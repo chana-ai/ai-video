@@ -59,19 +59,31 @@ export default function Dashboard() {
   const [balance, setBalance] = useState(0.0);
 
   useEffect(()=>{
-    instance.get('/dashboard/countVideoSummary').then((res) => {
-        setSummary(res.data)
-        console.log("UserSummary is: "+ JSON.stringify(res.data))
-  });
-}, []);  
+    //TODO: 这块代码执行了两次
+    console.log("1.....")
+    
+    // instance.get('/dashboard/countVideoSummary').then((res) => {
+    //     setSummary(res.data)
+    //     console.log("UserSummary is: "+ JSON.stringify(res.data))
+    // }).catch(error => {
+    //   console.log(error);
+    // });  
+    }, []
+  );  
 
   useEffect(()=>{
-    instance.get('/user/getCredits').then((res) => {
-        console.log("getCredit is: "+ JSON.stringify(res.data));
-        setBalance(res.data.credit);  
+    //TODO: 这段代码执行了两次
+    console.log("2.....")
+    setBalance(4.0)
+    // instance.get('/user/getCredits').then((res) => {
+    //     console.log("getCredit is: "+ JSON.stringify(res.data));
+    //     setBalance(res.data.credit);  
       
-    });
-  }, [])
+    // }).catch(error => {
+    //     console.log(error)
+    // });
+    
+    }, [])
 
   
 

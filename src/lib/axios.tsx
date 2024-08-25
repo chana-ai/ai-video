@@ -34,20 +34,20 @@ instance.interceptors.response.use(function (response) {
     //Here HttpCode: 200
     if(response.data.code && response.data.code != 200){
         //Monitor non-200 code response in the body
-        /**
+        /**  
          * switch(response.data.code){
          *  case 60x: 
          *  case 61x: 
          *  case 62x:
          * }
          */
-        console.log("Some business exception: " + response.data.message);
+        console.log("Some business exception: " + JSON.stringify(response.data));
         return Promise.reject({'message': response.data.message});
     }
 
 	return response.data;
   }, function (error) {
-	// Here 
+	// Here                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 	return Promise.reject(error);
   });
 

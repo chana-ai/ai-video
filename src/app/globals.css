@@ -64,6 +64,44 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
   }
+
+  .video-settings {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: #eae9c3;
+    color: #161414;
+  }
+  
+  .video-setting-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 20px;
+  }
+  
+  .video-setting-item label {
+    margin-bottom: 10px;
+  }
+  
+  .aspect-ratio-buttons {
+    display: flex;
+  }
+  
+  .aspect-ratio-buttons button {
+    background: none;
+    border: none;
+    padding: 10px;
+    margin: 0 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #fff;
+  }
+  
+  .aspect-ratio-buttons .active {
+    background-color: #4CAF50;
+  }
 }
 
 @layer base {
