@@ -21,41 +21,142 @@ export default function CreateVideo() {
     //数据变量
     const [subject, setSubject] = useState('')
     const [script, setScript] = useState('')
+    
+    /// 所有tag 列表, 前端显示使用
+    const [tagList, setTagList] = useState(['abc', 'bcd'])
+    /// 选中的tag.组装请求使用。
+    const [selectedTags, setSelectedTags] = useState([])
+
 
     const [videoSetting, setVideoSetting] = useState({
         'size': "16:9",
         'source': '',
-        'materialList': [] as string[]
+        'materialList': [] as string[]    /// 选中的素材列表。
     })
 
-    const [tagList, setTagList] = useState(['abc', 'bcd'])
+    /// videoSetting中的 显示 素材链表的，前端显示使用
     const [materialList, setMaterialList] = useState([])
-    const [selectedTags, setSelectedTags] = useState([])
+    
+    ///
+    const [musicList, setMusicList] = useState([])
+    let synthesisList = [
+        {
+          name: "zh-CN-XiaoxiaoNeural",
+          cnName: "晓晓神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-CN-XiaoyiNeural",
+          cnName: "小怡神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-CN-YunjianNeural",
+          cnName: "云剑神经网络",
+          gender: "Male"
+        },
+        {
+          name: "zh-CN-YunxiNeural",
+          cnName: "云熙神经网络",
+          gender: "Male"
+        },
+        {
+          name: "zh-CN-YunxiaNeural",
+          cnName: "云夏神经网络",
+          gender: "Male"
+        },
+        {
+          name: "zh-CN-YunyangNeural",
+          cnName: "云阳神经网络",
+          gender: "Male"
+        },
+        {
+          name: "zh-CN-liaoning-XiaobeiNeural",
+          cnName: "辽宁小北神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-CN-shaanxi-XiaoniNeural",
+          cnName: "陕西小妮神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-HK-HiuGaaiNeural",
+          cnName: "晓佳神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-HK-HiuMaanNeural",
+          cnName: "晓满神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-HK-WanLungNeural",
+          cnName: "云龙神经网络",
+          gender: "Male"
+        },
+        {
+          name: "zh-TW-HsiaoChenNeural",
+          cnName: "晓晨神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-TW-HsiaoYuNeural",
+          cnName: "晓语神经网络",
+          gender: "Female"
+        },
+        {
+          name: "zh-TW-YunJheNeural",
+          cnName: "云杰神经网络",
+          gender: "Male"
+        }
+      ]
+      
+
     const [audioSetting, setAudioSetting] = useState({
-        "synthesis": "",
-        "backgroundMusic": ""
+        "synthesis": synthesisList[0].name+'-'+synthesisList[0].gender,
+        "bgm": ""
     })
+
     const [errorMessage, setErrorMessage] = useState('')
     const router = useRouter()
 
-    useEffect(()=>{
-        //init the tag list        
-
-        //init material list
-
-    }, [])
-
+    //Init tag list
     useEffect(() => {
-        if (videoSetting.source === 'materials' || videoSetting.source === 'mixed') {
           // 获取当前用户的所有的 tag list
-          instance.get('/api/getTagList')
+        instance.get('/api/getTagList')
             .then(response => {
                 setTagList(response.data)
             }).catch(error => {
                 console.log(error)
             })
-        } 
-      }, [videoSetting.source]);
+        }, [tagList]);
+
+    useEffect(()=>{
+        //init material list
+        if (videoSetting.source === 'materials' || videoSetting.source === 'mixed') {
+            instance.post('/material/search', {
+                'tagNames': selectedTags
+            }).then( res => {
+                console.log(''+ JSON.stringify(res.data.records))
+                let data = res.data.records
+                setMaterialList(res.data.records)
+            }).catch(error => {
+
+            })
+    }}, [videoSetting.source])    
+
+    useEffect(()=>{
+        //Init the background music list
+        instance.post('/material/musicList', {
+            'tagNames': selectedTags
+        }).then( res => {
+            console.log(''+ JSON.stringify(res.data.records))
+            setMusicList(res.data.records)
+        }).catch(error => {
+            console.log('music list ' + JSON.stringify(error))
+        })
+    }, [])
 
 
     const onScriptChange = (e) =>{
@@ -109,6 +210,23 @@ export default function CreateVideo() {
         })
     }
 
+    const onselectedBMG = (event) =>{
+        setAudioSetting({
+            'synthesis': audioSetting.synthesis,
+            'bgm': event.target.value
+        })
+
+        console.log("message: "+JSON.stringify(audioSetting))
+    }
+
+    const onSelectSynthesis = (event) =>{
+        setAudioSetting({
+            'synthesis': event.target.value,
+            'bgm': audioSetting.bgm
+        })
+        console.log("select Synthesis "+JSON.stringify(audioSetting))
+    }
+
     
 
     const submitVideoTask = ()=>{
@@ -152,10 +270,10 @@ export default function CreateVideo() {
                             <option value='mixed'>自有素材+AI生成</option>
                         </select>
                         {videoSetting.source === 'materials' || videoSetting.source === 'mixed' ? (
-                            <select multiple value={materialList} onChange={onSelectMaterials}>
+                            <select multiple value={videoSetting.materialList} onChange={onSelectMaterials}>
                                 {materialList.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
+                                    <option key={option.id} value={option.id}>
+                                        {option.name}
                                     </option>
                             ))}
                             </select>
@@ -167,25 +285,36 @@ export default function CreateVideo() {
                     <label>音频</label>
                     <div>
                         <label>配音声音</label>
-                        <select>
-                            <option value="option1">zh-CN-YunxiNeural-Male</option>
+                        <select value={audioSetting.synthesis} onChange={onSelectSynthesis}>
+                            {
+                                synthesisList.map(option =>  {
+                                    const index = (option.name+'-'+option.gender)
+                                    return (
+                                    <option value= {index}> {option.cnName}-{option.gender} </option>
+                                )})
+                            }
                         </select>
                     </div>
                     <label></label>
                     <div>
                         <label>背景音乐</label>
-                        <select>
-                            <option value="option1">无</option>
-                            <option value="option1">AI自动</option>
-                            <option value="option1">自有素材</option>
+                        <select value={audioSetting.bgm} onChange={onselectedBMG}> 
+                            <option value="nobgm">无</option>
+                            <option value="aibgm">AI自动</option>
+                            {
+                                musicList.map(option => (
+                                    <option value={option.id}>{option.name} </option>
+                                ))
+                            }
                         </select>
+
+
 
                     </div>
                 </div>
             </div>
             )
     }
-
 
     return (
         <>

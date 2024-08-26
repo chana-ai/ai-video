@@ -75,13 +75,6 @@ export default function Videos() {
       </div>)
   }
 
-  const createButtonDiv = ()=>{
-    return 
-    <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4"><div><Button onClick={ () => {
-      setCreateFlag(!createFlag);
-    } }>创建AI视频</Button></div></div>
-  }
-
   return (
     <>
       <Header title="Videos"></Header>
