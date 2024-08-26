@@ -1,0 +1,24 @@
+.pageHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  .actions {
+    display: flex;
+    gap: 10px;
+  }
+}
+
+.tableActions {
+  display: flex;
+  gap: 10px;
+}
+
+.pagination {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  font-weight: 400;
+}
