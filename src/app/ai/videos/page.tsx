@@ -16,6 +16,7 @@ import CreateVideo from './create'
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import instance from '@/lib/axios';
+import { useRouter } from 'next/navigation';
 
 
 export default function Videos() {
@@ -23,7 +24,7 @@ export default function Videos() {
   //Constroller data
   const [createFlag, setCreateFlag] = useState(false)
   const [viewFlag, setViewFlag] = useState(false)
-
+  const router = useRouter()
 
   //Data for rendering
   const [videos, setVideos] = useState([])
@@ -37,6 +38,7 @@ export default function Videos() {
 
   const videoData = [
     {
+      id: 100,
       title: 'Text to GenAI Video',
       status: 'PROCESSING',
       tags: ['登山', '跑步'],
@@ -47,6 +49,12 @@ export default function Videos() {
     },
     // Add more video data objects as needed
   ];
+
+  const videoDetail = (videoId) =>{
+      let path = `/ai/videos/view?videoId=${videoId}`
+      console.log(path)
+      router.push(path)
+  }
 
   const cardRender= (video, index) =>{
     
@@ -67,7 +75,7 @@ export default function Videos() {
                  <div>{video.tags}</div>
              </CardContent>
              <CardActions className="flex justify-center">
-                    <Button>查看</Button>
+                    <Button onClick={()=>{videoDetail(video.id)}}>查看</Button>
                     <Button>删除</Button>
               </CardActions>
           </Card>
