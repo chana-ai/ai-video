@@ -1,0 +1,90 @@
+.Root {
+  width: 460px;
+}
+
+.Field {
+  display: grid;
+  margin-bottom: 10px;
+}
+
+.Label {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 35px;
+  color: #000;
+}
+
+.Message {
+  font-size: 13px;
+  color: #000;
+  opacity: 0.8;
+}
+
+.Input,
+.Textarea {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 15px;
+  color: #000;
+  background-color: rgba(10, 10, 10, 0.1);
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 0px 1px;
+  &:hover {
+    box-shadow: 0 0 0 1px black;
+  }
+  &:focus {
+    box-shadow: 0 0 0 2px black;
+  }
+  &::selection {
+    background-color: var(--black-a6);
+    color: #000;
+  }
+}
+
+.Input {
+  padding: 0 10px;
+  height: 35px;
+  line-height: 1;
+}
+
+.Textarea {
+  resize: none;
+  padding: 10px;
+}
+
+.Button {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 0 15px;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 500;
+  height: 35px;
+  width: 100%;
+  background-color: #000;
+  color: #fff;
+  box-shadow: 0 2px 10px var(--black-a4);
+  &:hover {
+    background-color: var(--mauve-3);
+  }
+  &:focus {
+    box-shadow: 0 0 0 2px black;
+  }
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  button {
+    width: 40%;
+  }
+}

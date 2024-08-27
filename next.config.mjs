@@ -4,6 +4,16 @@ const nextConfig = {
   trailingSlash: false,
   // skipTrailingSlashRedirect: true,
   distDir: "dist",
+  async redirects() {
+    return [
+      // Basic redirect
+      {
+        source: "/",
+        destination: "/ai/dashboard",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
