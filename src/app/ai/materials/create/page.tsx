@@ -4,7 +4,9 @@ import React, { useState, useRef } from "react";
 
 import { instance } from "@/lib/axios";
 import { useRouter } from "next/navigation";
+import * as Form from "@radix-ui/react-form";
 import Header from "../../header";
+import styles from "./page.module.scss";
 
 export default function CreateMaterial() {
   const [name, setName] = useState("");
@@ -143,76 +145,115 @@ export default function CreateMaterial() {
         <div className="w-full text-3xl">
           <h1>上传素材</h1>
         </div>
-        <div className="w-full bg-gray-100 rounded-xl my-7 p-10">
-          <div>
-            <div className="mt-5">
-              <label>
-                名字:
-                <input type="text" value={name} onChange={handleNameChange} />
-              </label>
-            </div>
-            <div className="mt-5">
-              <label>
-                标签(用,区分):
-                <input type="text" value={tags} onChange={handleTagsChange} />
-              </label>
-            </div>
 
-            <div className="mt-7">
-              <input
-                type="file"
-                multiple
-                accept="image/*,video/*"
-                className="bg-blue-800 text-white mr-5"
-                onChange={handleFileUploadChange}
-                ref={fileUpload}
-              />
-              <button
-                className="bg-blue-800 text-white rounded-md py-1 px-4 hover:bg-green-700"
-                onClick={handleFileUpload}
+        <div className="w-full bg-gray-100 rounded-xl my-7 p-10">
+          <Form.Root className={styles.Root}>
+            <Form.Field className={styles.Field} name="email">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                }}
               >
-                Upload
-              </button>
-            </div>
-            <div className="mt-5">
-              {fileData &&
-                fileData.length > 0 &&
-                fileData.map((item: any, index: any) => {
-                  return (
-                    <div key={index}>
-                      {index + 1} - {item.name} -{" "}
-                      {fileUploadStatus &&
-                        fileUploadStatus.length &&
-                        "File Uploaded"}{" "}
-                    </div>
-                  );
-                })}
-            </div>
-            {/* <div>
-          {fileUploadStatus && fileUploadStatus.length && (
-            <div className="bg-green-800 text-white p-5 rounded-lg mt-5">File Uploaded</div>
-          )}
-        </div> */}
-            <div style={{ color: "red" }}>{errorMessage} </div>
-            <div>
-              <>
+                <Form.Label className={styles.Label}>Name</Form.Label>
+                <Form.Message className={styles.Message} match="valueMissing">
+                  Please enter your email
+                </Form.Message>
+                <Form.Message className={styles.Message} match="typeMismatch">
+                  Please provide a valid email
+                </Form.Message>
+              </div>
+              <Form.Control asChild>
+                <input
+                  type="text"
+                  className={styles.Input}
+                  value={name}
+                  onChange={handleNameChange}
+                />
+              </Form.Control>
+            </Form.Field>
+            <Form.Field className={styles.Field} name="question">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Form.Label className={styles.Label}>标签(用,区分)</Form.Label>
+                <Form.Message className={styles.Message} match="valueMissing">
+                  Please enter tag
+                </Form.Message>
+              </div>
+              <Form.Control asChild>
+                <input
+                  type="text"
+                  required
+                  value={tags}
+                  className={styles.Input}
+                  onChange={handleTagsChange}
+                />
+              </Form.Control>
+            </Form.Field>
+            <Form.Field className={styles.Field} name="question">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Form.Label className={styles.Label}>上传文件</Form.Label>
+                <Form.Message className={styles.Message} match="valueMissing">
+                  Please enter tag
+                </Form.Message>
+              </div>
+              <Form.Control asChild>
+                <input
+                  className={styles.Input}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleFileUploadChange}
+                  ref={fileUpload}
+                />
+              </Form.Control>
+              <div className="mt-5">
+                {fileData &&
+                  fileData.length > 0 &&
+                  fileData.map((item: any, index: any) => {
+                    return (
+                      <div key={index}>
+                        {index + 1} - {item.name} -{" "}
+                        {fileUploadStatus &&
+                          fileUploadStatus.length &&
+                          "File Uploaded"}{" "}
+                      </div>
+                    );
+                  })}
+              </div>
+            </Form.Field>
+            <div className={styles.buttons}>
+              <Form.Submit asChild>
                 <button
-                  className="bg-blue-800 text-white rounded-md py-1 px-4 hover:bg-green-700"
                   onClick={handleSubmit}
+                  className={styles.Button}
+                  style={{ marginTop: 10 }}
                 >
                   提交
-                </button>{" "}
-              </>
-              <>
-                <button
-                  className="bg-blue-800 text-white rounded-md py-1 px-4 hover:bg-green-700"
-                  onClick={handleCancel}
-                >
-                  取消
-                </button>{" "}
-              </>
+                </button>
+              </Form.Submit>
+
+              <button
+                onClick={handleCancel}
+                className={styles.Button}
+                style={{ marginTop: 10 }}
+              >
+                取消
+              </button>
             </div>
-          </div>
+          </Form.Root>
         </div>
       </div>
     </>

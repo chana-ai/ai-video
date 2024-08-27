@@ -15,7 +15,6 @@ import styles from "./materials.module.scss";
 
 import instance from "@/lib/axios";
 import { Card } from "@/components/ui/card";
-import { Text } from "@radix-ui/themes";
 import Link from "next/link";
 
 export default function Materials() {
@@ -104,7 +103,12 @@ export default function Materials() {
     return (
       <>
         <div className={styles.pageHeader}>
-          <div className={styles.title}>Material List</div>
+          <div className={styles.title}>
+            <input type="search" className={styles.search} />
+            <button type="button" className={styles.searchButton}>
+              搜索
+            </button>
+          </div>
           <div className={styles.actions}>
             <Link href={`/ai/materials/create`}>创建</Link>
             <Link href={`/ai/materials/createAI`}>新建AI素材</Link>
@@ -159,19 +163,19 @@ export default function Materials() {
               onClick={() => handlePageChange(materials.current - 1)}
               disabled={materials.current === 1}
             >
-              <Text size="2">上一页</Text>
+              <span size="2">上一页</span>
             </button>
             <span>
-              <Text size="2">
+              <span size="2">
                 第{materials.current}页 / 共{materials.total}页, 每页
                 {materials.size}条
-              </Text>
+              </span>
             </span>
             <button
               onClick={() => handlePageChange(materials.current + 1)}
               disabled={materials.current === materials.total}
             >
-              <Text size="2">下一页</Text>
+              <span size="2">下一页</span>
             </button>
           </div>
         </Card>

@@ -77,3 +77,39 @@
     box-shadow: 0 0 0 2px black;
   }
 }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  .cardImage {
+  }
+
+  .cardTitle {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  .cardInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cardStatus {
+    font-weight: 400;
+    font-size: 0.8rem;
+  }
+  .cardCreateTime {
+    font-weight: 400;
+    font-size: 0.8rem;
+  }
+  .cardTags {
+    font-size: 0.8rem;
+    span {
+      display: inline-flex;
+      margin-right: 3px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+      padding: 0 5px;
+    }
+  }
+}

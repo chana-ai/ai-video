@@ -274,6 +274,7 @@ export default function CreateAIMaterial() {
             <div className="flex items-center p-3 pt-0">
               <Button
                 size="sm"
+                type="button"
                 className="ml-auto gap-1.5"
                 onClick={generateImage}
               >
