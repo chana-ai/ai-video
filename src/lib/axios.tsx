@@ -32,8 +32,8 @@ instance.interceptors.request.use(config => {
 // 添加响应拦截器
 instance.interceptors.response.use(function (response) {
     //Here HttpCode: 200
-    if(response.data.code && response.data.code != 200){
-        //Monitor non-200 code response in the body
+    if(response.data.code && response.data.code != 0){
+        //Monitor non-200 code response in the body, including system runtime error. 
         /**  
          * switch(response.data.code){
          *  case 60x: 
@@ -47,7 +47,7 @@ instance.interceptors.response.use(function (response) {
 
 	return response.data;
   }, function (error) {
-	// Here                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+	// This error refers to network error (e.g., Readtimeout exceptio, connectionTimeout..)                                                                                                                                                                                                                                                                                                                                                                                                                       
 	return Promise.reject(error);
   });
 

@@ -214,7 +214,7 @@ export default function CreateMaterial() {
                   className={styles.Input}
                   type="file"
                   multiple
-                  accept="image/*,video/*"
+                  accept="image/*,video/*, audio/*"
                   onChange={handleFileUploadChange}
                   ref={fileUpload}
                 />

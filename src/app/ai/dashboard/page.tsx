@@ -3,6 +3,8 @@
 import { Card, Descriptions } from "antd";
 import Header from "../header";
 import { useEffect, useState } from "react";
+import instance from "@/lib/axios";
+
 
 export default function Dashboard() {
   const [summary, setSummary] = useState({
@@ -18,12 +20,12 @@ export default function Dashboard() {
     //TODO: 这块代码执行了两次
     console.log("1.....");
 
-    // instance.get('/dashboard/countVideoSummary').then((res) => {
-    //     setSummary(res.data)
-    //     console.log("UserSummary is: "+ JSON.stringify(res.data))
-    // }).catch(error => {
-    //   console.log(error);
-    // });
+    instance.get('/dashboard/video-summary').then((res) => {
+        setSummary(res.data)
+        console.log("UserSummary is: "+ JSON.stringify(res.data))
+    }).catch(error => {
+      console.log(error);
+    });
   }, []);
 
   useEffect(() => {

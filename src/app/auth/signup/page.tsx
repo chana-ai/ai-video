@@ -68,6 +68,7 @@ export default function LoginForm() {
         alert("创建账号成功，点击确认")
         router.push('/auth/login')
       }).catch((error) => {
+        setErrorMessage(error.message);
         console.log(error)
       });
       ;

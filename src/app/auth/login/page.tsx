@@ -2,7 +2,7 @@
 
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import instance from '@/lib/axios';
-import { setUserId, setCredentials, setPhone } from '@/lib/localcache';
+import { setUserId, setCredentials, setPhone, getCredentials} from '@/lib/localcache';
 
 import Link from "next/link";
 
@@ -23,13 +23,23 @@ export default function Login() {
   const handlePhoneChange= (e) => {
       setPhone(e.target.value)
   }
-
+  useEffect(() => {
+    const credentials = getCredentials();
+    if (credentials) {
+      router.push('/ai/dashboard');
+    }
+  }, [router]);
+  
   const handlePasswordChange = (e) => {
       setPassword(e.target.value)
   }
 
   const handleLogin = (event) => {
     event.preventDefault();
+    if (!phone || !password) {
+      setErrorMessage("请输入手机号和密码");
+      return;
+    }
 
     console.log("submit phone: " +  phone + "  password: "+ password)
     instance.post('/user/login', {
@@ -37,14 +47,14 @@ export default function Login() {
         'password': password      
     }).then(res => {
         console.log('login success '+ res.data);
-        const data = res.data.data;
-        const rPhone = data.phone;
+        const data = res.data;
+        const rPhone = data.phoneNumber;
         const rUserId = data.userId
         const rToken = data.token
         setCredentials(rToken)
         setUserId(rUserId);
         setPhone(rPhone);
-        router.push('/')
+        router.push('/ai/dashboard')
         
     }).catch( error => {
         console.log('Not success login with message '+ JSON.stringify(error));
