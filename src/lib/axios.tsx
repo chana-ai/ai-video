@@ -7,7 +7,7 @@ const HOST = process.env.PROD == "prod"?"":"http://localhost:8080";
 
 export const instance = axios.create({
     baseURL: `${HOST}`,
-    timeout: 10000,
+    timeout: 20000,
 });
 
 // 请求拦截处理 请求拦截 在请求拦截中可以补充请求相关的配置

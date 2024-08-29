@@ -20,12 +20,12 @@ import Link from "next/link";
 export default function Materials() {
   const [materials, setMaterials] = useState({
     records: [
-      {
-        id: 1,
-        name: "登山的照片",
-        tagName: "登山",
-        mode: "UPLOADED",
-      },
+      // {
+      //   id: 1,
+      //   name: "登山的照片",
+      //   tagName: "登山",
+      //   mode: "UPLOADED",
+      // },
     ],
     total: 1,
     size: 10,
@@ -40,11 +40,11 @@ export default function Materials() {
 
   useEffect(() => {
     //TODO: debug 影藏初始化
-    // instance.post('/material/search', {
-    // }).then((res)=>{
-    //   console.log("get result " + JSON.stringify(res.data))
-    //   setMaterials(res.data)
-    // })
+    instance.post('/material/search', {
+    }).then((res)=>{
+      console.log("get result " + JSON.stringify(res.data))
+      setMaterials(res.data)
+    })
   }, []);
 
   //删除某一条记录
@@ -91,13 +91,13 @@ export default function Materials() {
       });
   };
 
-  const handleCreateMaterial = () => {
-    setCreateFlag(!createFlag);
-  };
+  // const handleCreateMaterial = () => {
+  //   setCreateFlag(!createFlag);
+  // };
 
-  const handleCreateAIMaterial = () => {
-    setCreatAIFlag(!createAIFlag);
-  };
+  // const handleCreateAIMaterial = () => {
+  //   setCreatAIFlag(!createAIFlag);
+  // };
 
   const displayTable = () => {
     return (
@@ -136,7 +136,23 @@ export default function Materials() {
                     <div className="font-medium"> {material.name}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium"> {material?.tagNames}</div>
+                    <div className="font-medium relative group">
+                      {(() => {
+                        const tags = material?.tagNames;
+                        const displayTags = tags.slice(0, 2).join(', ');
+                        return (
+                          <>
+                            {displayTags}
+                            {tags.length > 2 && '...'}
+                            {tags.length > 2 && (
+                              <div className="absolute left-0 top-full mt-1 p-2 bg-white shadow-md rounded hidden group-hover:block z-10">
+                                {tags.join(', ')}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">

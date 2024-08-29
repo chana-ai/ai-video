@@ -24,12 +24,18 @@ export default function CreateAIMaterial() {
   const [name, setName] = useState("");
   const [tags, setTags] = useState("");
   const [size, setSize] = useState("");
-  const [inferenceSteps, setInferenceSteps] = useState(12);
+  const [inferenceSteps, setInferenceSteps] = useState(2);
   const [imageCount, setImageCount] = useState(1);
   const [promote, setPromote] = useState("");
 
   const [errorMessage, setErrorMessage] = useState("");
 
+//   [
+//     {
+//         "key": "1/material/2024-08-29/dsLfddxd/0cfcf6b8-752c-426c-a620-8dbafb5f18b9_00001_.png",
+//         "uri": "https://chana-video-dev.oss-cn-beijing.aliyuncs.com/1/material/2024-08-29/dsLfddxd/0cfcf6b8-752c-426c-a620-8dbafb5f18b9_00001_.png?Expires=1724933241&OSSAccessKeyId=LTAI5tRkoomnUcyefEXcP9nv&Signature=PMfQNUO3%2BkeKzHdjg6gmdqzN2qY%3D"
+//     }
+// ]
   //@TODO: Here for rendering， 如何进行render..
   const [images, setImages] = useState({
     uploadResults: [],
@@ -46,7 +52,7 @@ export default function CreateAIMaterial() {
 
   const router = useRouter();
 
-  const getDefaultSize = (key: string) => sizeMap[key] || "1024x1024";
+  const getDefaultSize = (key: string) => sizeMap[key] || "512x1024";
 
   let onNameChange = (e) => {
     setName(e.target.value);
@@ -91,18 +97,22 @@ export default function CreateAIMaterial() {
     instance
       .post("/material/text-to-images", textToImageRequest)
       .then((res) => {
-        console.log("res.data: " + res.data);
-        setImages(res.data);
+        console.log("res.data: " + JSON.stringify(res.data));
+        setImages({
+          uploadResults: res.data.uploadResults
+        });
+        console.log(images.uploadResults);
       })
       .catch((error) => {
-        setErrorMessage(error);
+        setErrorMessage(error.message);
       });
     return;
   };
 
-  let onCreateAIMaterial = () => {
-    let tagsNames = tags.split(",");
-    let keyList = images.map((item) => item.key);
+  const onCreateAIMaterial = () => {
+    let tagsNames = tags.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
+    let keyList = images.uploadResults.map((item) => item.key);
+    //let keyList = ["1/material/2024-08-29/dsLfddxd/0cfcf6b8-752c-426c-a620-8dbafb5f18b9_00001_.png"]
 
     let createAIRequest = {
       name: name,
@@ -120,7 +130,7 @@ export default function CreateAIMaterial() {
     instance
       .post("/material/add", createAIRequest)
       .then((res) => {
-        //Router to list页面。
+        window.location.href = "/ai/materials";
       })
       .catch((error) => {
         setErrorMessage(error.message);
@@ -144,7 +154,7 @@ export default function CreateAIMaterial() {
                 <Label htmlFor="name">名字</Label>
                 <Input
                   id="name"
-                  placeholder="Your Name"
+                  placeholder="Image Title"
                   onChange={onNameChange}
                 />
               </div>
@@ -227,9 +237,9 @@ export default function CreateAIMaterial() {
                   <Input
                     id="inferenceSteps"
                     type="number"
-                    min="10"
-                    max="20"
-                    placeholder="12"
+                    min="1"
+                    max="4"
+                    placeholder="1"
                     onChange={onInferenceStepChange}
                   />
                 </div>
@@ -239,7 +249,7 @@ export default function CreateAIMaterial() {
                     id="imageCount"
                     type="number"
                     min="1"
-                    max="4"
+                    max="2"
                     placeholder="1"
                     onChange={onImageCountChange}
                   />
@@ -248,15 +258,39 @@ export default function CreateAIMaterial() {
             </fieldset>
           </form>
           <div>
-            <Label> 确保图片不为空 </Label>
             <div style={{ color: "red" }}>{errorMessage} </div>
-            <Button onChange={onCreateAIMaterial}>创建素材</Button>
+            <Button onClick={onCreateAIMaterial}>创建素材</Button>
           </div>
         </div>
         <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">
           <Badge variant="outline" className="absolute right-3 top-3">
             Output
           </Badge>
+          {images.uploadResults.length > 0 && (
+          <div className="mt-4 flex justify-center items-center h-full">
+            {images.uploadResults.length === 1 ? (
+              <div className="w-full h-full flex justify-center items-center">
+                <img
+                  src={images.uploadResults[0].uri}
+                  alt="Generated image"
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            ) : images.uploadResults.length === 2 ? (
+              <div className="w-full h-full flex justify-between items-center">
+                {images.uploadResults.map((image, idx) => (
+                  <div key={idx} className="w-1/2 h-full flex justify-center items-center p-2">
+                    <img
+                      src={image.uri}
+                      alt={`Generated image ${idx + 1}`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          )}
           <div className="flex-1" />
           <form
             className="relative overflow-hidden rounded-lg border bg-background focus-within:ring-1 focus-within:ring-ring"

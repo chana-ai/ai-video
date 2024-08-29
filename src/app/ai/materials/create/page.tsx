@@ -39,20 +39,8 @@ export default function CreateMaterial() {
 
   // 创建逻辑
   const handleSubmit = () => {
-    /**
-     String name
-
-      String description
-
-      Integer mode
-
-      Map<String, Object> config
-
-      List<String> keys
-
-    List<String> tagNames
-    */
-    let tagsNames = tags.split(",");
+ 
+    let tagsNames = tags.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
 
     if (!fileUploadStatus) {
       setErrorMessage("文件未上传");
@@ -72,8 +60,7 @@ export default function CreateMaterial() {
       })
       .then((res) => {
         console.log("create success...");
-        //@TODO:  没有生效，当前页面是嵌入在  '/ai/materials'里面的。
-        router.push("/ai/materials");
+        window.location.href = "/ai/materials";
       })
       .catch((error) => {
         setErrorMessage(error);
@@ -103,6 +90,8 @@ export default function CreateMaterial() {
         alert(`一次上传文件大小不能超过 ${maxSize / 1024 / 1024}MB`);
         return;
       }
+      //re-enable upload button.
+      setFileUploadStatus(false)
       if (data.target.files.length > 0) {
         let fileData: any = [];
         for (let index = 0; index < data.target.files.length; index++) {
@@ -117,6 +106,11 @@ export default function CreateMaterial() {
   };
 
   const handleFileUpload = async () => {
+    if(fileData.length == 0){
+        alert('请选定文件上传')
+        return
+    }
+
     const formData = new FormData();
     fileData.map((item: any, index: any) => {
       formData.append(
@@ -125,21 +119,22 @@ export default function CreateMaterial() {
         fileUpload.current.files[index].name
       );
     });
-    const resultData = await instance.post("/material/upload", formData, {
+
+    const resultData = await instance.post('/material/upload', formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
     });
     console.log("resultData", resultData);
-    if (resultData.code == "200" && resultData.data.length == fileData.length) {
+    if (resultData.code == 0 && resultData.data.length == fileData.length) {
       setFileUploadStatus(resultData.data);
     }
-    setErrorMessage("");
-  };
+    setErrorMessage("")
+  }
 
   return (
     <>
-      <Header title="创建AI素材"></Header>
+      <Header title="创建素材"></Header>
 
       <div className="max-w-screen-xl mx-auto my-5">
         <div className="w-full text-3xl">
@@ -218,8 +213,16 @@ export default function CreateMaterial() {
                   onChange={handleFileUploadChange}
                   ref={fileUpload}
                 />
+                
               </Form.Control>
               <div className="mt-5">
+              <button
+                onClick={handleFileUpload}
+                className={`${styles.Button} ${styles.uploadButton}`}
+                style={{ marginTop: 10 }}
+                disabled={fileUploadStatus || !fileData || fileData.length === 0}              >
+                上传文件
+              </button>
                 {fileData &&
                   fileData.length > 0 &&
                   fileData.map((item: any, index: any) => {
@@ -235,6 +238,8 @@ export default function CreateMaterial() {
               </div>
             </Form.Field>
             <div className={styles.buttons}>
+
+             <div style={{ color: 'red' }}>{errorMessage} </div>
               <Form.Submit asChild>
                 <button
                   onClick={handleSubmit}
@@ -252,6 +257,7 @@ export default function CreateMaterial() {
               >
                 取消
               </button>
+
             </div>
           </Form.Root>
         </div>
