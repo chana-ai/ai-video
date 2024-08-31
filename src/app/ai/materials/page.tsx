@@ -16,8 +16,10 @@ import styles from "./materials.module.scss";
 import instance from "@/lib/axios";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 
 export default function Materials() {
+  const router = useRouter();
   const [materials, setMaterials] = useState({
     records: [
       // {
@@ -91,6 +93,11 @@ export default function Materials() {
       });
   };
 
+  const handleViewMaterial = (materialId: string) => {
+    router.push(`/ai/materials/view?materialId=${materialId}`);
+  };
+
+
   // const handleCreateMaterial = () => {
   //   setCreateFlag(!createFlag);
   // };
@@ -163,7 +170,7 @@ export default function Materials() {
                     <div className="font-medium"> {material?.updateTime}</div>
                   </TableCell>
                   <TableCell className={styles.tableActions}>
-                    <Button> Edit</Button>
+                    <Button onClick={() => handleViewMaterial(material.id)}> 查看</Button>
                     <Button onClick={() => deleteMaterial(material.id)}>
                       Delete
                     </Button>
@@ -199,6 +206,7 @@ export default function Materials() {
     );
   };
 
+ 
   return (
     <>
       <Header

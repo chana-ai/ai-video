@@ -32,7 +32,8 @@ export default function CreateVideo() {
   const [script, setScript] = useState("");
 
   /// 所有tag 列表, 前端显示使用
-  const [tagList, setTagList] = useState(["abc", "bcd"]);
+  /// List({id: 9, name: ' 可爱'})
+  const [tagList, setTagList] = useState([{id: 0, name: ""}]);
   /// 选中的tag.组装请求使用。
   const [selectedTags, setSelectedTags] = useState([]);
 
@@ -132,7 +133,7 @@ export default function CreateVideo() {
   useEffect(() => {
     // 获取当前用户的所有的 tag list
     instance
-      .get("/api/getTagList")
+      .get("/tags")
       .then((response) => {
         setTagList(response.data);
       })
@@ -148,7 +149,7 @@ export default function CreateVideo() {
       videoSetting.source === "mixed"
     ) {
       instance
-        .post("/material/search", {
+        .post("/tags/material", {
           tagNames: selectedTags,
         })
         .then((res) => {
@@ -160,20 +161,20 @@ export default function CreateVideo() {
     }
   }, [videoSetting.source]);
 
-  useEffect(() => {
-    //Init the background music list
-    instance
-      .post("/material/musicList", {
-        tagNames: selectedTags,
-      })
-      .then((res) => {
-        console.log("" + JSON.stringify(res.data.records));
-        setMusicList(res.data.records);
-      })
-      .catch((error) => {
-        console.log("music list " + JSON.stringify(error));
-      });
-  }, []);
+  // useEffect(() => {
+  //   //Init the background music list
+  //   instance
+  //     .post("/material/musicList", {
+  //       tagNames: selectedTags,
+  //     })
+  //     .then((res) => {
+  //       console.log("" + JSON.stringify(res.data.records));
+  //       setMusicList(res.data.records);
+  //     })
+  //     .catch((error) => {
+  //       console.log("music list " + JSON.stringify(error));
+  //     });
+  // }, []);
 
   const onScriptChange = (e) => {
     setScript(e.target.value);
@@ -288,19 +289,19 @@ export default function CreateVideo() {
           <Timeline
             items={[
               {
-                color: "green",
+                //color: "green",
                 children: (
                   <>
-                    <Card title="一、视频文案" bordered={false}>
+                    <Card title="一、主题-(你可以跳过这部分直接在提示词里面输入视频文案)" bordered={false}>
                       <Space
                         size={15}
                         direction="vertical"
                         style={{ display: "flex" }}
                       >
                         <Input.TextArea
-                          placeholder="请填写生成视频的文案..."
+                          placeholder="请用简单的一句话描述你的视频文案"
                           value={subject}
-                          rows={4}
+                          rows={1}
                         />
                         <div
                           style={{
@@ -310,7 +311,7 @@ export default function CreateVideo() {
                         >
                           <Button
                             size="large"
-                            style={{ width: "200px" }}
+                            style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
                             type="primary"
                             onClick={generateScript}
                           >
@@ -323,10 +324,9 @@ export default function CreateVideo() {
                 ),
               },
               {
-                color: "green",
                 children: (
                   <>
-                    <Card title="二、生成视频" bordered={false}>
+                    <Card title="二、视频文案" bordered={false}>
                       <Space
                         size={15}
                         direction="vertical"
@@ -346,20 +346,20 @@ export default function CreateVideo() {
                             allowClear
                             size="large"
                             style={{ width: "300px" }}
-                            placeholder="Please select"
-                            defaultValue={["a10", "c12"]}
-                            value={tagList}
-                            onChange={onTagSelected}
+                            placeholder="Please select tags"
+                            value={selectedTags}
+                            onChange={(values) => setSelectedTags(values)}
+                            dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
                           >
                             {tagList.map((tag) => (
-                              <Select.Option key={tag} value={tag}>
-                                {tag}
+                              <Select.Option key={tag.id} value={tag.name}>
+                                {tag.name}
                               </Select.Option>
                             ))}
                           </Select>
                           <Button
                             size="large"
-                            style={{ width: "200px" }}
+                            style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
                             type="primary"
                             onClick={submitVideoTask}
                           >
@@ -375,7 +375,7 @@ export default function CreateVideo() {
                 color: "green",
                 children: (
                   <>
-                    <Card title="三、高级设置" bordered={false}>
+                    <Card title="高级设置" bordered={false}>
                       <Collapse
                         size="large"
                         items={[
@@ -397,6 +397,7 @@ export default function CreateVideo() {
                                   <DescriptionsItem label="来源">
                                     <select
                                       value={videoSetting.source}
+                                      defaultValue='ai'
                                       onChange={onVideoSourceChange}
                                     >
                                       <option value="materials">

@@ -9,40 +9,43 @@ import instance from '@/lib/axios';
 
 export default function MaterialView(){
     const [isEditing, setIsEditing] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const searchParams = useSearchParams()
     const materialId = searchParams.get('materialId')
     const [material, setMaterial] = useState({
-      id: 9, 
-      name: '登山的视频',
-      tagNames: ['登山，测试"'],
-      description:'xxxx',
+      id: -1, 
+      name: '',
+      tagNames: [],
+      description:'',
       config:{},
-      uris: ["https://chana-video-dev.oss-cn-beijing.aliyuncs.com/1/material/2024-08-29/HuIdzZV7/exam9-2.png?Expires=1724938896&OSSAccessKeyId=LTAI5tRkoomnUcyefEXcP9nv&Signature=lnMJqo52eXgsRH4mjUwlzC4YLBQ%3D"],
+      uris: [],
       mode:'UPLOADED',
       createDate: '2024-01-01'
     })
 
-    const [inputTags, setInputTags] = useState([])
+    const [inputTags, setInputTags] = useState('')
 
     useEffect(() => {
-        const fecthMaterialData = async () => {
-          try {
-            const response = await fetch(`/ai/materials/get?${materialId}`);
-            const data = await response.json();
-            
-          } catch (error) {
-            console.error('Error fetching video data:', error);
+          if(!materialId){
+              setErrorMessage('material id should not be empty.')
+              return
           }
-        };
-    
-        if (materialId) {
-          fecthMaterialData();
-        }
+
+          instance.get(`/material/get`, {
+            params: { id: materialId }
+          }).then( res => {
+              setMaterial(res.data);
+              setInputTags(material.tagNames.join(', '));
+          }).catch(error => {
+              setErrorMessage(error)
+          })
+       
       }, [materialId]);
 
-    const onEditChange = ()=>{
-        setIsEditing(!isEditing)
+
+    const onEditChange = () => {
+      setIsEditing(!isEditing);
     }
 
     function buildMaterial(param: any) {
@@ -50,13 +53,15 @@ export default function MaterialView(){
       let obj = {
         ...material,
         ...param,
-        tagNames: inputTags 
       };
       setMaterial(obj) 
     }
 
     const onSave =() => {
         onEditChange()
+        const newTags = inputTags.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
+        buildMaterial({'tagNames': newTags})
+
         instance.post('/material/update', material)
             .then( res => {
                 console.log('update success')
@@ -68,8 +73,11 @@ export default function MaterialView(){
 
     const display = () =>{
       return <>
-            <h2 onDoubleClick={onEditChange}>{material.name}</h2>
-            <p  onDoubleClick={onEditChange}>{material.description}</p>
+           <div>
+                <div><Label className="font-bold">标题  </Label><span onDoubleClick={onEditChange}>{material.name}</span></div>
+                <div><Label className="font-bold">描述  </Label><span  onDoubleClick={onEditChange}>{material.description}</span></div>
+           </div>
+            
             <div className="material-tags">
               <h4>Tags:</h4>
               <div className="tag-list">
@@ -85,8 +93,8 @@ export default function MaterialView(){
       return (
         <>
           <div>
-            <h2><Input placeholder={material.name} onChange={(e) => buildMaterial({ 'name': e.target.value })} /></h2>
-            <p><Input placeholder={material.description} onChange={(e) => buildMaterial({ 'description': e.target.value })} /></p>
+            <div><Label className="font-bold">标题</Label><span><Input placeholder={material.name} onChange={(e) => buildMaterial({ 'name': e.target.value })} /></span></div>
+            <div><Label className="font-bold">描述</Label><span><Input placeholder={material.description} onChange={(e) => buildMaterial({ 'description': e.target.value })} /></span></div>
            
           </div>
           <div className="material-tags">
@@ -94,12 +102,9 @@ export default function MaterialView(){
             <Input
               type="text"
               className="tag-input"
-              placeholder="Add tags separated by commas..."
               value={material.tagNames.join(', ')}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const newTags = e.target.value.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
-                setInputTags(newTags)
-                //buildMaterial({ tagNames: newTags });
+                setInputTags(e.target.value)
               }}
             />
              <Button onClick={onSave}>保存</Button><></> <Button onClick={() => onEditChange()}>取消</Button>
@@ -111,39 +116,66 @@ export default function MaterialView(){
     return (
         <>
         {materialId?
-          <div className="video-player">
-          <div className="material-display">
-            {material.uris && material.uris.length > 0 && (
-              <div className={`grid grid-cols-${Math.min(material.uris.length, 2)} gap-4`}>
-                {material.uris.map((uri, index) => (
-                  <div key={index} className="material-item">
-                      <img src={uri} alt={`Material ${index + 1}`} className="w-full h-auto object-cover" />
+          <div className="container mx-auto p-4">
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Images</h3>
+                  {material.uris && material.uris.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {material.uris.map((uri, index) => (
+                        <div key={index} className="material-item relative">
+                          <img 
+                            src={uri} 
+                            alt={`Material ${index + 1}`} 
+                            className="w-full h-auto object-cover rounded-lg cursor-pointer"
+                            loading="lazy"
+                            onClick={() => {
+                              const img = document.createElement('img');
+                              img.src = uri;
+                              img.className = 'fixed top-0 left-0 w-full h-full object-contain z-50 bg-black bg-opacity-75';
+                              img.onclick = () => img.remove();
+                              document.body.appendChild(img);
+                            }}
+                          />
+                          <div className="absolute bottom-2 right-2 bg-white rounded-full p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                            </svg>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Details</h3>
+                  {isEditing ? editDisplay() : display()}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Mode</h3>
+                  <p>{material.mode === 'UPLOADED' ? '人工上传' : 'AI生成'}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Config</h3>
+                  <div className="h-[200px] w-full rounded-md border p-4 overflow-auto">
+                    <pre className="text-sm">
+                      <code>{JSON.stringify(material.config, null, 2)}</code>
+                    </pre>
                   </div>
-                ))}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Created</h3>
+                  <p>{material.createDate}</p>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="material-details">
-            <div>
-                {isEditing?editDisplay(): display()}
             </div>
-          
-
-
-            <h3>Material Details</h3>
-            <div className="material-config">
-              <h4>Config:</h4>
-              <pre>{JSON.stringify(material.config, null, 2)}</pre>
-            </div>
-            <div className="material-mode">
-              <h4>Mode:</h4>
-              <p>{material.mode === 'UPLOADED' ? '人工上传' : 'AI生成'}</p>
-            </div>    
           </div>
-        
-          <div><p className="video-createdate">创建时间：{material.createDate}</p></div>
-        </div>:null
-        }
+        :null}
         </>
       );
     

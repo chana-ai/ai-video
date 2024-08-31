@@ -93,29 +93,46 @@ export default function VideoDetail(){
           </>
     }
 
-
     return (
         <>
-        {videoId?
+        {videoId ? (
           <div className="video-player">
-          <video controls>
-            <source src={video.url} type="video/mp4" />
-          </video>
-          <div className="video-info">
-            <div>
-                {isEditing?editDisplay(): display()}
+            <div className="max-w-4xl mx-auto">
+              <video controls className="w-full h-auto max-h-[70vh] mb-4">
+                <source src={video.url} type="video/mp4" />
+              </video>
             </div>
-            
-            <div className="video-actions">
-              <Link href={video.url}>下载</Link>
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <div className="mb-4">
+                {isEditing ? editDisplay() : display()}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <h3 className="text-lg font-semibold mb-2">Video Details</h3>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Current Status:</p>
+                  <p className="font-medium">{video.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Creation Date:</p>
+                  <p className="font-medium">{video.createDate}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Completion Date:</p>
+                  <p className="font-medium">{video.completeDate}</p>
+                </div>
+                <div className="col-span-2">
+                   
+                    <Link href={video.url}>Download Video</Link>
+                  
+                </div>
+              </div>
             </div>
           </div>
-          <div><p className="video-createdate">当前状态：{video.status}</p></div>
-          <div><p className="video-createdate">创建时间：{video.createDate}</p></div>
-          <div><p className="video-createdate">完成时间：{video.completeDate}</p></div>
-        </div>:null
-        }
+        ) : null}
         </>
-      );
+    );
     
 }
