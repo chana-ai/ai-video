@@ -3,7 +3,7 @@ import {getCredentials, getUserId} from '@/lib/localcache';
 
 // const HOST = "http://localhost:8080"
 
-const HOST = process.env.PROD == "prod"?"":"http://localhost:8080";
+const HOST = process.env.PROD == "prod"?"":"http://localhost:8081";
 
 export const instance = axios.create({
     baseURL: `${HOST}`,

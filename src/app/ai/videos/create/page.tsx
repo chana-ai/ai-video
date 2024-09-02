@@ -145,7 +145,7 @@ export default function CreateVideo() {
   useEffect(() => {
     //init material list
     if (
-      videoSetting.source === "materials" ||
+      videoSetting.source === "local" ||
       videoSetting.source === "mixed"
     ) {
       instance
@@ -366,6 +366,7 @@ export default function CreateVideo() {
                             生成视频
                           </Button>
                         </Space>
+                        
                       </Space>
                     </Card>
                   </>
@@ -394,21 +395,22 @@ export default function CreateVideo() {
                                       <option value="9:16">9:16</option>
                                     </select>
                                   </DescriptionsItem>
-                                  <DescriptionsItem label="来源">
-                                    <select
+                                  <DescriptionsItem label="素材列表">
+                                    <div><select
                                       value={videoSetting.source}
                                       defaultValue='ai'
                                       onChange={onVideoSourceChange}
                                     >
-                                      <option value="materials">
+                                      <option value="local">
                                         自有素材
                                       </option>
                                       <option value="ai">AI生成</option>
                                       <option value="mixed">
                                         自有素材+AI生成
                                       </option>
-                                    </select>
-                                    {videoSetting.source === "materials" ||
+                                    </select> </div>
+                                    <div>
+                                    {videoSetting.source === "local" ||
                                     videoSetting.source === "mixed" ? (
                                       <select
                                         multiple
@@ -425,6 +427,7 @@ export default function CreateVideo() {
                                         ))}
                                       </select>
                                     ) : null}
+                                    </div>
                                   </DescriptionsItem>
                                 </Descriptions>
                               </>
