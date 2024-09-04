@@ -2,7 +2,7 @@
 
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import instance from '@/lib/axios';
-import { setUserId, setCredentials, setPhone, getCredentials} from '@/lib/localcache';
+import { setUserId, setCredentials, setLoginPhone, getCredentials} from '@/lib/localcache';
 
 import Link from "next/link";
 
@@ -53,7 +53,7 @@ export default function Login() {
         const rToken = data.token
         setCredentials(rToken)
         setUserId(rUserId);
-        setPhone(rPhone);
+        setLoginPhone(rPhone);
         router.push('/ai/dashboard')
         
     }).catch( error => {

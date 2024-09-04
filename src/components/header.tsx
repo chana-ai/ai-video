@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import HeaderAccount from "./header-account";
+import { getPhone } from "@/lib/localcache";
 
 export default function Header() {
   return (
@@ -105,8 +106,10 @@ export default function Header() {
             />
           </div>
         </form>
+        <div>Hello <h2>{getPhone()}</h2></div>
         <HeaderAccount />
       </div>
+      
     </header>
   );
 }

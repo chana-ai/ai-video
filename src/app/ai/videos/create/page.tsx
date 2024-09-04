@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 
-import { Textarea } from "@/components/ui/textarea";
 import Header from "../../header";
 
 import { instance } from "@/lib/axios";
@@ -18,118 +17,45 @@ import {
 } from "antd";
 import styles from "./page.module.scss";
 import DescriptionsItem from "antd/es/descriptions/Item";
+import { putCache, getCache } from "@/lib/localcache";
 
 export default function CreateVideo() {
-  //控制变量
-  const [showConfig, setShowConfig] = useState(false);
-
-  const onConfigToggle = () => {
-    setShowConfig(!showConfig);
-  };
-
+  
   //数据变量
+  const [name, setName] = useState('');
   const [subject, setSubject] = useState("");
   const [script, setScript] = useState("");
 
   /// 所有tag 列表, 前端显示使用
   /// List({id: 9, name: ' 可爱'})
   const [tagList, setTagList] = useState([{id: 0, name: ""}]);
+  const [synthesisList, setSynthesisList] = useState([])
   /// 选中的tag.组装请求使用。
   const [selectedTags, setSelectedTags] = useState([]);
 
-  const [videoSetting, setVideoSetting] = useState({
-    size: "16:9",
-    source: "",
-    materialList: [] as string[], /// 选中的素材列表。
-  });
-
   /// videoSetting中的 显示 素材链表的，前端显示使用
   const [materialList, setMaterialList] = useState([]);
+  const [videoSourceList, setVideoSourceList] = useState([]);
 
-  ///
+  //显示使用
   const [musicList, setMusicList] = useState([]);
-  let synthesisList = [
-    {
-      name: "zh-CN-XiaoxiaoNeural",
-      cnName: "晓晓神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-CN-XiaoyiNeural",
-      cnName: "小怡神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-CN-YunjianNeural",
-      cnName: "云剑神经网络",
-      gender: "Male",
-    },
-    {
-      name: "zh-CN-YunxiNeural",
-      cnName: "云熙神经网络",
-      gender: "Male",
-    },
-    {
-      name: "zh-CN-YunxiaNeural",
-      cnName: "云夏神经网络",
-      gender: "Male",
-    },
-    {
-      name: "zh-CN-YunyangNeural",
-      cnName: "云阳神经网络",
-      gender: "Male",
-    },
-    {
-      name: "zh-CN-liaoning-XiaobeiNeural",
-      cnName: "辽宁小北神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-CN-shaanxi-XiaoniNeural",
-      cnName: "陕西小妮神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-HK-HiuGaaiNeural",
-      cnName: "晓佳神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-HK-HiuMaanNeural",
-      cnName: "晓满神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-HK-WanLungNeural",
-      cnName: "云龙神经网络",
-      gender: "Male",
-    },
-    {
-      name: "zh-TW-HsiaoChenNeural",
-      cnName: "晓晨神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-TW-HsiaoYuNeural",
-      cnName: "晓语神经网络",
-      gender: "Female",
-    },
-    {
-      name: "zh-TW-YunJheNeural",
-      cnName: "云杰神经网络",
-      gender: "Male",
-    },
-  ];
+
+  const [videoSetting, setVideoSetting] = useState({
+    size: "16:9",
+    source: 'ai',
+    materialIds: [] as string[], /// 选中的素材列表。
+  });
 
   const [audioSetting, setAudioSetting] = useState({
-    synthesis: synthesisList[0].name + "-" + synthesisList[0].gender,
-    bgm: "",
+    synthesis: null,
+    bgm: 0,
   });
+ 
 
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
 
-  //Init tag list
+  //Initilization
   useEffect(() => {
     // 获取当前用户的所有的 tag list
     instance
@@ -140,128 +66,106 @@ export default function CreateVideo() {
       .catch((error) => {
         console.log(error);
       });
-  }, [tagList]);
 
-  useEffect(() => {
-    //init material list
-    if (
-      videoSetting.source === "local" ||
-      videoSetting.source === "mixed"
-    ) {
-      instance
-        .post("/tags/material", {
-          tagNames: selectedTags,
-        })
-        .then((res) => {
-          console.log("" + JSON.stringify(res.data.records));
-          let data = res.data.records;
-          setMaterialList(res.data.records);
-        })
-        .catch((error) => {});
+    instance.get('/audio/synthesis').then(res=>{
+       setSynthesisList(res.data)
+    }).catch(err => {
+        console.error(err)
+    })
+
+    instance.get('/video/source').then(res=>{
+        setVideoSourceList(res.data)
+    }).catch(err => {
+        console.error(err)
+    })
+  }, []);
+
+
+  const onSelectVideoSource = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    buildVideoSetting({ source: e.target.value });
+    if (e.target.value === 'ai') {
+      console.log("Selected source is AI or no tags are selected.");
+    } else {
+       const cacheKey = JSON.stringify(selectedTags.sort());
+      // const cachedMaterials = getCache(cacheKey);
+
+      // if (cachedMaterials) {
+      //   setMaterialList(cachedMaterials);
+      // } else {
+        instance
+          .post("/material/search", {
+            tagNames: selectedTags,
+          })
+          .then((res) => {
+            const filteredRecords = res.data.records.map(({ id, name }) => ({ id, name }));
+            console.log(JSON.stringify(filteredRecords));
+            setMaterialList(filteredRecords);
+            //putCache(cacheKey, res.data.records);
+          })
+          .catch((error) => {});
+      //}
     }
-  }, [videoSetting.source]);
-
-  // useEffect(() => {
-  //   //Init the background music list
-  //   instance
-  //     .post("/material/musicList", {
-  //       tagNames: selectedTags,
-  //     })
-  //     .then((res) => {
-  //       console.log("" + JSON.stringify(res.data.records));
-  //       setMusicList(res.data.records);
-  //     })
-  //     .catch((error) => {
-  //       console.log("music list " + JSON.stringify(error));
-  //     });
-  // }, []);
-
-  const onScriptChange = (e) => {
-    setScript(e.target.value);
   };
-
-  const onTagSelected = (event) => {
-    console.log("---" + event.target);
-    //TODO 前端如何渲染。
-    const newSelectedOptions = Array.from(event.target.selectedOptions).map(
-      (option) => option.value
-    );
-    setTagList(newSelectedOptions);
-  };
-
+ 
   const generateScript = () => {
+    
+    if (!subject){
+      setErrorMessage('subject can not be empty.')
+    }
+    setErrorMessage('')
+
     instance
-      .post("/video/generateScript", {
+      .post("/video/script", {
         subject: subject,
       })
       .then((res) => {
-        setScript(res.data);
+        setScript(res.data.script);
       })
       .catch((error) => {
         console.error(error);
+        setErrorMessage(error)
+
       });
   };
 
-  //Advanced => Video Setting
-  const onVideoSizeChange = (e) => {
-    alert(e.target.value);
-    setVideoSetting({
-      size: e.target.value,
-      source: videoSetting.source,
-      materialList: videoSetting.materialList,
-    });
-  };
+  const buildVideoSetting = (param) =>{
+      console.log("---", param)
+      const newVideoSetting = {
+        size: param.size || videoSetting.size,
+        source: param.source || videoSetting.source,
+        materialIds: param.materialIds || videoSetting.materialIds,
+      };
 
-  const onVideoSourceChange = (event) => {
-    console.log("video source: " + event.target.value);
-    setVideoSetting({
-      size: videoSetting.size,
-      source: event.target.value,
-      materialList: videoSetting.materialList,
-    });
-  };
+      setVideoSetting(newVideoSetting);
+  }
 
-  const onSelectMaterials = (event) => {
-    const selectedMaterials = Array.from(event.target.selectedOptions).map(
-      (option) => option.value
-    );
-    console.log("select materials: " + selectedMaterials);
-    setVideoSetting({
-      size: videoSetting.size,
-      source: videoSetting.source,
-      materialList: selectedMaterials as string[],
-    });
-  };
+  const buildAudioSetting = (param) =>{
+      const newAudioSetting = {
+        synthesis: param.synthesis || audioSetting.synthesis,
+        bgm: param.bgm || audioSetting.bgm,
+      };
 
-  const onselectedBMG = (event) => {
-    setAudioSetting({
-      synthesis: audioSetting.synthesis,
-      bgm: event.target.value,
-    });
-
-    console.log("message: " + JSON.stringify(audioSetting));
-  };
-
-  const onSelectSynthesis = (event) => {
-    setAudioSetting({
-      synthesis: event.target.value,
-      bgm: audioSetting.bgm,
-    });
-    console.log("select Synthesis " + JSON.stringify(audioSetting));
-  };
+      setAudioSetting(newAudioSetting);
+  }
 
   const submitVideoTask = () => {
+    setErrorMessage('')
+    if (!name) {
+      setErrorMessage('Name cannot be empty.');
+      return;
+    }
     let data = {
-      scriptDTO: {
+      name: name,
+      script: {
         subject: subject,
         script: script,
-        tags: selectedTags,
+        tagNames: selectedTags,
       },
-      videoDTO: videoSetting,
-      audioDTO: audioSetting,
+      video: videoSetting,
+      audio: audioSetting,
     };
     instance
-      .post("/video/addVideo", data)
+      .post("/video/add", data)
       .then((res) => {
         //router back to
         router.push("/ai/videos");
@@ -271,16 +175,119 @@ export default function CreateVideo() {
       });
   };
 
-  let config = () => {
-    return (
-      <div className="video-settings">
-        <div className="video-setting-item"></div>
-        <div className="video-setting-item"></div>
-      </div>
-    );
-  };
+  const advancedSetting= ()=>{
 
-  const description = "This is a description.";
+    return (
+      <div>
+        <Collapse
+          size="large"
+          items={[
+            {
+              key: "1",
+              label: "高级视频设置",
+              children: (
+                <>
+                  <Descriptions>
+                    <DescriptionsItem label="画面比例">
+                      <select
+                        value={videoSetting.size}
+                        onChange={(e) => buildVideoSetting({ size: e.target.value })}
+                      >
+                        <option value="16:9">16 : 9</option>
+                        <option value="9:16">9 : 16</option>
+                      </select>
+                    </DescriptionsItem>
+                    <DescriptionsItem label="视频素材种类">
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div>
+                          <select
+                            value={videoSetting.source}
+                            onChange={onSelectVideoSource}
+                          >
+                            {videoSourceList.map((source) => (
+                              <option key={source.value} value={source.value}>
+                                {source.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      
+                      </div>
+                    </DescriptionsItem>
+                    <DescriptionsItem label="视频素材选择">
+                    <div  style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ marginTop: '20px' }}>
+                              {videoSetting.source === "local" ||
+                              videoSetting.source === "mixed" ? (
+                                <select
+                                  multiple
+                                  name="请选择一个或者多个素材"
+                                  value={videoSetting.materialIds}
+                                  onChange={(e) => {
+                                       buildVideoSetting({ materialIds: Array.from(e.target.selectedOptions).map(option => option.value) })
+                                  }}
+                                >
+                                  {materialList.map((option) => (
+                                    <option
+                                      key={option.id}
+                                      value={option.id}
+                                    >
+                                      {option.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : null}
+                            </div>
+                    </div>
+                    </DescriptionsItem>
+
+                  </Descriptions>
+                </>
+              ),
+            },
+            {
+              key: "2",
+              label: "高级音频设置",
+              children: (
+                <>
+                  <Descriptions>
+                    <DescriptionsItem label="配音声音">
+                      <select
+                        value={audioSetting.synthesis || 'zh-CN-YunxiaNeural'} 
+                        onChange={(e) => buildAudioSetting({ synthesis: e.target.value })}
+                      >
+                        {synthesisList.map((option, key) => {
+                          return (
+                            <option value={option.value} key={key}>
+                              {option.label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </DescriptionsItem>
+                    <DescriptionsItem label="背景音乐">
+                      <select
+                        value={audioSetting.bgm}
+                        onChange={(e) => buildAudioSetting({ bgm: e.target.value })}
+                      >
+                        <option value="nobgm">无</option>
+                        <option value="aibgm">AI自动</option>
+                        {/* {musicList.map((option, key) => (
+                          <option value={option.id} key={key}>
+                            {option.name}{" "}
+                          </option>
+                        ))} */}
+                      </select>
+                    </DescriptionsItem>
+                  </Descriptions>
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
+  );
+  }
   return (
     <>
       <Header title="Create Video"></Header>
@@ -288,27 +295,86 @@ export default function CreateVideo() {
         <Card title="快速生成视频">
           <Timeline
             items={[
+              // {
+              //   //color: "green",
+              //   children: (
+              //     <>
+              //       <Card title="一、主题-(你可以跳过这部分直接在提示词里面输入视频文案)" bordered={false}>
+              //         <Space
+              //           size={15}
+              //           direction="vertical"
+              //           style={{ display: "flex" }}
+              //         >
+              //           <Input.TextArea
+              //             placeholder="请用简单的一句话描述你的视频文案"
+              //             value={subject}
+              //             rows={1}
+              //             onChange={(e) => setSubject(e.target.value)}
+              //           />
+              //           <div
+              //             style={{
+              //               display: "flex",
+              //               flexDirection: "row-reverse",
+              //             }}
+              //           >
+              //             <Button
+              //               size="large"
+              //               style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
+              //               type="primary"
+              //               onClick={generateScript}
+              //             >
+              //               生成文案
+              //             </Button>
+              //           </div>
+              //         </Space>
+              //       </Card>
+              //     </>
+              //   ),
+              // },
               {
-                //color: "green",
                 children: (
                   <>
-                    <Card title="一、主题-(你可以跳过这部分直接在提示词里面输入视频文案)" bordered={false}>
+                  { /*<Card> */}
+                    {/* <Card {title="二、视频文案" bordered={false}}> */}
                       <Space
                         size={15}
                         direction="vertical"
                         style={{ display: "flex" }}
                       >
-                        <Input.TextArea
-                          placeholder="请用简单的一句话描述你的视频文案"
-                          value={subject}
-                          rows={1}
-                        />
+                      <label>标题<label style={{ color: 'red' }}>*</label></label>
+                      
+                      <Input
+                        id="title"
+                        placeholder="请输入视频标题"
+                        value={name}
+                        onChange={(e) => setName(e.target.value.substring(0, 30))}
+                        maxLength={30}
+                        style={{ width: '30%' }}
+                      />
+                      <Space
+                        size={15}
+                        direction="vertical"
+                        style={{ display: "flex" }}
+                      ></Space>
+                        <Space
+                        size={15}
+                        direction="vertical"
+                        style={{ display: "flex" }}
+                        >
+                        <label> 文案提示词 </label>
                         <div
                           style={{
                             display: "flex",
-                            flexDirection: "row-reverse",
+                            justifyContent: "space-between",
                           }}
                         >
+                          <Input.TextArea
+                            placeholder="请用简单的一句话描述你的视频文案"
+                            value={subject}
+                            rows={1}
+                            onChange={(e) => setSubject(e.target.value)}
+                            style={{ flex: 1, marginRight: '10px' }}
+                          />
                           <Button
                             size="large"
                             style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
@@ -319,28 +385,19 @@ export default function CreateVideo() {
                           </Button>
                         </div>
                       </Space>
-                    </Card>
-                  </>
-                ),
-              },
-              {
-                children: (
-                  <>
-                    <Card title="二、视频文案" bordered={false}>
-                      <Space
-                        size={15}
-                        direction="vertical"
-                        style={{ display: "flex" }}
-                      >
-                        <Input.TextArea
+                       <label></label>
+                       <label><label style={{ color: 'red' }}>*</label>文案(你可以直接编辑，也可以通过主题生成文案)</label> <Input.TextArea
                           id="script"
                           placeholder="generate or input your script here"
                           value={script}
-                          onChange={onScriptChange}
+                          onChange={(e) => setScript(e.target.value)}
                           rows={4}
                         />
 
+                        <label>标签<label style={{ color: 'red' }}>*</label></label>
                         <Space className={styles.spaceBetween}>
+                          
+                          
                           <Select
                             mode="multiple"
                             allowClear
@@ -357,6 +414,7 @@ export default function CreateVideo() {
                               </Select.Option>
                             ))}
                           </Select>
+                          <label style={{ color: 'red' }}>{errorMessage}</label>
                           <Button
                             size="large"
                             style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
@@ -366,119 +424,16 @@ export default function CreateVideo() {
                             生成视频
                           </Button>
                         </Space>
-                        
+                        <div>
+                            {(advancedSetting() )}
+
+                        </div>
                       </Space>
-                    </Card>
+                    { /*</Card>  */}
                   </>
                 ),
               },
-              {
-                color: "green",
-                children: (
-                  <>
-                    <Card title="高级设置" bordered={false}>
-                      <Collapse
-                        size="large"
-                        items={[
-                          {
-                            key: "1",
-                            label: "视频设置",
-                            children: (
-                              <>
-                                <Descriptions>
-                                  <DescriptionsItem label="画面比例">
-                                    <select
-                                      value={videoSetting.size}
-                                      onChange={onVideoSizeChange}
-                                    >
-                                      <option value="16:9">16:9</option>
-                                      <option value="9:16">9:16</option>
-                                    </select>
-                                  </DescriptionsItem>
-                                  <DescriptionsItem label="素材列表">
-                                    <div><select
-                                      value={videoSetting.source}
-                                      defaultValue='ai'
-                                      onChange={onVideoSourceChange}
-                                    >
-                                      <option value="local">
-                                        自有素材
-                                      </option>
-                                      <option value="ai">AI生成</option>
-                                      <option value="mixed">
-                                        自有素材+AI生成
-                                      </option>
-                                    </select> </div>
-                                    <div>
-                                    {videoSetting.source === "local" ||
-                                    videoSetting.source === "mixed" ? (
-                                      <select
-                                        multiple
-                                        value={videoSetting.materialList}
-                                        onChange={onSelectMaterials}
-                                      >
-                                        {materialList.map((option) => (
-                                          <option
-                                            key={option.id}
-                                            value={option.id}
-                                          >
-                                            {option.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    ) : null}
-                                    </div>
-                                  </DescriptionsItem>
-                                </Descriptions>
-                              </>
-                            ),
-                          },
-                          {
-                            key: "2",
-                            label: "音频设置",
-                            children: (
-                              <>
-                                <Descriptions>
-                                  <DescriptionsItem label="配音声音">
-                                    <select
-                                      value={audioSetting.synthesis}
-                                      onChange={onSelectSynthesis}
-                                    >
-                                      {synthesisList.map((option, key) => {
-                                        const index =
-                                          option.name + "-" + option.gender;
-                                        return (
-                                          <option value={index} key={key}>
-                                            {option.cnName}-{option.gender}{" "}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </DescriptionsItem>
-                                  <DescriptionsItem label="背景音乐">
-                                    <select
-                                      value={audioSetting.bgm}
-                                      onChange={onselectedBMG}
-                                    >
-                                      <option value="nobgm">无</option>
-                                      <option value="aibgm">AI自动</option>
-                                      {musicList.map((option, key) => (
-                                        <option value={option.id} key={key}>
-                                          {option.name}{" "}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </DescriptionsItem>
-                                </Descriptions>
-                              </>
-                            ),
-                          },
-                        ]}
-                      />
-                    </Card>
-                  </>
-                ),
-              },
+              
             ]}
           />
         </Card>

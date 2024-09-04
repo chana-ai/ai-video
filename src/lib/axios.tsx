@@ -1,5 +1,5 @@
 import axios from "axios";
-import {getCredentials, getUserId} from '@/lib/localcache';
+import {getCredentials, getUserId, clearCache} from '@/lib/localcache';
 
 // const HOST = "http://localhost:8080"
 
@@ -42,12 +42,19 @@ instance.interceptors.response.use(function (response) {
          * }
          */
         console.log("Some business exception: " + JSON.stringify(response.data));
+        if(response.data.code === '401') {
+            clearCache();
+            window.location.href = "/auth/login";
+        }
         return Promise.reject({'message': response.data.message});
     }
 
 	return response.data;
   }, function (error) {
-	// This error refers to network error (e.g., Readtimeout exceptio, connectionTimeout..)                                                                                                                                                                                                                                                                                                                                                                                                                       
+	// This error refers to network error (e.g., Readtimeout exceptio, connectionTimeout..)       
+    if (error.message.includes("RR_NETWORK")) {
+        localStorage.clear();
+    }                                                                                                                                                                                                                                                                                                                                                                                                                
 	return Promise.reject(error);
   });
 

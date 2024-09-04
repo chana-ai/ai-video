@@ -9,9 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CircleUser } from "lucide-react";
+import { getPhone, clearCache } from "@/lib/localcache";
+import instance from "@/lib/axios";
+
+
 
 export default function HeaderAccount() {
   const isLoigedIn = true; // Replace with actual login status
+
+  const logout = () =>{
+      instance.post('/user/logout').then( res => {
+          clearCache();
+          window.location.href = "/auth/login";
+      });
+  }
   return (
     <>
       {!isLoigedIn && (
@@ -35,12 +46,12 @@ export default function HeaderAccount() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem disabled>
               <Link href="/settings">Settings</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuItem disabled>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}

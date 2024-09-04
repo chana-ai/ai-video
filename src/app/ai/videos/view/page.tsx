@@ -15,31 +15,22 @@ export default function VideoDetail(){
 
     const searchParams = useSearchParams()
     const videoId = searchParams.get('videoId')
-    const [video, setVideo] = useState({
-        url: "http://www.baidu.com", 
-        title: "视频题目",
-        description: "测试用的",
-        tags: ['travel', 'moutaining'],
-        downlink: '',
-        status: 'comeplete',
-        createDate: '2024-01-01 20:08:00',
-        completeDate: '2024-01-02 20:10:00 '
-    })
+    const [video, setVideo] = useState({})
 
     useEffect(() => {
-        const fetchVideoData = async () => {
-          try {
-            const response = await fetch(`/ai/videos/get?${videoId}`);
-            const data = await response.json();
-            setVideo(data);
-          } catch (error) {
-            console.error('Error fetching video data:', error);
-          }
-        };
-    
-        if (videoId) {
-          fetchVideoData();
+        if (!videoId){
+          console.error("Missing paraeter videoId, and stop")
+          return 
         }
+
+        instance.get(`/video/get?id=${videoId}`)
+        .then(response => {
+          setVideo(response.data);
+        })
+        .catch(error => {
+          console.error('Error fetching video data:', error);
+        });
+       
       }, [videoId]);
 
     const onEditChange = ()=>{
@@ -68,10 +59,10 @@ export default function VideoDetail(){
 
     const display = () =>{
       return <>
-            <h2 onDoubleClick={onEditChange}>{video.title}</h2>
+            <h2 onDoubleClick={onEditChange}>{video.name}</h2>
             <p  onDoubleClick={onEditChange}>{video.description}</p>
             <div className="video-tags">
-              {video.tags.map((tag, index) => (
+              {video.tagNames && video.tagNames.map((tag, index) => (
                 <span key={tag} className="tag">{tag}</span>
               ))}
             </div>
@@ -81,12 +72,12 @@ export default function VideoDetail(){
     const editDisplay = ()=>{
       return <>
           <div>
-              <h2><Input placeholder={video.title} onChange={(e)=> buildVideo({'title': e.target.value})} /></h2>
+              <h2><Input placeholder={video.name} onChange={(e)=> buildVideo({'title': e.target.value})} /></h2>
               <p><Input placeholder={video.description}  onChange={(e)=> buildVideo({'description': e.target.value})}/></p>
               <Button onClick={onSave}>保存</Button><></> <Button onClick={()=>onEditChange()}>取消</Button>
           </div>
               <div className="video-tags">
-                {video.tags.map((tag, index) => (
+                {video.tagNames && video.tagNames.map((tag, index) => (
                   <span key={tag} className="tag">{tag}</span>
                 ))}
               </div>
@@ -99,7 +90,7 @@ export default function VideoDetail(){
           <div className="video-player">
             <div className="max-w-4xl mx-auto">
               <video controls className="w-full h-auto max-h-[70vh] mb-4">
-                <source src={video.url} type="video/mp4" />
+                {video.uris && video.uris.length > 0 && <source src={video.uris[0]} type="video/mp4" />}
               </video>
             </div>
             <div className="bg-white shadow-md rounded-lg p-6">
