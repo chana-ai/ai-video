@@ -20,7 +20,7 @@ export default function Login() {
 
   const router = useRouter();
 
-  const handlePhoneChange= (e) => {
+  const handlePhoneChange= (e: { target: { value: React.SetStateAction<string>; }; }) => {
       setPhone(e.target.value)
   }
   useEffect(() => {
@@ -30,11 +30,11 @@ export default function Login() {
     }
   }, [router]);
   
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e: { target: { value: React.SetStateAction<string>; }; }) => {
       setPassword(e.target.value)
   }
 
-  const handleLogin = (event) => {
+  const handleLogin = (event: { preventDefault: () => void; }) => {
     event.preventDefault();
     if (!phone || !password) {
       setErrorMessage("请输入手机号和密码");

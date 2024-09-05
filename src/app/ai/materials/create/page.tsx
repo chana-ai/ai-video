@@ -28,12 +28,12 @@ export default function CreateMaterial() {
   const maxFiles = 5; // 限制文件个数
   const maxSize = 10 * 1024 * 1024; // 限制总文件大小为10MB
 
-  const handleNameChange = (e) => {
+  const handleNameChange = (e: { target: { value: React.SetStateAction<string>; }; }) => {
     setName(e.target.value);
   };
 
   // 处理标签输入
-  const handleTagsChange = (e) => {
+  const handleTagsChange = (e: { target: { value: React.SetStateAction<string>; }; }) => {
     setTags(e.target.value);
   };
 
@@ -46,8 +46,8 @@ export default function CreateMaterial() {
       setErrorMessage("文件未上传");
       return;
     }
-    let keyList = fileUploadStatus.map((item) => item.key);
-    if (tagsNames.len == 0 || name == "" || !fileUploadStatus) {
+    let keyList = fileUploadStatus.map((item: { key: any; }) => item.key);
+    if (tagsNames.length == 0 || name == "" || !fileUploadStatus) {
       setErrorMessage("请填写参数");
       return;
     }
@@ -126,7 +126,7 @@ export default function CreateMaterial() {
       },
     });
     console.log("resultData", resultData);
-    if (resultData.code == 0 && resultData.data.length == fileData.length) {
+    if (resultData.data.code == "0" && resultData.data.length == fileData.length) {
       setFileUploadStatus(resultData.data);
     }
     setErrorMessage("")

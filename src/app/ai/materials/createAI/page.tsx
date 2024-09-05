@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { SetStateAction, useState } from "react";
 import { instance } from "@/lib/axios";
 import { useRouter } from "next/navigation";
 import Header from "../../header";
@@ -38,7 +38,7 @@ export default function CreateAIMaterial() {
 // ]
   //@TODO: Here for rendering， 如何进行render..
   const [images, setImages] = useState({
-    uploadResults: [],
+    uploadResults: [{"key": "", "uri": ""}],
   });
 
   const sizeMap = {
@@ -52,12 +52,12 @@ export default function CreateAIMaterial() {
 
   const router = useRouter();
 
-  const getDefaultSize = (key: string) => sizeMap[key] || "512x1024";
+  const getDefaultSize = (key: string) => (sizeMap as any)[key] || "512x1024";
 
-  let onNameChange = (e) => {
+  let onNameChange = (e: { target: { value: SetStateAction<string>; }; }) => {
     setName(e.target.value);
   };
-  let onTagsChange = (e) => {
+  let onTagsChange = (e: { target: { value: SetStateAction<string>; }; }) => {
     setTags(e.target.value);
   };
   let onSizeChange = (size: string) => {
@@ -65,13 +65,13 @@ export default function CreateAIMaterial() {
 
     setSize(size);
   };
-  let onInferenceStepChange = (e) => {
+  let onInferenceStepChange = (e: any) => {
     setInferenceSteps(e.target.value);
   };
-  let onImageCountChange = (e) => {
+  let onImageCountChange = (e: any) => {
     setImageCount(e.target.value);
   };
-  let onPromoteChange = (e) => {
+  let onPromoteChange = (e: any) => {
     setPromote(e.target.value);
   };
 
@@ -111,7 +111,7 @@ export default function CreateAIMaterial() {
 
   const onCreateAIMaterial = () => {
     let tagsNames = tags.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
-    let keyList = images.uploadResults.map((item) => item.key);
+    let keyList = images.uploadResults.map((item) => item.key).filter(Boolean);
     //let keyList = ["1/material/2024-08-29/dsLfddxd/0cfcf6b8-752c-426c-a620-8dbafb5f18b9_00001_.png"]
 
     let createAIRequest = {
@@ -169,7 +169,7 @@ export default function CreateAIMaterial() {
                     id="size"
                     className="items-start [&_[data-description]]:hidden"
                   >
-                    <SelectValue placeholder="选择图片大小" value={size} />
+                    <SelectValue placeholder="选择图片大小" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem

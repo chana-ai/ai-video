@@ -50,11 +50,11 @@ export default function Videos() {
   //   // Add more video data objects as needed
   // ];
 
-  const videoDetail = (videoId) =>{
+  const videoDetail = (videoId: string) =>{
       let path = `/ai/videos/view?videoId=${videoId}`
       router.push(path)
   }
-  const removeVideo = (videoId) => {
+  const removeVideo = (videoId: string) => {
       const isConfirmed = window.confirm("请确认是否需要删除当前记录?");
       if (!isConfirmed) {
         return
@@ -62,7 +62,7 @@ export default function Videos() {
        //Remove video. 
       instance.get('/video/delete', {params: {id: videoId}})
         .then(res=>{
-          const updatedVideos = videos.filter(video => video.id !== videoId);
+          const updatedVideos = videos.filter((video: { id: string }) => video.id !== videoId);
           setVideos(updatedVideos);
         }).catch(error =>{
             alert(error)
@@ -70,7 +70,7 @@ export default function Videos() {
       alert('Remove success')
   } 
 
-  const cardRender = (video, index) => {
+  const cardRender = (video: { id: string; name: string; status: string; createTime: string; tagNames: string[]; screenshotUri: string; }, index: number) => {
     return (
       <div>
         <Card x-chunk="dashboard-01-chunk-0">

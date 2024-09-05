@@ -37,28 +37,30 @@ export const putCache = (cacheKey: string, value: Array<any>) => {
 }
 
 export const getCache = (cacheKey: string) => {
-    const cachedTime = parseInt(localStorage.getItem(`${cacheKey}-time`), 10);
+    const cachedTimeString = localStorage.getItem(`${cacheKey}-time`);
+    const cachedTime = cachedTimeString ? parseInt(cachedTimeString, 10) : null;
     const now = Date.now();
     if (cachedTime && now - cachedTime < 30000) { // 30 seconds
-        return JSON.parse(localStorage.getItem(cacheKey));
+        const cacheValueString = localStorage.getItem(cacheKey);
+        return cacheValueString ? JSON.parse(cacheValueString) : null;
     } else {
         return null;
     }
 }
-export const checkAndRemoveExpiredCache = () => {
-    const now = Date.now();
-    Object.keys(localStorage).forEach(key => {
-        console.log('check thread....')
-        if (key.endsWith('-time')) {
-            const cachedTime = parseInt(localStorage.getItem(key), 10);
-            if (cachedTime && now - cachedTime > 30000) { // 30 seconds
-                const cacheKey = key.replace('-time', '');
-                localStorage.removeItem(cacheKey);
-                localStorage.removeItem(key);
-            }
-        }
-    });
-}
+// export const checkAndRemoveExpiredCache = () => {
+//     const now = Date.now();
+//     Object.keys(localStorage).forEach(key => {
+//         console.log('check thread....')
+//         if (key.endsWith('-time')) {
+//             const cachedTime = parseInt(localStorage.getItem(key), 10);
+//             if (cachedTime && now - cachedTime > 30000) { // 30 seconds
+//                 const cacheKey = key.replace('-time', '');
+//                 localStorage.removeItem(cacheKey);
+//                 localStorage.removeItem(key);
+//             }
+//         }       
+//     });
+// }
 
 // Initial code to launch check every 2 minutes in the browser
 //setInterval(checkAndRemoveExpiredCache, 120000); // 120000ms = 2 minutes

@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { useEffect, useState } from "react";
+import { SetStateAction, useEffect, useState } from "react";
 import {instance } from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 
@@ -26,11 +26,11 @@ export default function LoginForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter()
 
-  const onPhoneChange = (e) => {
+  const onPhoneChange = (e: { target: { value: SetStateAction<string>; }; }) => {
     setPhone(e.target.value)
   }
 
-  const onEmailChange = (e) => {
+  const onEmailChange = (e: { target: { value: SetStateAction<string>; }; }) => {
     setEmail(e.target.value);
   }
 
@@ -43,15 +43,15 @@ export default function LoginForm() {
 
   }, [confirmPassword, password])
    
-  const onConfirmPasswordChanged = (e) => {
+  const onConfirmPasswordChanged = (e: { target: { value: SetStateAction<string>; }; }) => {
     setConfirmPassword(e.target.value)
   }
   
-  const onPasswordChange = (e) => {
+  const onPasswordChange = (e: { target: { value: SetStateAction<string>; }; }) => {
     setPassword(e.target.value)
   }
 
-  const createUser = async (event) =>{
+  const createUser = async (event: { preventDefault: () => void; }) =>{
     event.preventDefault();
     if (password != confirmPassword) {
       setErrorMessage('两次密码不一致');

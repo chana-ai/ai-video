@@ -24,12 +24,12 @@ export default function Header() {
         >
           Dashboard
         </Link>
-        <Link
+        {/* <Link
           href="/ai/playground"
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
           Playground
-        </Link>
+        </Link> */}
         <Link
           href="#"
           className="text-muted-foreground transition-colors hover:text-foreground"

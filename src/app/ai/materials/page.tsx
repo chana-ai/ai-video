@@ -22,12 +22,13 @@ export default function Materials() {
   const router = useRouter();
   const [materials, setMaterials] = useState({
     records: [
-      // {
-      //   id: 1,
-      //   name: "登山的照片",
-      //   tagName: "登山",
-      //   mode: "UPLOADED",
-      // },
+      {
+         id: 1,
+         name: "",
+         tagNames: [],
+         mode: "UPLOADED",
+         updateTime:""
+       },
     ],
     total: 1,
     size: 10,
@@ -50,7 +51,7 @@ export default function Materials() {
   }, []);
 
   //删除某一条记录
-  const deleteMaterial = (materialId) => {
+  const deleteMaterial = (materialId: string) => {
     // 使用confirm弹出确认对话框
     const isConfirmed = window.confirm("请确认是否需要删除当前记录?");
 
@@ -61,7 +62,7 @@ export default function Materials() {
         .then((res) => {
           console.log("Remove success..");
           const updatedItems = materials.records.filter(
-            (item) => item.id !== materialId
+            (item) => item.id.toString() !== materialId
           );
           let updateMaterials = {
             records: updatedItems,
@@ -80,7 +81,7 @@ export default function Materials() {
   };
 
   //分页使用 TODO 测试。
-  const handlePageChange = (index: any) => {
+  const handlePageChange = (index: number) => {
     instance
       .post("/material/search", {
         tagNames: tags,
@@ -170,8 +171,8 @@ export default function Materials() {
                     <div className="font-medium"> {material?.updateTime}</div>
                   </TableCell>
                   <TableCell className={styles.tableActions}>
-                    <Button onClick={() => handleViewMaterial(material.id)}> 查看</Button>
-                    <Button onClick={() => deleteMaterial(material.id)}>
+                    <Button onClick={() => handleViewMaterial(String(material.id))}> 查看</Button>
+                    <Button onClick={() => deleteMaterial(String(material.id))}>
                       Delete
                     </Button>
                   </TableCell>
@@ -186,10 +187,10 @@ export default function Materials() {
               onClick={() => handlePageChange(materials.current - 1)}
               disabled={materials.current === 1}
             >
-              <span size="2">上一页</span>
+              <span >上一页</span>
             </button>
             <span>
-              <span size="2">
+              <span >
                 第{materials.current}页 / 共{materials.total}页, 每页
                 {materials.size}条
               </span>
@@ -198,7 +199,7 @@ export default function Materials() {
               onClick={() => handlePageChange(materials.current + 1)}
               disabled={materials.current === materials.total}
             >
-              <span size="2">下一页</span>
+              <span >下一页</span>
             </button>
           </div>
         </Card>

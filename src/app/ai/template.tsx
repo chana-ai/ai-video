@@ -47,7 +47,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 Dashboard
               </TooltipContent>
             </Tooltip>
-            <Tooltip>
+            {/* <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/ai/playground">
                   <Button
@@ -63,7 +63,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
               <TooltipContent side="right" sideOffset={5}>
                 Playground
               </TooltipContent>
-            </Tooltip>
+            </Tooltip> */}
 
             <Tooltip>
               <TooltipTrigger asChild>

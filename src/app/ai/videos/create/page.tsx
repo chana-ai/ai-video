@@ -29,13 +29,13 @@ export default function CreateVideo() {
   /// 所有tag 列表, 前端显示使用
   /// List({id: 9, name: ' 可爱'})
   const [tagList, setTagList] = useState([{id: 0, name: ""}]);
-  const [synthesisList, setSynthesisList] = useState([])
+  const [synthesisList, setSynthesisList] = useState([{'value':"", 'label':""}])
   /// 选中的tag.组装请求使用。
   const [selectedTags, setSelectedTags] = useState([]);
 
   /// videoSetting中的 显示 素材链表的，前端显示使用
-  const [materialList, setMaterialList] = useState([]);
-  const [videoSourceList, setVideoSourceList] = useState([]);
+  const [materialList, setMaterialList] = useState([{'id':"", 'name': ''}]);
+  const [videoSourceList, setVideoSourceList] = useState([{"value": "", "label":""}]);
 
   //显示使用
   const [musicList, setMusicList] = useState([]);
@@ -97,7 +97,7 @@ export default function CreateVideo() {
             tagNames: selectedTags,
           })
           .then((res) => {
-            const filteredRecords = res.data.records.map(({ id, name }) => ({ id, name }));
+            const filteredRecords = res.data.records.map(({ id, name }: { id: string; name: string }) => ({ id, name }));
             console.log(JSON.stringify(filteredRecords));
             setMaterialList(filteredRecords);
             //putCache(cacheKey, res.data.records);
@@ -128,7 +128,7 @@ export default function CreateVideo() {
       });
   };
 
-  const buildVideoSetting = (param) =>{
+  const buildVideoSetting = (param: { source?: any; size?: any; materialIds?: any; }) =>{
       console.log("---", param)
       const newVideoSetting = {
         size: param.size || videoSetting.size,
@@ -139,7 +139,7 @@ export default function CreateVideo() {
       setVideoSetting(newVideoSetting);
   }
 
-  const buildAudioSetting = (param) =>{
+  const buildAudioSetting = (param: { synthesis?: any; bgm?: any; }) =>{
       const newAudioSetting = {
         synthesis: param.synthesis || audioSetting.synthesis,
         bgm: param.bgm || audioSetting.bgm,
