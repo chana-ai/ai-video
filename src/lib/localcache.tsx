@@ -1,34 +1,42 @@
+"use client";
+
+import { useEffect, useState } from 'react';
 
 const USER_ID = "userId";
 const CREDENTIALS = "credentials";
 const PHONE = "phone";
 
-export const setUserId = (userId: string) =>{
-    localStorage.setItem(USER_ID, userId);
-}
+export const SetItem = (key: string, value: string) => {
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(key, value);
+        }
+    }, [key, value]);
+};
 
-export const getUserId = () => {
-    return localStorage.getItem(USER_ID)
-}
+export const setUserId = (userId: string) => SetItem(USER_ID, userId);
+export const setCredentials = (credential: string) => SetItem(CREDENTIALS, credential);
+export const setLoginPhone = (phone: string) => SetItem(PHONE, phone);
 
-export const getCredentials = ()=>{
-    return localStorage.getItem(CREDENTIALS);
+const GetItem = (key:string)=>{
+  
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(key);
+        }
+        return ""
+  ;
 }
-
-export const setCredentials = (credential: string) =>{
-    localStorage.setItem(CREDENTIALS, credential);
+const Clear=()=>{
+    useEffect(()=>{
+        if (typeof window !== 'undefined') {
+            localStorage.clear()
+        }
+    })
 }
-
-export const setLoginPhone = (phone: string)=>{
-    localStorage.setItem(PHONE, phone);
-}
-export const getPhone = () =>{
-    return localStorage.getItem(PHONE);
-}
-
-export const clearCache = () =>{
-    localStorage.clear()
-}
+export const getUserId = () => GetItem(USER_ID);
+export const getCredentials = () => GetItem(CREDENTIALS);
+export const getPhone = () => GetItem(PHONE);
+export const clearCache = () => Clear()
 
 export const putCache = (cacheKey: string, value: Array<any>) => {
     const now = Date.now();
@@ -36,17 +44,17 @@ export const putCache = (cacheKey: string, value: Array<any>) => {
     localStorage.setItem(`${cacheKey}-time`, now.toString());
 }
 
-export const getCache = (cacheKey: string) => {
-    const cachedTimeString = localStorage.getItem(`${cacheKey}-time`);
-    const cachedTime = cachedTimeString ? parseInt(cachedTimeString, 10) : null;
-    const now = Date.now();
-    if (cachedTime && now - cachedTime < 30000) { // 30 seconds
-        const cacheValueString = localStorage.getItem(cacheKey);
-        return cacheValueString ? JSON.parse(cacheValueString) : null;
-    } else {
-        return null;
-    }
-}
+// export const getCache = (cacheKey: string) => {
+//     const cachedTimeString = localStorage.getItem(`${cacheKey}-time`);
+//     const cachedTime = cachedTimeString ? parseInt(cachedTimeString, 10) : null;
+//     const now = Date.now();
+//     if (cachedTime && now - cachedTime < 30000) { // 30 seconds
+//         const cacheValueString = localStorage.getItem(cacheKey);
+//         return cacheValueString ? JSON.parse(cacheValueString) : null;
+//     } else {
+//         return null;
+//     }
+// }
 // export const checkAndRemoveExpiredCache = () => {
 //     const now = Date.now();
 //     Object.keys(localStorage).forEach(key => {

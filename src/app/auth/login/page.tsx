@@ -25,7 +25,7 @@ export default function Login() {
   }
   useEffect(() => {
     const credentials = getCredentials();
-    if (credentials) {
+    if (credentials !== undefined) {
       router.push('/ai/dashboard');
     }
   }, [router]);

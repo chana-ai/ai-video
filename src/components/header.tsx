@@ -106,7 +106,7 @@ export default function Header() {
             />
           </div>
         </form>
-        <div>Hello <h2>{getPhone()}</h2></div>
+        <div>Hello <h2></h2></div>
         <HeaderAccount />
       </div>
       

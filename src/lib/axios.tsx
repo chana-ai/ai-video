@@ -16,8 +16,8 @@ instance.interceptors.request.use(config => {
     // config 请求的所有信息
     // console.log(config);
     // 响应成功的返回
-   let  token  =  getCredentials();
-    if( token!=""){
+    const  token  =  getCredentials();
+    if(token !== ""){
         console.log("token "+token)
         config.headers['satoken'] = token
         config.headers['userId'] = getUserId()    

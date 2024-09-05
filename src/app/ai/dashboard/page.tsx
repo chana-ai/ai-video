@@ -45,7 +45,7 @@ export default function Dashboard() {
     <>
       <Header title="Dashboard"></Header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div>Hello {getPhone()}</div>
+        <div>Hello </div>
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
           <Card title="视频总数">
             <Descriptions title={`Total: ${summary.total?summary.total:0}`} colon={false}>
