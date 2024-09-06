@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/card";
 import styles from "./page.module.scss";
 
-import CreateVideo from "./create/page";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+
 import instance from "@/lib/axios";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';

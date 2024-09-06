@@ -1,18 +1,43 @@
 'use client'
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+import React, { Suspense, useState, useEffect } from 'react';
+//import { Button } from "@/components/ui/button";
+import {Button} from "antd";
 import { Link } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import instance from '@/lib/axios';
 
+
+interface MaterialIdProps {
+  setMaterialId: (id: string) => void;
+}
+
+function MaterialInitialization({ setMaterialId }: MaterialIdProps) {
+    const searchParams = useSearchParams();
+    const materialId = searchParams.get('materialId') ?? '';
+
+    useEffect(() => {
+        if (typeof materialId === 'string') {
+            setMaterialId(materialId);
+        }
+    }, [materialId, setMaterialId]);
+
+    console.log(`Material ID: ${materialId}`);
+    console.log(`Search Params: ${searchParams}`);
+
+    return (
+        <div>
+            {/* Your component content */}
+        </div>
+    );
+}
+
 export default function MaterialView(){
     const [isEditing, setIsEditing] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-
-    const searchParams = useSearchParams()
-    const materialId = searchParams.get('materialId')
+    const [materialId, setMaterialId] = useState('')
+   
     const [material, setMaterial] = useState({
       id: -1, 
       name: '',
@@ -28,10 +53,9 @@ export default function MaterialView(){
 
     useEffect(() => {
           if(!materialId){
-              setErrorMessage('material id should not be empty.')
+              //setErrorMessage('material id should not be empty.')
               return
           }
-
           instance.get(`/material/get`, {
             params: { id: materialId }
           }).then( res => {
@@ -115,6 +139,8 @@ export default function MaterialView(){
 
     return (
         <>
+        <Suspense fallback={<div>Loading...</div>}>
+              <MaterialInitialization setMaterialId={setMaterialId} />
         {materialId?
           <div className="container mx-auto p-4">
             <div className="bg-white shadow-md rounded-lg p-6">
@@ -176,6 +202,7 @@ export default function MaterialView(){
             </div>
           </div>
         :null}
+        </Suspense>
         </>
       );
     

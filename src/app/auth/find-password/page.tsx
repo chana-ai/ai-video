@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -43,12 +45,10 @@ export default function FindPassword() {
             </div>
             <Input id="password" type="password" required />
           </div>
-          <Button type="submit" className="w-full">
+          <Button  className="w-full">
             Find Password
           </Button>
-          <Button variant="outline" className="w-full">
-            Login with Google
-          </Button>
+          
         </div>
         <div className="mt-4 text-center text-sm">
           Don&apos;t have an account?{" "}

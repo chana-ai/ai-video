@@ -6,7 +6,7 @@ import { setUserId, setCredentials, setLoginPhone, getCredentials} from '@/lib/l
 
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "antd";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {useRouter} from 'next/navigation';
@@ -87,7 +87,7 @@ export default function Login() {
             <Input id="password" type="password" value= {password}  onChange={handlePasswordChange}  required />
           </div>
           <div style={{ color: 'red' }}>{errorMessage} </div>
-          <Button type="submit" className="w-full"  onClick={handleLogin} >
+          <Button className="w-full"  onClick={handleLogin} >
             登录
           </Button>
         </div>

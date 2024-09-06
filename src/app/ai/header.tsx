@@ -1,3 +1,5 @@
+"use client";
+
 import HeaderAccount from "@/components/header-account";
 
 export default function Header({

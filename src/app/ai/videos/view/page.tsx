@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 //import { Button } from "@/components/ui/button";
 import { Link, Tags } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -17,13 +17,35 @@ import {
 } from "antd";
 import { Label } from '@radix-ui/react-dropdown-menu';
 
+// interface VideoProps {
+//   setVideoId: (id: string) => void;
+interface VideoPropInitializationProps {
+  setVideoId: (id: string) => void;
+}
 
+function VideoPropInitialization({ setVideoId }: VideoPropInitializationProps) {
+    const searchParams = useSearchParams();
+    const videoId = searchParams.get('videoId') ?? '';
+
+    useEffect(() => {
+        if (typeof videoId === 'string') {
+          setVideoId(videoId);
+        }
+    }, [videoId, setVideoId]);
+
+    console.log(`video ID: ${videoId}`);
+    console.log(`Search Params: ${searchParams}`);
+
+    return (
+        <div>
+            {/* Your component content */}
+        </div>
+    );
+}
 
 export default function VideoDetail(){
     const [isEditing, setIsEditing] = useState(false);
-
-    const searchParams = useSearchParams()
-    const videoId = searchParams.get('videoId')
+    const [videoId, setVideoId] = useState('')
     const [video, setVideo] = useState({
       id: videoId,
       name: '',
@@ -37,7 +59,7 @@ export default function VideoDetail(){
 
     useEffect(() => {
         if (!videoId){
-          console.error("Missing paraeter videoId, and stop")
+          //console.error("Missing paraeter videoId, and stop")
           return 
         }
 
@@ -118,6 +140,8 @@ export default function VideoDetail(){
     return (
         <>
         <Header title="视频详情"></Header>
+        <Suspense fallback={<div>Loading...</div>}>
+              <VideoPropInitialization setVideoId={setVideoId} />
         {videoId ? (
           <div className="p-4 flex flex-col items-center"> {/* Centering the content */}
           <Card className="rounded-lg shadow-lg w-full max-w-3xl"> {/* Set max width for the card */}
@@ -155,6 +179,7 @@ export default function VideoDetail(){
           </Card>
         </div>
         ) : null}
+        </Suspense>
         </>
     );
     

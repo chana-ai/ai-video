@@ -3,8 +3,8 @@
 import { Bird, CornerDownLeft, Rabbit } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
+//import { Button } from "@/components/ui/button";
+import {Button} from "antd";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { Textarea } from "@/components/ui/textarea";
 import { SetStateAction, useState } from "react";
 import { instance } from "@/lib/axios";
@@ -37,10 +38,9 @@ export default function CreateAIMaterial() {
 //     }
 // ]
   //@TODO: Here for rendering， 如何进行render..
-  const [images, setImages] = useState({
-    uploadResults: [{"key": "", "uri": ""}],
+  const [images, setImages] = useState<{ uploadResults: { pathName: string; uri: string }[] }>({
+    uploadResults: [],
   });
-
   const sizeMap = {
     "1:1": "1024x1024",
     "1:2": "512x1024",
@@ -111,7 +111,7 @@ export default function CreateAIMaterial() {
 
   const onCreateAIMaterial = () => {
     let tagsNames = tags.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
-    let keyList = images.uploadResults.map((item) => item.key).filter(Boolean);
+    let pathNames = images.uploadResults.map((item: {pathName: string, uri: string}) => item.pathName);
     //let keyList = ["1/material/2024-08-29/dsLfddxd/0cfcf6b8-752c-426c-a620-8dbafb5f18b9_00001_.png"]
 
     let createAIRequest = {
@@ -124,7 +124,8 @@ export default function CreateAIMaterial() {
         batchSize: imageCount,
         numberInferenceSteps: inferenceSteps,
       },
-      keys: keyList,
+      pathNames: pathNames,
+      type: 'PICTURE'
     };
 
     instance
@@ -259,7 +260,7 @@ export default function CreateAIMaterial() {
           </form>
           <div>
             <div style={{ color: "red" }}>{errorMessage} </div>
-            <Button onClick={onCreateAIMaterial}>创建素材</Button>
+            <button onClick={onCreateAIMaterial}>创建素材</button>
           </div>
         </div>
         <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">
@@ -307,8 +308,6 @@ export default function CreateAIMaterial() {
             />
             <div className="flex items-center p-3 pt-0">
               <Button
-                size="sm"
-                type="button"
                 className="ml-auto gap-1.5"
                 onClick={generateImage}
               >

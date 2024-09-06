@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "antd";
 import {
   Card,
   CardContent,
@@ -115,7 +115,7 @@ export default function LoginForm() {
           
           </div>
           <div style={{ color: 'red' }}>{errorMessage} </div>
-          <Button type="submit" className="w-full" onClick={createUser}>
+          <Button className="w-full" onClick={createUser}>
             Create an account
           </Button>
         </div>

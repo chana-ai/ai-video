@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import * as Form from "@radix-ui/react-form";
 import Header from "../../header";
 import styles from "./page.module.scss";
-
+import {Button} from "antd";
 export default function CreateMaterial() {
   const [name, setName] = useState("");
   const [tags, setTags] = useState(""); // 存储标签
@@ -46,7 +46,7 @@ export default function CreateMaterial() {
       setErrorMessage("文件未上传");
       return;
     }
-    let keyList = fileUploadStatus.map((item: { key: any; }) => item.key);
+    let pathNames = fileUploadStatus.map((item: { pathName: string; }) => item.pathName);
     if (tagsNames.length == 0 || name == "" || !fileUploadStatus) {
       setErrorMessage("请填写参数");
       return;
@@ -54,9 +54,10 @@ export default function CreateMaterial() {
     instance
       .post("/material/add", {
         name: name,
+        type: 'PICTURE',
         tagNames: tagsNames,
         mode: 0,
-        keys: keyList,
+        pathNames: pathNames,
       })
       .then((res) => {
         console.log("create success...");
@@ -126,7 +127,7 @@ export default function CreateMaterial() {
       },
     });
     console.log("resultData", resultData);
-    if (resultData.data.code == "0" && resultData.data.length == fileData.length) {
+    if (resultData.code == "0" && resultData.data.length == fileData.length) {
       setFileUploadStatus(resultData.data);
     }
     setErrorMessage("")
@@ -209,20 +210,21 @@ export default function CreateMaterial() {
                   className={styles.Input}
                   type="file"
                   multiple
-                  accept="image/*,video/*, audio/*"
+                  accept="image/*"
                   onChange={handleFileUploadChange}
                   ref={fileUpload}
                 />
                 
               </Form.Control>
               <div className="mt-5">
-              <button
+              <Button
                 onClick={handleFileUpload}
-                className={`${styles.Button} ${styles.uploadButton}`}
-                style={{ marginTop: 10 }}
+                size="large"
+                style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
+                type="primary"
                 disabled={fileUploadStatus || !fileData || fileData.length === 0}              >
                 上传文件
-              </button>
+              </Button>
                 {fileData &&
                   fileData.length > 0 &&
                   fileData.map((item: any, index: any) => {
@@ -241,22 +243,22 @@ export default function CreateMaterial() {
 
              <div style={{ color: 'red' }}>{errorMessage} </div>
               <Form.Submit asChild>
-                <button
+                <Button
                   onClick={handleSubmit}
                   className={styles.Button}
                   style={{ marginTop: 10 }}
                 >
                   提交
-                </button>
+                </Button>
               </Form.Submit>
 
-              <button
+              <Button
                 onClick={handleCancel}
                 className={styles.Button}
                 style={{ marginTop: 10 }}
               >
                 取消
-              </button>
+              </Button>
 
             </div>
           </Form.Root>

@@ -110,7 +110,8 @@ export default function CreateVideo() {
   const generateScript = () => {
     
     if (!subject){
-      setErrorMessage('subject can not be empty.')
+      alert('文案提示词不能为空')
+      return
     }
     setErrorMessage('')
 
@@ -124,7 +125,6 @@ export default function CreateVideo() {
       .catch((error) => {
         console.error(error);
         setErrorMessage(error)
-
       });
   };
 
