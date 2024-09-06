@@ -121,15 +121,17 @@ export default function CreateMaterial() {
       );
     });
 
-    const resultData = await instance.post('/material/upload', formData, {
+    instance.post('/material/upload', formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    });
-    console.log("resultData", resultData);
-    if (resultData.code == "0" && resultData.data.length == fileData.length) {
-      setFileUploadStatus(resultData.data);
-    }
+    }).then( resultData => {
+      console.log("resultData", resultData);
+      //if (resultData.code == "0" && resultData.data.length == fileData.length) {
+         setFileUploadStatus(resultData.data);
+      //}
+    })
+    
     setErrorMessage("")
   }
 
