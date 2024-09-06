@@ -3,7 +3,8 @@ const nextConfig = {
   output: "export",
   trailingSlash: false,
   // skipTrailingSlashRedirect: true,
-  distDir: "dist",
+  //distDir: "dist",
+
   async redirects() {
     return [
       // Basic redirect
@@ -16,7 +17,6 @@ const nextConfig = {
   },
   //Optimize build package process
   swcMinify: true,
-  revalidate: 60, // Revalidate pages every 60 seconds
   webpack: (config, { isServer }) => {
     // if (!isServer) {
     //   config.optimization.splitChunks.maxInitialRequests = 10;
@@ -27,7 +27,7 @@ const nextConfig = {
     };
     return config;
   },
-  reactStrictMode: true,
+  //reactStrictMode: true,
 };
 
 export default nextConfig;
