@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export",
+//  output: "export",
+  output: "standalone",
+
   trailingSlash: false,
   // skipTrailingSlashRedirect: true,
-  //distDir: "dist",
+  ///distDir: "dist",
 
   async redirects() {
     return [
