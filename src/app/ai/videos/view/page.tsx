@@ -164,7 +164,7 @@ export default function VideoDetail(){
                 <div className="grid grid-cols-1 gap-4"> {/* Changed to single column layout */}
                   <div>
                     <p className="text-sm text-gray-600">当前状态:</p>
-                    <p className={`font-medium ${video.status === '处理失败' ? 'text-red-500' : video.status === '成功完成' ? 'text-green-500' : ''}`}>{video.status}</p>
+                    <p className="font-medium">{video.status}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">处理时间</p>
