@@ -45,6 +45,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: config the .env
+      run: | 
+        echo "NEXT_PUBLIC_HOST="http://video.chana.ai"" > .env
+                
     # 1.1 Login to ACR
     - name: Login to ACR with the AccessKey pair
       uses: aliyun/acr-login@v1
