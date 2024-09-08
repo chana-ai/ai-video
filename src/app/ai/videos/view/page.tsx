@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation';
 //import { Input } from "@/components/ui/input";
 import instance from '@/lib/axios';
 import Header from "../../header";
+import { format, differenceInSeconds } from 'date-fns';
+
 import {
   Card,
   Input,
@@ -54,7 +56,9 @@ export default function VideoDetail(){
       tagNames: [],
       status: 1,
       createTime: '',
-      completeTime: ''
+      endTime: '',
+      startQueuingTime: '',
+      startProcessingTime:''
     })
 
     useEffect(() => {
@@ -88,7 +92,7 @@ export default function VideoDetail(){
 
     const onSave =() => {
         onEditChange()
-        instance.post('/video/updateVideo', video)
+        instance.post('/video/update', video)
             .then( res => {
                 console.log('update success')
                 alert("Update success")
@@ -159,16 +163,20 @@ export default function VideoDetail(){
                 </div>
                 <div className="grid grid-cols-1 gap-4"> {/* Changed to single column layout */}
                   <div>
-                    <p className="text-sm text-gray-600">Current Status:</p>
-                    <p className="font-medium">{video.status}</p>
+                    <p className="text-sm text-gray-600">当前状态:</p>
+                    <p className={`font-medium ${video.status === '处理失败' ? 'text-red-500' : video.status === '成功完成' ? 'text-green-500' : ''}`}>{video.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">处理时间</p>
+                    <p className="font-medium">{differenceInSeconds(new Date(video.endTime), new Date(video.startProcessingTime)).toString()}秒</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">创建时间:</p>
-                    <p className="font-medium">{video.createTime}</p>
+                    <p className="font-medium">{new Date(video.createTime).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">完成时间 Date:</p>
-                    <p className="font-medium">{video.completeTime}</p>
+                    <p className="text-sm text-gray-600">完成时间 </p>
+                    <p className="font-medium">{new Date(video.endTime).toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })}</p>
                   </div>
                   <div className="flex justify-center"> {/* Centering the download link */}
                     {/* <Link className="text-blue-500 hover:underline" href={video.url}>Download Video</Link> */}

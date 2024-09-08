@@ -114,9 +114,9 @@ export default function Template({ children }: { children: React.ReactNode }) {
                   </Button>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={5}>
+              {/* <TooltipContent side="right" sideOffset={5}>
                 Settings
-              </TooltipContent>
+              </TooltipContent> */}
             </Tooltip>
           </nav>
           {/* <nav className="mt-auto grid gap-1 p-2">

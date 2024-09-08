@@ -27,7 +27,8 @@ export default function CreateAIMaterial() {
   const [size, setSize] = useState("");
   const [inferenceSteps, setInferenceSteps] = useState(2);
   const [imageCount, setImageCount] = useState(1);
-  const [promote, setPromote] = useState("");
+  const [promote, setPromote] = useState("A circular cosmetic product bottle rendered on the surface of water inside a cave, surrounded by flowers, with an organic computer (OC) rendering in Blender. The bottle could be reflecting the surrounding environment with a shimmering effect, and the flowers might have a delicate petal texture, creating a vibrant and visually striking composition. The cave walls could be adorned with lush greenery or stalactites, adding to the immersive and mystical atmosphere.");
+  const [disableSendMessage, setDisableSendMessage] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -82,6 +83,7 @@ export default function CreateAIMaterial() {
       return;
     }
 
+    setDisableSendMessage(true)
     let textToImageRequest = {
       prompt: promote,
       imageSize: getDefaultSize(size),
@@ -102,10 +104,13 @@ export default function CreateAIMaterial() {
           uploadResults: res.data.uploadResults
         });
         console.log(images.uploadResults);
+        setDisableSendMessage(false);
       })
       .catch((error) => {
         setErrorMessage(error.message);
+        setDisableSendMessage(false);
       });
+      
     return;
   };
 
@@ -174,7 +179,8 @@ export default function CreateAIMaterial() {
                     id="size"
                     className="items-start [&_[data-description]]:hidden"
                   >
-                    <SelectValue placeholder="选择图片大小" />
+                    <SelectValue placeholder="选择图片大小"  defaultValue="1:1"
+ />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem
@@ -265,7 +271,7 @@ export default function CreateAIMaterial() {
           <div>
             <div style={{ color: "red" }}>{errorMessage} </div>
             <button onClick={onCreateAIMaterial}  style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
-                  type="primary">创建素材</button>
+                 >创建素材</button>
           </div>
         </div>
         <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">
@@ -307,16 +313,23 @@ export default function CreateAIMaterial() {
             </Label>
             <Textarea
               id="message"
-              placeholder="Type your message here..."
+              placeholder=""
+              value="A circular cosmetic product bottle rendered on the surface of water inside a cave, surrounded by flowers, with an organic computer (OC) rendering in Blender. The bottle could be reflecting the surrounding environment with a shimmering effect, and the flowers might have a delicate petal texture, creating a vibrant and visually striking composition. The cave walls could be adorned with lush greenery or stalactites, adding to the immersive and mystical atmosphere."
               className="min-h-12 resize-none border-0 p-3 shadow-none focus-visible:ring-0"
               onChange={onPromoteChange}
+              
             />
             <div className="flex items-center p-3 pt-0">
               <Button
                 className="ml-auto gap-1.5"
-                onClick={generateImage}
+                onClick={() => {
+                  generateImage();
+                  setDisableSendMessage(true);
+                  setTimeout(() => setDisableSendMessage(false), 20000);
+                }}
+                disabled={disableSendMessage}
               >
-                Send Message
+                生成图片
                 <CornerDownLeft className="size-3.5" />
               </Button>
             </div>

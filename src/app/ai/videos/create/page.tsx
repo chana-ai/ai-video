@@ -40,6 +40,8 @@ export default function CreateVideo() {
   //显示使用
   const [musicList, setMusicList] = useState([]);
 
+  const [disableScriptGeneration, setDisableScripGeneration] = useState(false);
+
   const [videoSetting, setVideoSetting] = useState({
     size: "16:9",
     source: 'ai',
@@ -114,6 +116,7 @@ export default function CreateVideo() {
       return
     }
     setErrorMessage('')
+    setDisableScripGeneration(true)
 
     instance
       .post("/video/script", {
@@ -121,11 +124,14 @@ export default function CreateVideo() {
       })
       .then((res) => {
         setScript(res.data.script);
+        setDisableScripGeneration(false)
       })
       .catch((error) => {
+        setDisableScripGeneration(false)
         console.error(error);
         setErrorMessage(error)
       });
+      
   };
 
   const buildVideoSetting = (param: { source?: any; size?: any; materialIds?: any; }) =>{
@@ -380,6 +386,7 @@ export default function CreateVideo() {
                             style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
                             type="primary"
                             onClick={generateScript}
+                            disabled={disableScriptGeneration ? disableScriptGeneration : false}
                           >
                             生成文案
                           </Button>
