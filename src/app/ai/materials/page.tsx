@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import {Label} from '@/components/ui/label';
 import styles from "./materials.module.scss";
 
 import instance from "@/lib/axios";
@@ -36,19 +37,11 @@ export default function Materials() {
     pages: 1,
   });
 
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState<string[]>([]);
 
-  const [createFlag, setCreateFlag] = useState(false);
-  const [createAIFlag, setCreatAIFlag] = useState(false);
-
-  useEffect(() => {
-    //TODO: debug 影藏初始化
-    instance.post('/material/search', {
-    }).then((res)=>{
-      console.log("get result " + JSON.stringify(res.data))
-      setMaterials(res.data)
-    })
-  }, []);
+  useEffect( ()=>{
+     searchBytags(0)
+  }, [tags])
 
   //删除某一条记录
   const deleteMaterial = (materialId: string) => {
@@ -80,42 +73,35 @@ export default function Materials() {
     }
   };
 
-  //分页使用 TODO 测试。
-  const handlePageChange = (index: number) => {
+  const searchBytags = (index: number) => {
     instance
-      .post("/material/search", {
-        tagNames: tags,
-        size: 10,
-        current: index,
-      })
-      .then((res) => {
-        console.log("get result " + JSON.stringify(res.data));
-        setMaterials(res.data);
-      });
-  };
+    .post("/material/search", {
+      tagNames: tags,
+      size: 10,
+      current: index,
+    })
+    .then((res) => {
+      console.log("get result " + JSON.stringify(res.data));
+      setMaterials(res.data);
+    });
+  }
 
   const handleViewMaterial = (materialId: string) => {
     router.push(`/ai/materials/view?materialId=${materialId}`);
   };
 
 
-  // const handleCreateMaterial = () => {
-  //   setCreateFlag(!createFlag);
-  // };
-
-  // const handleCreateAIMaterial = () => {
-  //   setCreatAIFlag(!createAIFlag);
-  // };
 
   const displayTable = () => {
     return (
       <>
         <div className={styles.pageHeader}>
           <div className={styles.title}>
-            <input type="search" className={styles.search} />
-            <button type="button" className={styles.searchButton}>
+            
+            <input type="search" className={styles.search} placeholder="请使用空格或逗号分割标签 进行查找" onChange={(e) => setTags(e.target.value.split(/[ ,]+/).filter(tag => tag !== ''))} />
+            {/* <button type="button" className={styles.searchButton} onClick={() => searchBytags(Array.from(tags), 1)}>
               搜索
-            </button>
+            </button> */}
           </div>
           <div className={styles.actions}>
             <Link href={`/ai/materials/create`}>创建</Link>
@@ -184,19 +170,19 @@ export default function Materials() {
           {/* 分页控件 */}
           <div className={styles.pagination}>
             <button
-              onClick={() => handlePageChange(materials.current - 1)}
+              onClick={() => searchBytags(materials.current - 1)}
               disabled={materials.current === 1}
             >
               <span >上一页</span>
             </button>
             <span>
               <span >
-                第{materials.current}页 / 共{materials.total}页, 每页
+                第{materials.current}页 / 共{Math.ceil(materials.total/materials.size)}页, 每页
                 {materials.size}条
               </span>
             </span>
             <button
-              onClick={() => handlePageChange(materials.current + 1)}
+              onClick={() => searchBytags(materials.current + 1)}
               disabled={materials.current === materials.total}
             >
               <span >下一页</span>
@@ -212,12 +198,7 @@ export default function Materials() {
     <>
       <Header
         title={
-          !createFlag && !createAIFlag
-            ? "Materials"
-            : createFlag
-            ? "创建素材"
-            : "创建AI素材"
-        }
+            "Materials"  }
       ></Header>
       <main className="grid gap-4 overflow-auto p-4">{displayTable()}</main>
     </>

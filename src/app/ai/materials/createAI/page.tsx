@@ -110,6 +110,10 @@ export default function CreateAIMaterial() {
   };
 
   const onCreateAIMaterial = () => {
+    if (!name || !tags || images.uploadResults.length === 0) {
+      setErrorMessage("请先填写参数以及生成图片");
+      return;
+    }
     let tagsNames = tags.split(/[,，\s]+/).filter(tag => tag.trim() !== '');
     let pathNames = images.uploadResults.map((item: {pathName: string, uri: string}) => item.pathName);
     //let keyList = ["1/material/2024-08-29/dsLfddxd/0cfcf6b8-752c-426c-a620-8dbafb5f18b9_00001_.png"]
@@ -260,7 +264,8 @@ export default function CreateAIMaterial() {
           </form>
           <div>
             <div style={{ color: "red" }}>{errorMessage} </div>
-            <button onClick={onCreateAIMaterial}>创建素材</button>
+            <button onClick={onCreateAIMaterial}  style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
+                  type="primary">创建素材</button>
           </div>
         </div>
         <div className="relative flex h-full min-h-[50vh] flex-col rounded-xl bg-muted/50 p-4 lg:col-span-2">

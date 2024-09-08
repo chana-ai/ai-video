@@ -9,6 +9,7 @@ import {getPhone} from '@/lib/localcache';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState({
+    queuing:0,
     completed: 0,
     processing: 0,
     fail: 0,
@@ -18,9 +19,7 @@ export default function Dashboard() {
   const [balance, setBalance] = useState(0.0);
 
   useEffect(() => {
-    //TODO: 这块代码执行了两次
-    console.log("1.....");
-
+  
     instance.get('/dashboard/video-summary').then((res) => {
         setSummary(res.data)
         console.log("UserSummary is: "+ JSON.stringify(res.data))
@@ -30,8 +29,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    //TODO: 这段代码执行了两次
-    console.log("2.....");
+   
     setBalance(4.0);
     instance.get('/user/getCredits').then((res) => {
         console.log("getCredit is: "+ JSON.stringify(res));
@@ -49,6 +47,9 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
           <Card title="视频总数">
             <Descriptions title={`Total: ${summary.total?summary.total:0}`} colon={false}>
+              <Descriptions.Item label="排队中" span={3}>
+                {summary.processing?summary.queuing:0}
+              </Descriptions.Item>
               <Descriptions.Item label="进行中" span={3}>
                 {summary.processing?summary.processing:0}
               </Descriptions.Item>

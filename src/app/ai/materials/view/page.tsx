@@ -46,7 +46,7 @@ export default function MaterialView(){
       config:{},
       uris: [],
       mode:'UPLOADED',
-      createDate: '2024-01-01'
+      createTime: '2024-01-01'
     })
 
     const [inputTags, setInputTags] = useState('')
@@ -176,7 +176,6 @@ export default function MaterialView(){
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Details</h3>
                   {isEditing ? editDisplay() : display()}
                 </div>
 
@@ -196,7 +195,7 @@ export default function MaterialView(){
 
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Created</h3>
-                  <p>{material.createDate}</p>
+                  <p>{material.createTime}</p>
                 </div>
               </div>
             </div>

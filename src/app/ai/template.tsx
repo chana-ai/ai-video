@@ -119,7 +119,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
               </TooltipContent>
             </Tooltip>
           </nav>
-          <nav className="mt-auto grid gap-1 p-2">
+          {/* <nav className="mt-auto grid gap-1 p-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/docs">
@@ -154,7 +154,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 Account
               </TooltipContent>
             </Tooltip>
-          </nav>
+          </nav> */}
         </aside>
         <div className="flex flex-col">{children}</div>
       </div>
