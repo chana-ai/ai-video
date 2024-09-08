@@ -1,15 +1,12 @@
 import axios from "axios";
+import config from '@/app/settings/config'
 import {getCredentials, getUserId, clearCache} from '@/lib/localcache';
 
-// const HOST = "http://localhost:8080"
-
-const HOST = process.env.HOST || "http://localhost:8081";
-
 export const instance = axios.create({
-    baseURL: `${HOST}`,
+    baseURL: `${config.host}`,
     timeout: 20000,
 });
-
+console.log(`Axios instance created with baseURL: ${instance.defaults.baseURL} and the config.host:  ${config.host}` );
 // 请求拦截处理 请求拦截 在请求拦截中可以补充请求相关的配置
 // interceptors axios的拦截器对象
 instance.interceptors.request.use(config => {

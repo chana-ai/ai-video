@@ -1,7 +1,7 @@
-import { env } from 'process';
+"use client";
 
 const config = {
-    host: env.REACT_APP_API_URL || 'http://localhost:3000/',
+    host: process.env.NEXT_PUBLIC_HOST ||"http://localhost:8081",
   // 其他配置...
 };
 
