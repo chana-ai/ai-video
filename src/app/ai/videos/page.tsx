@@ -26,34 +26,52 @@ export default function Videos() {
   const router = useRouter()
 
   //Data for rendering
-  const [videos, setVideos] = useState([]);
-
+  const [videos, setVideos] = useState({
+    records: [] as { id: string; name: string; status: string; createTime: string; tagNames: string[]; screenshotUri: string; }[],
+    size: 10,
+    total: 0,
+    current: 1,
+    pages: 1
+  });
+  // {
+  //   records: [], 
+  //   size: 1
+  //   total: 1
+  //   current: 1
+  // }
   useEffect(() => {
-    instance.post('/video/search', {
-    }).then((res)=>{
-      setVideos(res.data.records)
-    })
+    searchVideos(0)
   }, []);
 
-  // const videoData = [
-  //   {
-  //     id: 100,
-  //     title: "Text to GenAI Video",
-  //     status: "PROCESSING",
-  //     tags: ["登山", "跑步"],
-  //     createDate: "2024-01-01",
-  //     description: "Generate script with Prompt AI or write your own.",
-  //     image:
-  //       "https://img1.baidu.com/it/u=1409313008,2874313835&fm=253&fmt=auto&app=138&f=PNG?w=350&h=265", // Replace with the actual image path
-  //     buttonLabel: "Start",
-  //   }
-  //   // Add more video data objects as needed
-  // ];
+
+  const searchVideos = (index: number)=>{
+    instance.post('/video/search', {
+      tagNames: [],
+      size: 10,
+      current: index,
+    }).then((res)=>{
+      setVideos(res.data)
+    })
+  }
 
   const videoDetail = (videoId: string) =>{
       let path = `/ai/videos/view?videoId=${videoId}`
       router.push(path)
   }
+
+  const updateVideos = (param: { size?: number; records?: any[]; total?: number; current?: number; }) =>{
+    console.log("---", param)
+    const recordsSize = param.records ? param.records.length : videos.records.length;
+    const newVideos = {
+      ...videos,
+      size: param.size || videos.size,
+      records: param.records || videos.records,
+      total: recordsSize,
+      current: param.current || videos.current,
+    };
+    setVideos({ ...newVideos, records: newVideos.records as any[] });
+}
+
   const removeVideo = (videoId: string) => {
       const isConfirmed = window.confirm("请确认是否需要删除当前记录?");
       if (!isConfirmed) {
@@ -62,8 +80,8 @@ export default function Videos() {
        //Remove video. 
       instance.get('/video/delete', {params: {id: videoId}})
         .then(res=>{
-          const updatedVideos = videos.filter((video: { id: string }) => video.id !== videoId);
-          setVideos(updatedVideos);
+          const updatedVideos = videos.records.filter((video: { id: string }) => video.id !== videoId);
+          updateVideos({'records': updatedVideos});
         }).catch(error =>{
             alert(error)
         })
@@ -109,8 +127,29 @@ export default function Videos() {
           </div>
         </div>
         <main className="grid flex-1 gap-4 overflow-auto md:grid-cols-4 lg:grid-cols-5">
-          {Array.isArray(videos) && videos.map(cardRender)}
+          <div className={styles.pagination} style={{ position: 'absolute', bottom: 0, right: 0, width: '100%', background: 'white', padding: '10px', boxSizing: 'border-box', boxShadow: '0 -2px 4px rgba(0,0,0,0.1)' }}>
+            <button
+              onClick={() => searchVideos(videos.current - 1)}
+              disabled={videos.current === 1}
+            >
+              <span >上一页</span>
+            </button>
+            <span>
+              <span >
+                第{videos.current}页 / 共{Math.ceil(videos.total/videos.size)}页, 每页
+                {videos.size}条
+              </span>
+            </span>
+            <button
+              onClick={() => searchVideos(videos.current + 1)}
+              disabled={videos.current +1 >= videos.pages}
+            >
+              <span >下一页</span>
+            </button>
+          </div>
+          {Array.isArray(videos.records) && videos.records.map((video, index) => cardRender(video, index))}
         </main>
+        
       </div>
     </>
   );

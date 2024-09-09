@@ -25,13 +25,13 @@ export default function Login() {
   }
   useEffect(() => {
     const credentials = getCredentials();
-    if (credentials !== undefined) {
+    if (credentials) {
       router.push('/ai/dashboard');
     }
   }, [router]);
   
   const handlePasswordChange = (e: { target: { value: React.SetStateAction<string>; }; }) => {
-      setPassword(e.target.value)
+      setPassword(e.target.value) 
   }
 
   const handleLogin = (event: { preventDefault: () => void; }) => {

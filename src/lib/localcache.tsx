@@ -4,13 +4,10 @@ import { useEffect, useState } from 'react';
 const USER_ID = "userId";
 const CREDENTIALS = "credentials";
 const PHONE = "phone";
-
 export const SetItem = (key: string, value: string) => {
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem(key, value);
-        }
-    }, [key, value]);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(key, value);
+    }
 };
 
 export const setUserId = (userId: string) => SetItem(USER_ID, userId);
@@ -25,12 +22,12 @@ const GetItem = (key:string)=>{
         return ""
   ;
 }
-const Clear=()=>{
-    useEffect(()=>{
-        if (typeof window !== 'undefined') {
-            localStorage.clear()
-        }
-    })
+const Clear = () => {
+    console.log("1...........")
+    if (typeof window !== 'undefined') {
+        localStorage.clear();
+        console.log("2...........")
+    }
 }
 export const getUserId = () => GetItem(USER_ID);
 export const getCredentials = () => GetItem(CREDENTIALS);

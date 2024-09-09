@@ -18,20 +18,13 @@ import instance from "@/lib/axios";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { useRouter } from 'next/navigation';
+import { uptime } from "process";
 
 export default function Materials() {
   const router = useRouter();
   const [materials, setMaterials] = useState({
-    records: [
-      {
-         id: 1,
-         name: "",
-         tagNames: [],
-         mode: "UPLOADED",
-         updateTime:""
-       },
-    ],
-    total: 1,
+    records: [] as {id: string; name: string; tagNames: string[]; mode: string; updateTime:string}[],
+    total: 0,
     size: 10,
     current: 1,
     pages: 1,
@@ -79,6 +72,7 @@ export default function Materials() {
       tagNames: tags,
       size: 10,
       current: index,
+      
     })
     .then((res) => {
       console.log("get result " + JSON.stringify(res.data));
@@ -121,7 +115,7 @@ export default function Materials() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {materials.records.map((material, index) => (
+              {materials.records.map((material, index: number) => (
                 <TableRow key={index}>
                   <TableCell>
                     <div className="font-medium"> {material.id}</div>
@@ -183,7 +177,7 @@ export default function Materials() {
             </span>
             <button
               onClick={() => searchBytags(materials.current + 1)}
-              disabled={materials.current === materials.total}
+              disabled={materials.current === materials.pages}
             >
               <span >下一页</span>
             </button>
