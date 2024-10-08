@@ -46,7 +46,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={5}>
-                Dashboard
+                看板
               </TooltipContent>
             </Tooltip>
             {/* <Tooltip>
@@ -81,7 +81,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={5}>
-                Materials
+                用户素材集合
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -98,10 +98,10 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={5}>
-                Videos
+                视频
               </TooltipContent>
             </Tooltip>
-            <Tooltip>
+            {/* <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/settings">
                   <Button
@@ -114,10 +114,10 @@ export default function Template({ children }: { children: React.ReactNode }) {
                   </Button>
                 </Link>
               </TooltipTrigger>
-              {/* <TooltipContent side="right" sideOffset={5}>
+               <TooltipContent side="right" sideOffset={5}>
                 Settings
-              </TooltipContent> */}
-            </Tooltip>
+              </TooltipContent> 
+            </Tooltip> */}
           </nav>
           {/* <nav className="mt-auto grid gap-1 p-2">
             <Tooltip>

@@ -9,10 +9,14 @@ import {getPhone} from '@/lib/localcache';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState({
-    queuing:0,
-    completed: 0,
-    processing: 0,
-    fail: 0,
+    summary: {
+      NOT_SUBMIT: 0,
+      QUEUEING: 0,
+      COMPLETE: 0,
+      PROCESSING: 0,
+      FAIL: 0,
+      UNKNOWN: 0,
+    },
     total: 0,
   });
 
@@ -30,7 +34,7 @@ export default function Dashboard() {
 
   useEffect(() => {
    
-    setBalance(4.0);
+    setBalance(0.0);
     instance.get('/user/getCredits').then((res) => {
         console.log("getCredit is: "+ JSON.stringify(res));
         setBalance(res.data.credit?res.data.credit:0.0);
@@ -44,20 +48,20 @@ export default function Dashboard() {
       <Header title="Dashboard"></Header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div>Hello </div>
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8">
           <Card title="视频总数">
             <Descriptions title={`Total: ${summary.total?summary.total:0}`} colon={false}>
-              <Descriptions.Item label="排队中" span={3}>
-                {summary.processing?summary.queuing:0}
+            <Descriptions.Item label="排队等待中" span={3}>
+                {summary.summary.NOT_SUBMIT?summary.summary.NOT_SUBMIT:0 + summary.summary.QUEUEING?summary.summary.QUEUEING:0}
               </Descriptions.Item>
               <Descriptions.Item label="进行中" span={3}>
-                {summary.processing?summary.processing:0}
+                {summary.summary.PROCESSING?summary.summary.PROCESSING:0}
               </Descriptions.Item>
               <Descriptions.Item label="成功完成" span={3}>
-                {summary.completed?summary.completed:0}
+                {summary.summary.COMPLETE?summary.summary.COMPLETE:0}
               </Descriptions.Item>
               <Descriptions.Item span={3} label="失败">
-                {summary.fail?summary.fail:0}
+                {summary.summary.FAIL?summary.summary.FAIL:0}
               </Descriptions.Item>
             </Descriptions>
           </Card>
@@ -68,6 +72,20 @@ export default function Dashboard() {
               </Descriptions.Item>
             </Descriptions>
           </Card>
+          
+          <Card title="Recent events">
+            <Descriptions colon={false}>
+            </Descriptions>
+          </Card>
+          <Card title="即将推出">
+            <Descriptions colon={false}>
+              <Descriptions.Item label="1. 支持动画,影视风格以及使用场景的视频生成" span={3}>
+              </Descriptions.Item>
+              <Descriptions.Item label="2. 支持用户自定义角色,和故事情节的视频生成" span={3}>
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
         </div>
       </main>
     </>

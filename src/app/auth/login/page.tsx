@@ -40,10 +40,10 @@ export default function Login() {
       setErrorMessage("请输入手机号和密码");
       return;
     }
-
+    
     console.log("submit phone: " +  phone + "  password: "+ password)
     instance.post('/user/login', {
-        'phoneNumber': phone, 
+        'phoneNumber': phone.startsWith('86') ? phone : '86' + phone, 
         'password': password      
     }).then(res => {
         console.log('login success '+ res.data);
