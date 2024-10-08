@@ -80,8 +80,10 @@ export default function Dashboard() {
           <Card title="即将推出">
             <Descriptions colon={false}>
               <Descriptions.Item label="1. 支持动画,影视风格以及使用场景的视频生成" span={3}>
+                {""}
               </Descriptions.Item>
               <Descriptions.Item label="2. 支持用户自定义角色,和故事情节的视频生成" span={3}>
+                {""}
               </Descriptions.Item>
             </Descriptions>
           </Card>
