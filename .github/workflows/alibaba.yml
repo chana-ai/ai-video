@@ -47,7 +47,7 @@ jobs:
 
     - name: config the .env
       run: | 
-        echo "NEXT_PUBLIC_HOST='http://47.94.39.161'"> .env
+        echo "NEXT_PUBLIC_HOST='http://60.205.185.157"> .env
                 
     # 1.1 Login to ACR
     - name: Login to ACR with the AccessKey pair
