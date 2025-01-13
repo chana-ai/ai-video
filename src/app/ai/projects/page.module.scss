@@ -1,0 +1,115 @@
+.pageHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  .actions {
+    display: flex;
+    gap: 10px;
+  }
+  .title {
+    display: flex;
+    gap: 10px;
+  }
+}
+
+.tableActions {
+  display: flex;
+  gap: 10px;
+}
+
+.pagination {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  font-weight: 400;
+}
+
+.search {
+  all: unset;
+  box-sizing: border-box;
+  width: 400px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 15px;
+  color: #000;
+  background-color: rgba(10, 10, 10, 0.1);
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 0px 1px;
+  padding: 0 10px;
+  height: 35px;
+  line-height: 1;
+  &:hover {
+    box-shadow: 0 0 0 1px black;
+  }
+  &:focus {
+    box-shadow: 0 0 0 2px black;
+  }
+  &::selection {
+    background-color: rgba(10, 10, 10, 0.05);
+    color: #000;
+  }
+}
+
+.searchButton {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 0 15px;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 500;
+  height: 35px;
+  width: 80px;
+  background-color: #000;
+  color: #fff;
+  box-shadow: 0 2px 10px var(--black-a4);
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+  &:focus {
+    box-shadow: 0 0 0 2px black;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  .cardImage {
+  }
+
+  .cardTitle {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  .cardInfo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cardStatus {
+    font-weight: 400;
+    font-size: 0.8rem;
+  }
+  .cardCreateTime {
+    font-weight: 400;
+    font-size: 0.8rem;
+  }
+  .cardTags {
+    font-size: 0.8rem;
+    span {
+      display: inline-flex;
+      margin-right: 3px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+      padding: 0 5px;
+    }
+  }
+}

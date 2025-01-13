@@ -101,9 +101,9 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 视频
               </TooltipContent>
             </Tooltip>
-            {/* <Tooltip>
+            <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/settings">
+                <Link href="/ai/projects">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -115,9 +115,9 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 </Link>
               </TooltipTrigger>
                <TooltipContent side="right" sideOffset={5}>
-                Settings
+                projects
               </TooltipContent> 
-            </Tooltip> */}
+            </Tooltip> 
           </nav>
           {/* <nav className="mt-auto grid gap-1 p-2">
             <Tooltip>
