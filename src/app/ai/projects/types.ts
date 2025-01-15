@@ -3,7 +3,7 @@ export interface ProjectFormData {
     aspectRatio: string;
     theme: string;
     style: string;
-    styleVariant: string;
+    audience: string;
     narration: boolean;
     purpose: string;
   }

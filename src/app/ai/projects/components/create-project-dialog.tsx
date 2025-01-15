@@ -18,7 +18,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     aspectRatio: '1:1',
     theme: '',
     style: '',
-    styleVariant: '',
+    audience: '',
     narration: true,
     purpose: ''
   })
@@ -33,7 +33,8 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   ]
 
   const handleSubmit = () => {
-    router.push(`/ai/projects/script-configuration?projectId=1`)
+    console.log(' formData: '+JSON.stringify(formData))
+    //router.push(`/ai/projects/script-configuration?projectId=1`)
   }
 
   return (
@@ -42,9 +43,9 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
         <DialogHeader>
           <div className="flex justify-between items-center">
             <DialogTitle className="text-2xl">Create Project</DialogTitle>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+            {/* <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
         </DialogHeader>
         
@@ -113,36 +114,38 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Style</label>
+              <label className="text-sm font-medium mb-2 block">风格</label>
               <Select
                 value={formData.style}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="动画" />
+                  <SelectValue placeholder="disney pixar" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="animation">动画</SelectItem>
-                  <SelectItem value="live">实拍</SelectItem>
+                  <SelectItem value="cinimation">cinimation</SelectItem>
+                  <SelectItem value="disney pixar">disney pixar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">风格</label>
+              <label className="text-sm font-medium mb-2 block">针对人群</label>
               <Select
-                value={formData.styleVariant}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, styleVariant: value }))}
+                value={formData.style}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, audience: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Style 1" />
+                  <SelectValue placeholder="KIDS" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="style1">Style 1</SelectItem>
-                  <SelectItem value="style2">Style 2</SelectItem>
+                  <SelectItem value="KIDS">儿童</SelectItem>
+                  <SelectItem value="ADULT">成人</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+           
 
             <div>
               <label className="text-sm font-medium mb-2 block">Narration</label>
@@ -162,9 +165,9 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">目的:</label>
+            <label className="text-sm font-medium mb-2 block">其它信息:</label>
             <Textarea 
-              placeholder="给谁看，想达到什么目的" 
+              placeholder="想要的效果" 
               className="h-24"
               value={formData.purpose}
               onChange={(e) => setFormData(prev => ({ ...prev, purpose: e.target.value }))}

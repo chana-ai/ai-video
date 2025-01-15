@@ -1,6 +1,7 @@
 import axios from "axios";
-import config from '@/app/settings/config'
+import config  from '@/app/settings/config';
 import {getCredentials, getUserId, clearCache} from '@/lib/localcache';
+import { configConsumerProps } from "antd/es/config-provider";
 
 export const instance = axios.create({
     baseURL: `${config.host}`,
@@ -9,17 +10,20 @@ export const instance = axios.create({
 console.log(`Axios instance created with baseURL: ${instance.defaults.baseURL} and the config.host:  ${config.host}` );
 // 请求拦截处理 请求拦截 在请求拦截中可以补充请求相关的配置
 // interceptors axios的拦截器对象
-instance.interceptors.request.use(config => {
+instance.interceptors.request.use( httpRequestConfig => {
     // config 请求的所有信息
     // console.log(config);
     // 响应成功的返回
     const  token  =  getCredentials();
     if(token !== ""){
         console.log("token "+token)
-        config.headers['satoken'] = token
-        config.headers['userId'] = getUserId()    
+        httpRequestConfig.headers['satoken'] = token
+        httpRequestConfig.headers['userId'] = getUserId()    
     }
-    return config // 将配置完成的config对象返回出去 如果不返回 请求讲不会进行
+    if (config.debug) {
+        httpRequestConfig.headers['userId'] = 1
+    }
+    return httpRequestConfig // 将配置完成的config对象返回出去 如果不返回 请求讲不会进行
 }, err => {
     // 请求发生错误时的相关处理 抛出错误
     //  //响应失败的返回
