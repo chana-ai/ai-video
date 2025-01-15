@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -6,7 +8,7 @@ import { ImagePreview } from "./image-preview"
 import { VideoPreview } from "./video-preview"
 import { SettingsDialog } from "./settings-dialog"
 import { VideoSettingsDialog } from "./video-settings-dialog"
-import type { ScenePanel as ScenePanelType } from "../types"
+import type { ScenePanel as ScenePanelType } from "../scene-configuration/types"
 
 interface ScenePanelProps {
   panel: ScenePanelType
@@ -182,10 +184,10 @@ export function ScenePanel({ panel, isMaximized, onMaximize, onUpdate }: ScenePa
         open={isVideoSettingsOpen}
         onOpenChange={setIsVideoSettingsOpen}
         onSave={(settings) => {
-          onUpdate({
-            ...panel,
-            videoSettings: settings
-          })
+          // onUpdate({
+          //   ...panel,
+          //   videoSettings: settings
+          // })
         }}
       />
     </div>

@@ -1,8 +1,10 @@
+'use client'
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
-import type { SettingsDialogProps } from "../types"
+import type { SettingsDialogProps } from "../scene-configuration/types"
 
 export function SettingsDialog({ open, onOpenChange, value, onSave, title }: SettingsDialogProps) {
   const [currentValue, setCurrentValue] = useState(value)

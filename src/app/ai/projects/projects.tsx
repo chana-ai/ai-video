@@ -37,7 +37,7 @@ export default function Projects() {
       ...(config.debug ? { user_id: 1 } : {}),
       ...(name ? { name } : {}), 
     }).then((res)=>{
-      setProjects(res)
+      setProjects(res.data)
     })
   }
   const handleDelete = (id: string, stage_id: string) => {

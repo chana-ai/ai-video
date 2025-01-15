@@ -5,7 +5,8 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
 import { Button } from "@/components/ui/button"
 import { ZoomIn, ZoomOut } from 'lucide-react'
 import { ScenePanel } from "../components/scene-panel"
-import type { ScenePanel as ScenePanelType } from "./types"
+import type { ScenePanel as ScenePanelType } from "../scene-configuration/types"
+import Header from "../../header";
 
 export default function SceneConfiguration() {
   const [maximizedPanel, setMaximizedPanel] = useState<string | null>(null)
@@ -48,6 +49,11 @@ export default function SceneConfiguration() {
   }
 
   return (
+    <>
+   <Header
+        title={
+            "Projects"  }
+      ></Header>
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Stag:</h1>
@@ -109,6 +115,7 @@ export default function SceneConfiguration() {
         </DragDropContext>
       </div>
     </div>
+    </>
   )
 }
 

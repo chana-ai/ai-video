@@ -7,6 +7,7 @@ import { Settings2, Pen, Trash } from 'lucide-react'
 import { PromptDialog } from '../components/prompt-dialog'
 import { ImageGrid } from '../components/image-grid'
 import type { CharacterPrompt } from './types'
+import Header from "../../header";
 
 const characters = ['张三', '李四', '王五']
 
@@ -46,6 +47,11 @@ export default function CharacterSettings() {
   }
 
   return (
+    <>
+   <Header
+        title={
+            "Projects"  }
+      ></Header>
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
@@ -134,6 +140,7 @@ export default function CharacterSettings() {
         onSave={(value) => setPrompt({ ...prompt, description: value })}
       />
     </div>
+    </>
   )
 }
 
