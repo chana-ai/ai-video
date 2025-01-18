@@ -8,17 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import type { ScriptGenerationData } from '../types'
+import Header from "../../header";
+import instance from "@/lib/axios";
+import { set } from 'date-fns'
 
 export default function ScriptConfiguration() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams.get('projectId')
+  const stageId = searchParams.get('stageId')
 
   const [generationType, setGenerationType] = useState<'subject' | 'script'>('subject')
   const [subject, setSubject] = useState('')
   const [script, setScript] = useState('')
   const [characters, setCharacters] = useState('')
   const [scenes, setScenes] = useState('')
+  const [character_changed, setCharacterChanged] = useState(true)
+  const [scene_changed, setSceneChanged] = useState(true)
   const [errors, setErrors] = useState({ characters: '', scenes: '' })
   const [isGenerating, setIsGenerating] = useState(false)
   const [subjectWordCount, setSubjectWordCount] = useState(0)
@@ -40,21 +46,22 @@ export default function ScriptConfiguration() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/v2/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: generationType,
-          content: generationType === 'subject' ? subject : script,
-          projectId
-        }),
-      });
+      instance.post('/api/v2/script/generateScript', {
+        generation_type: generationType,
+        content: generationType ==='subject'? subject : script,
+        project_id: projectId,
+        stage_id: stageId
+      }).then((res)=>{
+        console.log('res: '+JSON.stringify(res))
+        setSubjectWordCount(countWords(subject))
+        setScriptWordCount(countWords(script))
+        setCharacters(JSON.stringify(res.characters, null, 2));
+        setScenes(JSON.stringify(res.scenes, null, 2));
+        setCharacterChanged(true)
+        setSceneChanged(true)
+  
+      })
 
-      if (!response.ok) throw new Error('Generation failed');
-
-      const data = await response.json();
-      setCharacters(JSON.stringify(data.characters, null, 2));
-      setScenes(JSON.stringify(data.scenes, null, 2));
     } catch (error) {
       console.error('Generation error:', error);
     } finally {
@@ -62,8 +69,7 @@ export default function ScriptConfiguration() {
     }
   };
 
-  const handleNext = () => {
-    // Validate JSON
+  const saveCharacterAndScenes = async ()=> {
     const charactersValid = validateJSON(characters)
     const scenesValid = validateJSON(scenes)
 
@@ -74,10 +80,53 @@ export default function ScriptConfiguration() {
 
     if (!charactersValid || !scenesValid) return
 
-    router.push(`/ai/projects/next-step?projectId=${projectId}`)
+    if (character_changed) {
+      instance.post('/api/v2/character/create_batch', {
+        characters: JSON.parse(characters),
+        project_id: projectId,
+        stage_id: stageId
+      }).then((res)=>{
+        console.log('res: '+JSON.stringify(res))
+        setCharacterChanged(false)
+      }).catch(err =>{
+        console.error('Error creating characters:', err.message)
+        setErrors(prevErrors => ({...prevErrors, characters: err.message}))
+      }
+      )
+    }
+    
+    if(scene_changed){
+        instance.post('/api/v2/scene/create_batch', {
+            scenes: JSON.parse(scenes),
+            project_id: projectId,
+            stage_id: stageId
+        }).then((res)=>{
+          console.log('Scenes creation response: '+JSON.stringify(res))
+          setSceneChanged(false)
+        }).catch((error)=>{
+          console.error('Error creating scenes:', error);
+          setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
+        });
+    }
+    
+  }
+
+
+  const handleNext = () => {
+    if (character_changed || scene_changed) {
+      alert('Please save your character and scene changes before proceeding.');
+      return 
+    }
+
+    router.push(`/ai/projects/character-setting?project_id=${projectId}&&stage_id=${stageId}`)
   }
 
   return (
+    <>
+   <Header
+        title={
+            "Projects"  }
+      ></Header>
     <div className="container mx-auto p-6 max-w-5xl">
       <h1 className="text-3xl font-bold mb-8">Script Generation</h1>
 
@@ -148,6 +197,7 @@ export default function ScriptConfiguration() {
               onChange={(e) => setCharacters(e.target.value)}
               placeholder="Character JSON will appear here"
               className="font-mono h-80"
+              readOnly
             />
             {errors.characters && (
               <p className="text-red-500 mt-2 text-sm">{errors.characters}</p>
@@ -158,7 +208,11 @@ export default function ScriptConfiguration() {
             <label className="text-xl font-semibold mb-2 block">Scene/Stage</label>
             <Textarea
               value={scenes}
-              onChange={(e) => setScenes(e.target.value)}
+              onChange={(e) => {
+                  setScenes(e.target.value)
+                  setSceneChanged(false)
+                }
+              }
               placeholder="Scene JSON will appear here"
               className="font-mono h-80"
             />
@@ -176,6 +230,12 @@ export default function ScriptConfiguration() {
             Cancel
           </Button>
           <Button
+            onClick={saveCharacterAndScenes}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            保存
+          </Button>
+          <Button
             onClick={handleNext}
             disabled={!characters || !scenes}
             className="bg-green-600 hover:bg-green-700"
@@ -185,6 +245,7 @@ export default function ScriptConfiguration() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

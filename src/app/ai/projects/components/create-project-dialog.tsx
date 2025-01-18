@@ -10,19 +10,22 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { X } from 'lucide-react'
 import type { ProjectFormData } from '@/app/ai/projects/types'
+import instance from '@/lib/axios'
 
 export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter()
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
-    aspectRatio: '1:1',
-    theme: '',
-    style: '',
-    audience: '',
+    aspect: '1:1',
+    theme: 'ad',
+    style: 'cinimation',
+    audiences: 'KIDS',
     narration: true,
     purpose: ''
   })
   
+  const [errorMessage, setErrorMessage] = useState("");
+
   const aspectRatios = [
     { id: '1:1', label: '1:1', style: 'w-12 h-12' },
     { id: '1:2', label: '1:2', style: 'w-10 h-[80px]' },
@@ -34,6 +37,17 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
 
   const handleSubmit = () => {
     console.log(' formData: '+JSON.stringify(formData))
+    if (!formData.name || !formData.purpose) {
+      setErrorMessage("Name and purpose must not be empty.");
+      return;
+    }
+    instance.post('/api/v2/project/create', formData).then(res => {
+      console.log('res: '+JSON.stringify(res))  // {project_id， stage_id}
+
+      router.push(`/ai/projects/script-configuration?projectId=${res.project_id}&stageId=${res.stage_id}`)
+    }).catch(error => {
+      setErrorMessage(error.message)
+    })
     //router.push(`/ai/projects/script-configuration?projectId=1`)
   }
 
@@ -63,21 +77,21 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             <RadioGroup 
               defaultValue="1:1" 
               className="flex justify-center gap-4 mt-2"
-              value={formData.aspectRatio}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, aspectRatio: value }))}
+              value={formData.aspect}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, aspect: value }))}
             >
               {aspectRatios.map((ratio) => (
                 <div key={ratio.id} className="text-center">
                   <label
                     className={`
                       block cursor-pointer transition-all duration-200
-                      ${formData.aspectRatio === ratio.id ? 'text-primary' : 'text-gray-600'}
+                      ${formData.aspect === ratio.id ? 'text-primary' : 'text-gray-600'}
                     `}
                   >
                     <div 
                       className={`
                         mb-2 mx-auto border-2 rounded-sm transition-all duration-200
-                        ${formData.aspectRatio === ratio.id 
+                        ${formData.aspect === ratio.id 
                           ? 'border-primary bg-primary/5' 
                           : 'border-dashed border-gray-400'
                         }
@@ -132,11 +146,11 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             <div>
               <label className="text-sm font-medium mb-2 block">针对人群</label>
               <Select
-                value={formData.style}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, audience: value }))}
+                value={formData.audiences}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, audiences: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="KIDS" />
+                  <SelectValue placeholder="儿童" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="KIDS">儿童</SelectItem>
@@ -174,7 +188,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             />
           </div>
         </div>
-
+          <div><label style={{ color: 'red' }}>{errorMessage}</label></div>
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
@@ -182,6 +196,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
           <Button className="bg-green-600 hover:bg-green-700" onClick={handleSubmit}>
             下一步
           </Button>
+          
         </div>
       </DialogContent>
     </Dialog>

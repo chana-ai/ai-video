@@ -1,9 +1,9 @@
 export interface ProjectFormData {
     name: string;
-    aspectRatio: string;
+    aspect: string;
     theme: string;
     style: string;
-    audience: string;
+    audiences: string;
     narration: boolean;
     purpose: string;
   }

@@ -34,7 +34,7 @@ export default function Projects() {
     instance.post('/api/v2/project/search', {
       page_size: 20,
       page: index,
-      ...(config.debug ? { user_id: 1 } : {}),
+      // ...(config.debug ? { user_id: 1 } : {}),
       ...(name ? { name } : {}), 
     }).then((res)=>{
       setProjects(res)
