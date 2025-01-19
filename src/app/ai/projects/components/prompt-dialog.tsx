@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -12,45 +12,47 @@ interface PromptDialogProps {
   onSave: (value: string) => void;
 }
 
-export function PromptDialog({ open, onOpenChange, initialValue, onSave }: PromptDialogProps) {
+export function PromptDialog({
+  open,
+  onOpenChange,
+  initialValue,
+  onSave,
+}: PromptDialogProps) {
   const [value, setValue] = useState(initialValue)
-  const [error, setError] = useState('')
+
+  // Update local state when initialValue changes
+  useEffect(() => {
+    setValue(initialValue)
+  }, [initialValue])
 
   const handleSave = () => {
-    if (value.length > 200) {
-      setError('Description must not exceed 200 words')
-      return
-    }
     onSave(value)
     onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Character Prompt</DialogTitle>
+          <DialogTitle>Edit Prompt</DialogTitle>
         </DialogHeader>
-        <div className="py-4">
-          <Textarea
+        <div className="grid gap-4 py-4">
+          <textarea
             value={value}
-            onChange={(e) => {
-              setValue(e.target.value)
-              setError('')
-            }}
-            className="min-h-[200px]"
-            placeholder="Enter character description (max 200 words)"
+            onChange={(e) => setValue(e.target.value)}
+            className="w-full min-h-[200px] p-4 border rounded-lg resize-none"
+            placeholder="Enter prompt"
+            maxLength={120}
           />
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} variant="outline">
             Cancel
           </Button>
           <Button onClick={handleSave}>
             Save
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

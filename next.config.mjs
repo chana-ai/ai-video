@@ -30,6 +30,7 @@ const nextConfig = {
     return config;
   },
   reactStrictMode: false,
+  images: {   domains: ["cdn.pixabay.com"]}
 };
 
 export default nextConfig;
