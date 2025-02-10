@@ -36,7 +36,12 @@ instance.interceptors.request.use( httpRequestConfig => {
 // 添加响应拦截器
 instance.interceptors.response.use(function (response) {
     //Here HttpCode: 200
-    if(response.data.code && response.data.code != 0 && response.data.code !=200){
+    if(!response.data.code) {
+        console.log("Response without code attribute:", response.data);
+        return response.data;
+    }
+
+    if(response.data.code != 0 && response.data.code !=200){
         //Monitor non-200 code response in the body, including system runtime error. 
         /**  
          * switch(response.data.code){
@@ -53,7 +58,9 @@ instance.interceptors.response.use(function (response) {
         return Promise.reject({'message': response.data.message});
     }
 
-	return response.data;
+   
+
+	return response.data.data;   //for data: { code , data: {a,b}}
   }, function (error) {
 	// This error refers to network error (e.g., Readtimeout exceptio, connectionTimeout..)       
     if (error.message.includes("RR_NETWORK")) {

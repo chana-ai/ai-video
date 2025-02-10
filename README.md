@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+
+
+
+
+
+write code to achieve this UI(screenshot). The top part only has two buttons: save all, and export; The botton part has three regions: scenes region in the left, the setting region in the middle and the right region for the diagram.  
+1. Scene region: 
+ 1.1  Contains a list of scene card, and user can drag and drop these card to re-arrange their orders(please use https://github.com/hello-pangea/dnd for drag-drop)
+ 1.2 User can add/remove a card from the region by clicking the corresponding icons in a card. 
+ 1.3. save a card setting by clicking save icon.  
+2. 

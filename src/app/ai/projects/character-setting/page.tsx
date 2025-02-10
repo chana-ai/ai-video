@@ -32,7 +32,7 @@ export default function CharacterSettings() {
   useEffect(() => {
     if (!projectId || !stageId) return;
     instance.get(`/api/v2/character/list?project_id=${projectId}&stage_id=${stageId}`).then((res) => {
-      const chars = res.data.characters;
+      const chars = res.characters;
       setCharacters(chars);
       if (chars.length > 0) {
         setSelectedCharacter(chars[0]);
@@ -148,7 +148,7 @@ export default function CharacterSettings() {
       return 
     }
 
-    router.push(`/ai/projects/scene-configuration?project_id=${projectId}&&stage_id=${stageId}`)
+    router.push(`/ai/projects/scenes?project_id=${projectId}&&stage_id=${stageId}`)
   }
   return (
     <>
