@@ -1,24 +1,27 @@
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { RightPanel } from "./right-panel"
+import { useEffect, useState } from "react"
 
-interface DescriptionEditPanelProps {
+interface PromptEditPanelProps {
   open: boolean
   onClose: () => void
   value: string
   onChange: (value: string) => void
-  onSave: () => void
+  onSave: (text: String) => void
 }
 
-export function DescriptionEditPanel({ open, onClose, value, onChange, onSave }: DescriptionEditPanelProps) {
+export function PromptEditPanel({ open, onClose, value, onChange, onSave }: PromptEditPanelProps) {
+  const [promptText, setPromptText] = useState(value || "")
+ 
   return (
-    <RightPanel open={open} onClose={onClose} title="Edit Description">
+    <RightPanel open={open} onClose={onClose} title="Edit prompt">
       <div className="space-y-4">
         <Textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={promptText}
+          onChange={(e) => setPromptText(e.target.value)}
           className="min-h-[200px] resize-none"
-          placeholder="Enter scene description..."
+          placeholder="Enter scene prompt here..."
         />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
@@ -26,7 +29,7 @@ export function DescriptionEditPanel({ open, onClose, value, onChange, onSave }:
           </Button>
           <Button
             onClick={() => {
-              onSave()
+              onSave(promptText)
               onClose()
             }}
           >

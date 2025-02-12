@@ -9,72 +9,34 @@ import { SceneSettings } from "./components/scene-settings"
 import type { Scene } from "./types"
 import { useSearchParams } from "next/navigation"
 import Header from "../../header";
+import instance from "@/lib/axios";
 
 const initialScenes: Scene[] = [
-  {
-    id: "1",
-    title: "分镜 1",
-    description: "城市街道场景",
-    timestamp: "2024-01-19 15:30",
-    status: "complete",
-    isModified: false,
-  },
-  {
-    id: "2",
-    title: "分镜 2",
-    description: "办公室场景",
-    timestamp: "2024-01-18 16:31",
-    status: "image_generating",
-    isModified: false,
-  },
-  {
-    id: "3",
-    title: "分镜 3",
-    description: "咖啡厅场景",
-    timestamp: "2024-01-18 14:20",
-    status: "video_generating",
-    isModified: false,
-  },
-  {
-    id: "4",
-    title: "分镜 4",
-    description: "公园场景",
-    timestamp: "2024-01-18 12:15",
-    status: "voice_generating",
-    isModified: false,
-  },
-  {
-    id: "5",
-    title: "分镜 5",
-    description: "地铁站场景",
-    timestamp: "2024-01-18 10:45",
-    status: "init",
-    isModified: false,
-  },
-  {
-    id: "6",
-    title: "分镜 6",
-    description: "商场场景",
-    timestamp: "2024-01-18 09:30",
-    status: "fail",
-    isModified: false,
-  },
-  {
-    id: "7",
-    title: "分镜 7",
-    description: "餐厅场景",
-    timestamp: "2024-01-17 16:20",
-    status: "init",
-    isModified: false,
-  },
-  {
-    id: "8",
-    title: "分镜 8",
-    description: "学校场景",
-    timestamp: "2024-01-17 14:15",
-    status: "init",
-    isModified: false,
-  },
+  // {
+  //   id: "1",
+  //   title: "分镜 1",
+  //   description: "城市街道场景",
+  //   update_time: "2024-01-19 15:30",
+  //   status: "complete",
+  //   isModified: false,
+    
+  // },
+  // {
+  //   id: "2",
+  //   title: "分镜 2",
+  //   description: "办公室场景",
+  //   update_time: "2024-01-18 16:31",
+  //   status: "image_generating",
+  //   isModified: false,
+  // },
+  // {
+  //   id: "3",
+  //   title: "分镜 3",
+  //   description: "咖啡厅场景",
+  //   update_time: "2024-01-18 14:20",
+  //   status: "video_generating",
+  //   isModified: false,
+  // },
 ]
 
 export default function ScenePage() {
@@ -90,21 +52,16 @@ export default function ScenePage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    // const checkScroll = () => {
-    //   if (scenesContainerRef.current) {
-    //     setShowScrollButtons(scenesContainerRef.current.scrollHeight > scenesContainerRef.current.clientHeight)
-    //   }
-    // }
-    // checkScroll()
-    // window.addEventListener("resize", checkScroll)
-    // return () => window.removeEventListener("resize", checkScroll)
-  }, [])
+    instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+      console.log('Scenes: '+JSON.stringify(res))  // {scenes: [...]}
+      setScenes(buildSceneOrder(res.scenes))
+    })
+  }, [projectId, stageId])
 
-  const handleScroll = (direction: "up" | "down") => {
-    if (scenesContainerRef.current) {
-      const scrollAmount = direction === "up" ? -100 : 100
-      scenesContainerRef.current.scrollBy({ top: scrollAmount, behavior: "smooth" })
-    }
+ 
+  const buildSceneOrder = (scenes: Scene[]) => {
+    //TODO
+    return scenes
   }
 
   const handleDragEnd = (result: any) => {
@@ -135,7 +92,7 @@ export default function ScenePage() {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-end gap-4">
-          <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
+          <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || ( scenes.length > 0 && !scenes.some((s) => s.isModified))}>
             {isSaving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -171,7 +128,7 @@ export default function ScenePage() {
                         className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2"
                       >
                         {scenes.map((scene, index) => (
-                          <Draggable key={scene.id} draggableId={scene.id} index={index}>
+                          <Draggable key={String(scene.id)} draggableId={String(scene.id)} index={index}>
                             {(provided) => (
                               <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
                                 <SceneCard
@@ -184,7 +141,7 @@ export default function ScenePage() {
                                       id: Date.now().toString(),
                                       title: "新分镜",
                                       description: "",
-                                      timestamp: new Date().toLocaleString(),
+                                      update_time: new Date().toLocaleString(),
                                       status: "init",
                                       isModified: true,
                                     }
@@ -218,6 +175,7 @@ export default function ScenePage() {
             <SceneSettings
               scene={scenes.find((s) => s.id === selectedSceneId) || null}
               onUpdate={(updatedScene) => {
+                console.log(`Updated scene ${JSON.stringify(updatedScene)}`)
                 setScenes(scenes.map((scene) => (scene.id === updatedScene.id ? updatedScene : scene)))
               }}
               onVideoPreviewToggle={() => setIsVideoPreviewOpen(!isVideoPreviewOpen)}

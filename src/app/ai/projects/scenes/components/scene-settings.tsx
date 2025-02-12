@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,18 +18,22 @@ import { Pen, Upload, Settings2, RefreshCw, ChevronLeft, ChevronRight, Mic } fro
 import { UploadDialog } from "./upload-dialog"
 import { VideoSettingsPanel } from "./video-settings-panel"
 import { VideoDisplayPanel } from "./video-display-panel"
-import { DescriptionEditPanel } from "./description-edit-panel"
+import { PromptEditPanel } from "./prompt-edit-panel"
 import type { SceneSettingsProps, VideoSettings } from "../types"
 
 export function SceneSettings({ scene, onUpdate, onVideoPreviewToggle, isVideoPreviewOpen }: SceneSettingsProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [isDescriptionEditOpen, setIsDescriptionEditOpen] = useState(false)
+  const [isPromptEditOpen, setIsPromptEditOpen] = useState(false)
+  const [prompt, setPrompt] = useState(scene?.prompt || "")
+
+  // const [description, setDescription] = useState(scene?.description || "")
+
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [isVideoSettingsOpen, setIsVideoSettingsOpen] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
   const [title, setTitle] = useState(scene?.title || "")
-  const [editedDescription, setEditedDescription] = useState(scene?.description || "")
+  
 
   if (!scene) return null
 
@@ -84,7 +88,7 @@ export function SceneSettings({ scene, onUpdate, onVideoPreviewToggle, isVideoPr
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => {
             setIsEditing(false)
-            onUpdate({ ...scene, title, isModified: true })
+            onUpdate({ ...scene, title: title, isModified: true })
           }}
           autoFocus
           className="text-xl font-bold"
@@ -97,14 +101,18 @@ export function SceneSettings({ scene, onUpdate, onVideoPreviewToggle, isVideoPr
 
       {/* Description Section */}
       <div className="relative">
-        <Textarea value={scene.description} placeholder="办公室场景" readOnly className="min-h-[120px] resize-none" />
+        <Textarea value={scene.description} placeholder="办公室场景" className="min-h-[120px] resize-none" 
+          onChange={ (e) =>{
+            onUpdate({...scene, description: e.target.value, isModified: true})
+          }
+          }
+        />
         <Button
           variant="ghost"
           size="icon"
           className="absolute top-2 right-2"
           onClick={() => {
-            setEditedDescription(scene.description)
-            setIsDescriptionEditOpen(true)
+            setIsPromptEditOpen(true)
           }}
         >
           <Pen className="h-4 w-4" />
@@ -209,13 +217,14 @@ export function SceneSettings({ scene, onUpdate, onVideoPreviewToggle, isVideoPr
       </AlertDialog>
 
       {/* Description Edit Panel */}
-      <DescriptionEditPanel
-        open={isDescriptionEditOpen}
-        onClose={() => setIsDescriptionEditOpen(false)}
-        value={editedDescription}
-        onChange={setEditedDescription}
-        onSave={() => {
-          onUpdate({ ...scene, description: editedDescription, isModified: true })
+      <PromptEditPanel
+        open={isPromptEditOpen}
+        onClose={() => setIsPromptEditOpen(false)}
+        value={prompt || scene.prompt}
+        onChange={setPrompt}
+        onSave={(promptText) => {
+          onUpdate({ ...scene, prompt: promptText, isModified: true })
+          console.log("................", promptText)
         }}
       />
 

@@ -80,7 +80,7 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
       <div className="flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-500">
           <Clock className="h-4 w-4 mr-1" />
-          {scene.timestamp}
+          {scene.update_time}
         </div>
         {getStatusBadge(scene.status)}
       </div>

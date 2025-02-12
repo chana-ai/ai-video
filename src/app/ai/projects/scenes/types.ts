@@ -1,3 +1,5 @@
+import internal from "stream"
+
 export type SceneStatus = "init" | "image_generating" | "video_generating" | "voice_generating" | "complete" | "fail"
 
 export type CameraMovement =
@@ -22,12 +24,21 @@ export interface Scene {
   id: string
   title: string
   description: string
-  timestamp: string
+  prompt: string
+  update_time: string
   status: SceneStatus
   imageUrl?: string
   videoUrl?: string
+  
+  project_id: number
+  stage_id: number
+
+  seq_id: number
+  pre_seq_id: number
+  next_seq_id: number
+
   videoSettings?: VideoSettings
-  isModified?: boolean
+  isModified?: boolean = false
 }
 
 export interface SceneCardProps {
