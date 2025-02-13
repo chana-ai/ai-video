@@ -1,3 +1,4 @@
+"use client"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type React from "react" // Added import for React

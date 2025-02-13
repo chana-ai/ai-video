@@ -1,3 +1,4 @@
+"use client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -5,7 +6,7 @@ import { RightPanel } from "./right-panel"
 import type { VideoSettingsProps, VideoSettings, CameraMovement } from "../types"
 
 const MODEL_OPTIONS = ["Image-to-Video-Morph-0.2"]
-const DURATION_OPTIONS = ["2s", "4s", "6s", "8s"]
+const DURATION_OPTIONS = ["4s", "6s", "8s", "16s", "32s"]
 const MOTION_OPTIONS = ["1", "2", "3", "4", "5", "6"]
 
 const CAMERA_CONTROLS: { value: CameraMovement; icon: string }[] = [
@@ -22,16 +23,16 @@ const CAMERA_CONTROLS: { value: CameraMovement; icon: string }[] = [
 
 export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: VideoSettingsProps) {
   const [currentSettings, setCurrentSettings] = useState<VideoSettings>({
-    model: settings?.model || MODEL_OPTIONS[0],
+    // model: settings?.model || MODEL_OPTIONS[0],
     camera: settings?.camera || "frame",
-    duration: settings?.duration || "2s",
+    duration: settings?.duration || "4s",
     motion: settings?.motion || "6",
   })
 
   return (
     <RightPanel open={open} onClose={() => onOpenChange(false)} title="Settings">
       <div className="space-y-6">
-        <div className="space-y-2">
+        {/* <div className="space-y-2">
           <label className="text-sm font-medium">Model</label>
           <Select
             value={currentSettings.model}
@@ -48,7 +49,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
 
         <div className="space-y-2">
           <label className="text-sm font-medium">Camera</label>

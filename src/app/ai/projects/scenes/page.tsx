@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { RefreshCw } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, RefreshCw } from "lucide-react"
 import { SceneCard } from "./components/scene-card"
 import { SceneSettings } from "./components/scene-settings"
 import type { Scene } from "./types"
@@ -27,14 +27,6 @@ const initialScenes: Scene[] = [
   //   description: "办公室场景",
   //   update_time: "2024-01-18 16:31",
   //   status: "image_generating",
-  //   isModified: false,
-  // },
-  // {
-  //   id: "3",
-  //   title: "分镜 3",
-  //   description: "咖啡厅场景",
-  //   update_time: "2024-01-18 14:20",
-  //   status: "video_generating",
   //   isModified: false,
   // },
 ]
@@ -144,6 +136,12 @@ export default function ScenePage() {
                                       update_time: new Date().toLocaleString(),
                                       status: "init",
                                       isModified: true,
+                                      imageUrl: "",
+                                      videoUrl: "",
+                                      project_id: Number(projectId),
+                                      stage_id: Number(stageId),
+                                      seq_id: -1,
+                                      prompt: "",
                                     }
                                     const index = scenes.findIndex((s) => s.id === id)
                                     const newScenes = [...scenes]

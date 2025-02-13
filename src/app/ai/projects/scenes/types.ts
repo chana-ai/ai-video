@@ -14,7 +14,7 @@ export type CameraMovement =
   | "rotate-cw"
 
 export interface VideoSettings {
-  model: string
+  // model: string
   camera: CameraMovement
   duration: string
   motion: string
@@ -73,3 +73,10 @@ export interface VideoDisplayProps {
   onConfirm: () => void
 }
 
+
+export interface UploadDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onUpload: (file: File) => void 
+  existingImage: string
+}

@@ -1,3 +1,4 @@
+"use client"
 import { Button } from "@/components/ui/button"
 import { Download, Check, RefreshCw } from "lucide-react"
 import { RightPanel } from "./right-panel"

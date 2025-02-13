@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { RightPanel } from "./right-panel"
@@ -7,15 +9,14 @@ interface PromptEditPanelProps {
   open: boolean
   onClose: () => void
   value: string
-  onChange: (value: string) => void
-  onSave: (text: String) => void
+  onSave: (text: string) => void
 }
 
-export function PromptEditPanel({ open, onClose, value, onChange, onSave }: PromptEditPanelProps) {
+export function PromptEditPanel({ open, onClose, value, onSave }: PromptEditPanelProps) {
   const [promptText, setPromptText] = useState(value || "")
  
   return (
-    <RightPanel open={open} onClose={onClose} title="Edit prompt">
+    <RightPanel open={open} onClose={onClose} title="Edit prompt test">
       <div className="space-y-4">
         <Textarea
           value={promptText}
