@@ -125,3 +125,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Video Settings Select Styles */
+.video-settings-select .ant-select-selector {
+  border-radius: 0.5rem !important;
+  padding: 4px 11px !important;
+  height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.video-settings-dropdown .ant-select-item {
+  padding: 8px 12px !important;
+  transition: all 0.2s !important;
+}
+
+.video-settings-dropdown .ant-select-item-option-active {
+  background-color: #f3f4f6 !important;
+}
+
+.video-settings-dropdown .ant-select-item-option-selected {
+  background-color: #e5e7eb !important;
+  font-weight: 500 !important;
+}

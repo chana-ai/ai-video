@@ -37,7 +37,7 @@ export interface Scene {
   pre_seq_id: number
   next_seq_id: number
 
-  videoSettings?: VideoSettings
+  video_setting?: VideoSettings
   isModified?: boolean = false
 }
 
@@ -52,7 +52,7 @@ export interface SceneCardProps {
 
 export interface SceneSettingsProps {
   scene: Scene | null
-  onUpdate: (scene: Scene) => void
+  onUpdate: (scene: Scene, key: string) => void
   onVideoPreviewToggle: () => void
   isVideoPreviewOpen: boolean
 }

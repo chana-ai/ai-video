@@ -1,21 +1,17 @@
-"use client"
 import { Button } from "@/components/ui/button"
-import { Download, Check, RefreshCw } from "lucide-react"
-import { RightPanel } from "./right-panel"
+import { Download, RefreshCw } from "lucide-react"
 import type { VideoDisplayProps } from "../types"
 
 export function VideoDisplayPanel({
-  open,
-  onOpenChange,
   videoUrl,
   isGenerating,
   onDownload,
-  onConfirm,
-}: VideoDisplayProps) {
+}: Omit<VideoDisplayProps, "open" | "onOpenChange" | "onConfirm">) {
   return (
-    <RightPanel open={open} onClose={() => onOpenChange(false)} title="Video Preview">
-      <div className="space-y-4">
-        <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+    <div className="h-full w-full bg-white rounded-lg shadow-md p-4 flex flex-col">
+      <h3 className="text-lg font-medium mb-4">Video Preview</h3>
+      <div className="flex-grow">
+        <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
           {isGenerating ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
@@ -26,23 +22,19 @@ export function VideoDisplayPanel({
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">No video available</div>
           )}
         </div>
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            disabled={isGenerating || !videoUrl}
-            onClick={onDownload}
-          >
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
-          <Button className="flex items-center gap-2" disabled={isGenerating || !videoUrl} onClick={onConfirm}>
-            <Check className="h-4 w-4" />
-            OK
-          </Button>
-        </div>
       </div>
-    </RightPanel>
+      <div className="flex justify-end mt-4">
+        <Button
+          variant="outline"
+          className="flex items-center gap-2"
+          disabled={isGenerating || !videoUrl}
+          onClick={onDownload}
+        >
+          <Download className="h-4 w-4" />
+          Download
+        </Button>
+      </div>
+    </div>
   )
 }
 
