@@ -19,63 +19,7 @@ const initialScenes: Scene[] = [
     update_time: "2024-01-19 15:30",
     status: "complete",
     isModified: false,
-  },
-  {
-    id: "2",
-    title: "分镜 2",
-    description: "办公室场景",
-    update_time: "2024-01-18 16:31",
-    status: "image_generating",
-    isModified: false,
-  },
-  {
-    id: "3",
-    title: "分镜 3",
-    description: "咖啡厅场景",
-    update_time: "2024-01-18 14:20",
-    status: "video_generating",
-    isModified: false,
-  },
-  {
-    id: "4",
-    title: "分镜 4",
-    description: "公园场景",
-    update_time: "2024-01-18 12:15",
-    status: "voice_generating",
-    isModified: false,
-  },
-  {
-    id: "5",
-    title: "分镜 5",
-    description: "地铁站场景",
-    update_time: "2024-01-18 10:45",
-    status: "init",
-    isModified: false,
-  },
-  {
-    id: "6",
-    title: "分镜 6",
-    description: "商场场景",
-    cr: "2024-01-18 09:30",
-    status: "fail",
-    isModified: false,
-  },
-  {
-    id: "7",
-    title: "分镜 7",
-    description: "餐厅场景",
-    timestamp: "2024-01-17 16:20",
-    status: "init",
-    isModified: false,
-  },
-  {
-    id: "8",
-    title: "分镜 8",
-    description: "学校场景",
-    timestamp: "2024-01-17 14:15",
-    status: "init",
-    isModified: false,
-  },
+  }
 ]
 
 export default function ScenePage() {
@@ -162,7 +106,7 @@ export default function ScenePage() {
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-end gap-4">
+        {/* <div className="max-w-7xl mx-auto px-4 py-4 flex justify-end gap-4">
           <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
             {isSaving ? (
               <>
@@ -174,13 +118,29 @@ export default function ScenePage() {
             )}
           </Button>
           <Button className="bg-green-600 hover:bg-green-700">导出</Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Main Content */}
       <div className="flex-grow flex overflow-hidden">
         <div className="w-80 p-4 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4">Scenes</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Scenes</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    保存中...
+                  </>
+                ) : (
+                  "保存"
+                )}
+              </Button>
+              <Button className="bg-green-600 hover:bg-green-700">导出</Button>
+            </div>
+          </div>
+          
           <div className="relative">
             {showScrollButtons && (
               <>
@@ -277,8 +237,10 @@ export default function ScenePage() {
         <div className="flex-grow p-4 overflow-y-auto">
           <SceneSettings
             scene={selectedScene}
-            onUpdate={(updatedScene: Scene, key: string) => {             
+            onUpdate={(updatedScene: Scene, key: string) => {        
+
               if (["title", "description", "prompt", "video_setting"].includes(key)) {
+                // 这几个需要用户将当前UI上的更爱上传到服务器端并生效的（自动更改）
                 instance.post('/api/v2/scene/update', {
                   id: updatedScene.id,
                   project_id: projectId,
@@ -294,6 +256,12 @@ export default function ScenePage() {
                 }).catch((error) => {
                   console.error(`Error updating scene ${updatedScene.id}: ${error}`);
                 });
+              }//If 
+              else {
+                setScenes(scenes.map((scene) => 
+                  scene.id === updatedScene.id ? updatedScene : scene
+                ))
+                setSelectedScene(updatedScene)
               }
 
             }}

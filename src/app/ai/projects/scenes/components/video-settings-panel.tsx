@@ -14,7 +14,10 @@ const DURATION_OPTIONS = [
   { value: "16", label: "16 seconds" },
   { value: "32", label: "32 seconds" }
 ]
-
+const MODEL_SELECTIONS = [
+  {value: "lightricks/ltx-video", label: "Lightricks/ltx-video"},
+  {value: "hailuo", label: "hailuo"}
+]
 const MOTION_OPTIONS = [
   { value: "1", label: "Speed 1" },
   { value: "2", label: "Speed 2" },
@@ -96,6 +99,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
     camera: settings?.camera || "frame",
     duration: settings?.duration || "4",
     motion: settings?.motion || "6",
+    model: settings?.model || "lightricks/ltx-video"
   })
 
   console.log(`current video ${currentSettings.camera}  and settings ${settings?.camera}` )
@@ -111,6 +115,10 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
 
   const handleMotionChange = useCallback((value: string) => {
     setCurrentSettings(prev => ({ ...prev, motion: value }))
+  }, [])
+
+  const handleModelChange = useCallback((value: string) => {
+    setCurrentSettings(prev => ({...prev, model: value }))
   }, [])
 
   const handleSave = useCallback(() => {
@@ -132,7 +140,19 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
           className="top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-white rounded-lg shadow-xl"
           // className="overflow-y-auto bg-white rounded-lg shadow-xl"
         >
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6"> 
+              <div className="space-y-2">
+            
+                <label className="text-sm font-medium">Model</label>
+                <SettingsSelect
+                  value={currentSettings.model}
+                  onChange={handleModelChange}
+                  options={MODEL_SELECTIONS}
+                />
+              </div>
+
+
+
             {/* Camera Controls */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Camera</label>

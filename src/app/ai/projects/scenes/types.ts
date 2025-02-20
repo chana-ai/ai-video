@@ -14,7 +14,7 @@ export type CameraMovement =
   | "rotate-cw"
 
 export interface VideoSettings {
-  // model: string
+  model: string
   camera: CameraMovement
   duration: string
   motion: string
@@ -25,10 +25,12 @@ export interface Scene {
   title: string
   description: string
   prompt: string
+  video_prompt: string
+  video_prompt_cn: string
   update_time: string
   status: SceneStatus
-  imageUrl?: string
-  videoUrl?: string
+  image_url?: string
+  video_url?: string
   
   project_id: number
   stage_id: number
@@ -65,12 +67,12 @@ export interface VideoSettingsProps {
 }
 
 export interface VideoDisplayProps {
+  videoUrl?: string
+  isGenerating?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
-  videoUrl?: string
-  isGenerating: boolean
   onDownload: () => void
-  onConfirm: () => void
+  onConfirm: (id: number, prompt: string, trigger: boolean) => void
 }
 
 

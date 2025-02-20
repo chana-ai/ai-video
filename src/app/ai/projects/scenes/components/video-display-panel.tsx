@@ -1,12 +1,19 @@
 import { Button } from "@/components/ui/button"
 import { Download, RefreshCw } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { useState, useCallback, memo } from "react"
 import type { VideoDisplayProps } from "../types"
 
 export function VideoDisplayPanel({
+  // id,
   videoUrl,
+  // video_prompt,
   isGenerating,
+  // hasImage,
   onDownload,
-}: Omit<VideoDisplayProps, "open" | "onOpenChange" | "onConfirm">) {
+  // onConfirm
+}: Omit<VideoDisplayProps, "open" | "onOpenChange" | "onConfirm"> ) {
+
   return (
     <div className="h-full w-full bg-white rounded-lg shadow-md p-4 flex flex-col">
       <h3 className="text-lg font-medium mb-4">Video Preview</h3>
@@ -34,7 +41,9 @@ export function VideoDisplayPanel({
           Download
         </Button>
       </div>
+     
     </div>
+
   )
 }
 

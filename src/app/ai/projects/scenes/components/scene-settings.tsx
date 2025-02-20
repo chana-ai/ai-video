@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -22,6 +22,9 @@ import { VideoDisplayPanel } from "./video-display-panel"
 import { PromptEditPanel } from "./prompt-edit-panel"
 import type { SceneSettingsProps, VideoSettings } from "../types"
 
+
+import instance from "@/lib/axios";
+
 export function SceneSettings({
   scene,
   onUpdate,
@@ -36,16 +39,29 @@ export function SceneSettings({
   const [title, setTitle] = useState(scene?.title || "")
   const [description, setDescription] = useState(scene?.description ||"")
   const [prompt, setPrompt] = useState(scene?.prompt || "")
+
+
+  const [activeTab, setActiveTab] = useState<"prompt" | "prompt_cn">("prompt")
+
+  const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
+  const [videoPromptCN, setVideoPromptCN] = useState(scene?.video_prompt_cn || "")
   
   // const promptRef = useRef<HTMLTextAreaElement>(null)
   const generateVideoRef = useRef<HTMLButtonElement>(null)
 
   if (!scene) return null
-  console.log(`scene. descriptopm ${scene.description}`)
-  const hasImage = Boolean(scene.imageUrl)
+
+  // useEffect(() => {
+  //   console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)  
+  // },
+  //   [videoPrompt, videoPromptCN, title, description]
+  // )
+  
+
+  const hasImage = Boolean(scene.image_url)
 
   const handleUploadClick = () => {
-    if (scene.imageUrl) {
+    if (scene.image_url) {
       setIsConfirmDialogOpen(true)
     } else {
       setIsUploadDialogOpen(true)
@@ -54,18 +70,69 @@ export function SceneSettings({
 
   const handleUpload = (file: File) => {
     const imageUrl = URL.createObjectURL(file)
-    onUpdate({ ...scene, imageUrl, isModified: true })
+    onUpdate({ ...scene, image_url: imageUrl, isModified: true }, '')
     setIsUploadDialogOpen(false)
   }
 
+  const handleGenerateImage = async () => {
+    instance.post('/api/v2/scene/generateSceneImage', {
+      scene_id: scene.id,
+      project_id: scene.project_id,
+      stage_id: scene.stage_id,
+    }).then((res) => {
+      console.log(`Scene ${scene.id} updated successfully.`);
+      onUpdate({...scene, image_url: res.image_url, isModified: true}, '');
+    }).catch( error => {
+      console.error(`Error generating initial image: ${error.message}`);
+    });
+    
+  }
 
-  const handleGenerateVideo = async () => {
-    setIsGeneratingVideo(true)
+  const handleGenerateVideoPrompt = async () =>{
+    instance.post('/api/v2/scene/generateVideoPrompt', {
+      scene_id: scene.id,
+      stage_id: scene.stage_id,
+      project_id: scene.project_id
+    }).then((res) => {
+      console.log(`Scene ${scene.id} video prompt ${res.video_prompt} updated successfully.`);
+      onUpdate({...scene, video_prompt: res.video_prompt, video_prompt_cn: res.video_prompt_cn, isModified: true}, '')
+      setVideoPrompt(res.video_prompt)
+      setVideoPromptCN(res.video_prompt_cn)
+      
+    }).catch( error => {
+      console.error(`Error generating initial image: ${error.message}`);
+    });
+  }
+
+  const handleGenerateVideo = async (trigger: boolean = false) => {
+    if(trigger)
+      setIsGeneratingVideo(true)
     // Simulate API call
+    instance.post('/api/v2/scene/createClip', {
+      scene_id: scene.id,
+      project_id: scene.project_id,
+      stage_id: scene.stage_id,
+      video_prompt: videoPrompt,
+      video_prompt_cn: videoPromptCN,
+      trigger: trigger
+    }).then((res) => {
+      console.log(`Scene ${scene.id} updated successfully.`);
+      if(trigger){
+        onUpdate({...scene, image_url: res.video_url, isModified: true}, '');
+        setIsGeneratingVideo(false)
+      }
+      
+    }).catch( error => {
+      if(trigger)
+        setIsGeneratingVideo(false)
+      console.error(`Error generating initial image: ${error.message}`);
+    });
+
     await new Promise((resolve) => setTimeout(resolve, 5000))
+    
     onUpdate({
       ...scene,
-      videoUrl: "/placeholder.mp4",
+      video_url: "/placeholder.mp4",
       isModified: true,
     }, '')
     setIsGeneratingVideo(false)
@@ -105,7 +172,7 @@ export function SceneSettings({
                 // ref={promptRef}
                 value={description ||scene.description}
                 placeholder="Enter scene descrpiton"
-                className="min-h-[120px] resize-none"
+                className="min-h-[100px] resize-none"
                 onChange={ (e) => {setDescription(e.target.value)}}
                 onBlur={() => onUpdate({ ...scene, description: description, isModified: true }, 'description')}
               />
@@ -131,17 +198,15 @@ export function SceneSettings({
                 </Button>
                 <Button
                   className="bg-purple-600 hover:bg-purple-700"
-                  onClick={() => {
-                    onUpdate({ ...scene, status: "image_generating", isModified: true })
-                  }}
+                  onClick={handleGenerateImage}
                 >
                   Generate Image
                 </Button>
               </div>
               <div className="aspect-video bg-gray-200 rounded-lg">
-                {scene.imageUrl && (
+                {scene.image_url && (
                   <img
-                    src={scene.imageUrl || "/placeholder.svg"}
+                    src={scene.image_url || "/placeholder.svg"}
                     alt="Preview"
                     className="w-full h-full object-cover rounded-lg"
                   />
@@ -149,34 +214,7 @@ export function SceneSettings({
               </div>
             </div>
 
-            {/* Video Control Section */}
-            <div className="flex flex-wrap items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h3 className="font-medium">Video Control</h3>
-                <Button variant="ghost" size="icon" onClick={() => setIsVideoSettingsOpen(true)}>
-                  <Settings2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                <Button
-                  ref={generateVideoRef}
-                  className="bg-purple-600 hover:bg-purple-700 relative"
-                  onClick={handleGenerateVideo}
-                  disabled={isGeneratingVideo || !hasImage}
-                >
-                  {isGeneratingVideo ? (
-                    <>
-                      Generate Video
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    </>
-                  ) : (
-                    "Generate Video"
-                  )}
-                </Button>
-              </div>
-            </div>
+           
 
             {/* Voice Section */}
             <div className="flex flex-wrap items-center justify-between">
@@ -197,13 +235,105 @@ export function SceneSettings({
         </Panel>
 
         <PanelResizeHandle className="w-2 bg-gray-200 hover:bg-gray-300 transition-colors" />
+        
+        <Panel defaultSize={50} minSize={20}>
+          
+           {/* Video Control Section */}
+           <div className="flex flex-wrap items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h3 className="font-medium">Video Control</h3>
+                <Button variant="ghost" size="icon" onClick={() => setIsVideoSettingsOpen(true)}>
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                <Button
+                  //ref={generateVideoRef}
+                  className="bg-purple-600 hover:bg-purple-700 relative"
+                  onClick={ () => {
+                    handleGenerateVideoPrompt()
+                  }}
+                  
+                > Generate Video Prompt</Button>
+              </div>
+            </div>
 
-        <Panel defaultSize={30} minSize={20}>
+        <div className="relative"></div>    
+        <div className="relative">
+             <h2 className="text-xl font-bold">生成的分镜视频提示词</h2>
+             
+             <div className="flex border-b">
+                <button
+                  className={`px-4 py-2 ${
+                    activeTab === "prompt"
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => {
+                    setActiveTab("prompt")
+                    console.log(`prompt: ${videoPrompt}`)
+                  }
+                }
+                >
+                  英文提示词
+                </button>
+                <button
+                  className={`px-4 py-2 ${
+                    activeTab === "prompt_cn"
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => {
+                    setActiveTab("prompt_cn")
+                    console.log(`promptCN: ${videoPromptCN}`)
+                  }}
+                >
+                  中文提示词
+                </button>
+              </div>
+
+
+              <Textarea
+                // ref={promptRef}
+                value={activeTab === "prompt" ? (videoPrompt || scene.video_prompt) : (videoPromptCN || scene.video_prompt_cn)}
+                onChange={(e) => (activeTab === "prompt" ? setVideoPrompt(e.target.value) : setVideoPromptCN(e.target.value))}
+                placeholder={`Enter ${activeTab === "prompt" ? "prompt" : "prompt_cn"} here...`}
+                className="min-h-[200px] resize-none"
+              />
+              
+        </div>
+        <div className="relative">
+          <div className="flex justify-end gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  console.log(' scene: {scene_id} and video_prompt: {video_prompt} and trigger: {trigger}')
+                  handleGenerateVideo(videoPrompt, false)
+                }}
+              >
+                保存
+              </Button>
+              <Button  disabled={!scene?.image_url} onClick={() => {
+                  handleGenerateVideo(videoPrompt, true)
+                }}>
+                  保存并生成视频
+              </Button>
+            </div>
+          </div>
+        
+          <div className="relative">
           <VideoDisplayPanel
-            videoUrl={scene.videoUrl}
+            // id = {scene?.id}
+            // video_prompt={videoPrompt || scene?.video_prompt}
+            videoUrl={scene.video_url}
             isGenerating={isGeneratingVideo}
             onDownload={handleVideoDownload}
+            onConfirm={(scene_id, video_prompt, trigger = false) => {
+                console.log(' scene: {scene_id} and video_prompt: {video_prompt} and trigger: {trigger}')
+                handleGenerateVideo(video_prompt, trigger)
+            }}
           />
+          </div>
         </Panel>
       </PanelGroup>
 
@@ -212,7 +342,7 @@ export function SceneSettings({
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
         onUpload={handleUpload}
-        existingImage={scene.imageUrl}
+        existingImage={scene.image_url}
       />
 
       {/* Confirm Replace Dialog */}
@@ -254,7 +384,7 @@ export function SceneSettings({
       <VideoSettingsPanel
         open={isVideoSettingsOpen}
         onOpenChange={setIsVideoSettingsOpen}
-        settings={scene.videoSettings}
+        settings={scene?.video_setting}
         onSave={ (video_setting)=> {
           onUpdate({ ...scene, video_setting: video_setting, isModified: true }, "video_setting")
         }
