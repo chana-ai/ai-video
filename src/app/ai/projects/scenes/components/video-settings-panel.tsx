@@ -1,5 +1,5 @@
 "use client"
-import { useState, useCallback, memo } from "react"
+import { useState, useCallback, memo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Select } from "antd"
 import type { SelectProps } from 'antd'
@@ -102,7 +102,14 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
     model: settings?.model || "lightricks/ltx-video"
   })
 
-  console.log(`current video ${currentSettings.camera}  and settings ${settings?.camera}` )
+  useEffect(() => {
+    setCurrentSettings(settings)
+    // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)  
+  },
+    [settings]
+  )
+
+  // console.log(`current video ${currentSettings.camera}  and settings ${settings?.camera}` )
   
   // Memoize handlers to prevent recreating on each render
   const handleCameraChange = useCallback((value: CameraMovement) => {
@@ -145,7 +152,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
             
                 <label className="text-sm font-medium">Model</label>
                 <SettingsSelect
-                  value={currentSettings.model}
+                  value={currentSettings?.model}
                   onChange={handleModelChange}
                   options={MODEL_SELECTIONS}
                 />
@@ -157,7 +164,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
             <div className="space-y-2">
               <label className="text-sm font-medium">Camera</label>
               <CameraControlButtons
-                currentCamera={currentSettings.camera}
+                currentCamera={currentSettings?.camera}
                 onCameraChange={handleCameraChange}
               />
             </div>
@@ -166,7 +173,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
             <div className="space-y-2">
               <label className="text-sm font-medium">Duration</label>
               <SettingsSelect
-                value={currentSettings.duration}
+                value={currentSettings?.duration}
                 onChange={handleDurationChange}
                 options={DURATION_OPTIONS}
               />
@@ -176,7 +183,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
             <div className="space-y-2">
               <label className="text-sm font-medium">Motion</label>
               <SettingsSelect
-                value={currentSettings.motion}
+                value={currentSettings?.motion}
                 onChange={handleMotionChange}
                 options={MOTION_OPTIONS}
               />

@@ -11,20 +11,10 @@ import Header from "../../header";
 import instance from "@/lib/axios";
 import { useSearchParams } from "next/navigation"
 
-const initialScenes: Scene[] = [
-  {
-    id: "1",
-    title: "分镜 1",
-    description: "城市街道场景",
-    update_time: "2024-01-19 15:30",
-    status: "complete",
-    isModified: false,
-  }
-]
 
 export default function ScenePage() {
-  const [scenes, setScenes] = useState<Scene[]>(initialScenes)
-  const [selectedScene, setSelectedScene] = useState<Scene | null>(null)
+  const [scenes, setScenes] = useState<Scene[]>([] as Scene[])
+  const [selectedScene, setSelectedScene] = useState<Scene>({} as Scene)
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const scenesContainerRef = useRef<HTMLDivElement>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -64,25 +54,9 @@ export default function ScenePage() {
   const handleSceneSelect = async (scene: Scene) => {
     console.log(`selected ${selectedScene?.id} and now select ${scene.id}`)
     try {
-      // if (selectedScene?.isModified) {
-      //   await instance.post('/api/v2/scene/update', {
-      //     id: selectedScene.id,
-      //     project_id: projectId,
-      //     stage_id: stageId,
-      //     title: selectedScene.title,
-      //     description: selectedScene.description,
-      //     prompt: selectedScene.prompt,
-      //     // Add other necessary fields
-      //   })
-        
-      //   // Update the scenes array with saved scene
-      //   setScenes(scenes.map(s => 
-      //     s.id === selectedScene.id ? { ...selectedScene, isModified: false } : s
-      //   ))
-      // }
-
       // Select the new scene
       setSelectedScene(scene)
+
     } catch (error) {
       console.error('Failed to save scene:', error)
       // Optionally show error message to user
@@ -105,21 +79,7 @@ export default function ScenePage() {
        ></Header>
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b">
-        {/* <div className="max-w-7xl mx-auto px-4 py-4 flex justify-end gap-4">
-          <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
-            {isSaving ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                保存中...
-              </>
-            ) : (
-              "保存"
-            )}
-          </Button>
-          <Button className="bg-green-600 hover:bg-green-700">导出</Button>
-        </div> */}
-      </div>
+     
 
       {/* Main Content */}
       <div className="flex-grow flex overflow-hidden">

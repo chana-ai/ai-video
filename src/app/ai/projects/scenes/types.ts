@@ -31,6 +31,7 @@ export interface Scene {
   status: SceneStatus
   image_url?: string
   video_url?: string
+  task_id?: string
   
   project_id: number
   stage_id: number
@@ -40,7 +41,8 @@ export interface Scene {
   next_seq_id: number
 
   video_setting?: VideoSettings
-  isModified?: boolean = false
+  voice_setting?: VoiceSettings
+  isModified?: boolean
 }
 
 export interface SceneCardProps {
@@ -81,4 +83,17 @@ export interface UploadDialogProps {
   onOpenChange: (open: boolean) => void
   onUpload: (file: File) => void 
   existingImage: string
+}
+
+
+export interface VoiceSettingsPanelProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  settings?: VoiceSettings
+  onSave: (settings: VoiceSettings) => void
+}
+
+export interface VoiceSettings {
+  voiceType: string
+  backgroundSound: string
 }
