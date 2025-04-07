@@ -431,7 +431,7 @@ export function SceneSettings({
       <PromptEditPanel
         open={isPromptEditOpen}
         onClose={() => setIsPromptEditOpen(false)}
-        value={prompt || scene.prompt}
+        value={prompt || scene?.prompt}
         onChange={setPrompt}
         onSave={() => {
           // console.log(`prompt : ${prompt}`)
@@ -451,16 +451,6 @@ export function SceneSettings({
         }
       />
 
-      {/* Voice Settings Panel */}
-      <VoiceSettingsPanel
-        open={isVoiceSettingsOpen}
-        onOpenChange={setIsVoiceSettingsOpen}
-        settings={voiceSettings}
-        onSave={(settings) => {
-          setVoiceSettings(settings)
-          onUpdate({ ...scene, voice_settings: settings, isModified: true }, "voice_settings")
-        }}
-      />
     </div>
   )
 }

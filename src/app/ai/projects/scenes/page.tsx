@@ -1,16 +1,17 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, use } from "react"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, RefreshCw } from "lucide-react"
+import { ChevronUp, ChevronDown, RefreshCw, Mic} from "lucide-react"
 import { SceneCard } from "./components/scene-card"
 import { SceneSettings } from "./components/scene-settings"
 import type { Scene } from "./types"
 import Header from "../../header";
 import instance from "@/lib/axios";
 import { useSearchParams } from "next/navigation"
-
+import { VoiceSettingsPanel } from "./components/voice-settings-panel"
+import { VoiceSettings } from "./types"
 
 export default function ScenePage() {
   const [scenes, setScenes] = useState<Scene[]>([] as Scene[])
@@ -22,11 +23,26 @@ export default function ScenePage() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project_id')
   const stageId = searchParams.get('stage_id')
-
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
+  const [voiceSettings, setVoiceSettings] = useState({} as VoiceSettings)
+  const [voiceMenu, setVoiceMenu] = useState({} as { [key: string]: string })
+  const [subtitle, setSubtitle] = useState<string>()
+  const [voice_url, setVoiceUrl] = useState<string>()
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      console.log('Scenes: '+JSON.stringify(res))  // {scenes: [...]}
-      setScenes(buildSceneOrder(res.scenes))
+      setScenes(buildSceneOrder(res?.scenes))
+    })
+
+    instance.get(`/api/v2/project/detail?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+      console.log('Project Info: '+JSON.stringify(res))
+      setVoiceSettings(res?.config?.voice_setting)
+      setVoiceUrl(res?.voice_url) 
+    })
+    instance.post("/api/v2/voice/list_voices", {
+      project_id: projectId,
+      stage_id: stageId
+    }).then((res) => {
+      setVoiceMenu(res)
     })
   }, [projectId, stageId])
   
@@ -83,9 +99,28 @@ export default function ScenePage() {
 
       {/* Main Content */}
       <div className="flex-grow flex overflow-hidden">
-        <div className="w-80 p-4 overflow-y-auto">
+        <div className="w-100 p-4 overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Scenes</h2>
+            
+              <div className="flex items-center gap-4">
+                <Mic className="h-4 w-4 text-gray-400" onClick={ () =>  {
+                    scenes.length > 0 && setSubtitle(scenes.map(scene => scene.description).join("."))
+                    setIsVoiceSettingsOpen(true)
+                }}
+                  />
+                
+                <Button
+                // className="bg-purple-600 hover:bg-purple-700 mt-2 sm:mt-0"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  alert("Generate Voice")
+                }}
+              >
+                Generate Voice
+              </Button>
+              </div>
+
+              
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
                 {isSaving ? (
@@ -101,6 +136,7 @@ export default function ScenePage() {
             </div>
           </div>
           
+          <h2 className="text-xl font-bold">Scenes</h2>
           <div className="relative">
             {showScrollButtons && (
               <>
@@ -227,6 +263,29 @@ export default function ScenePage() {
             }}
           />
         </div>
+
+      {/* Voice Settings Panel - Only renders when isVoiceSettingsOpen is true */}
+      {isVoiceSettingsOpen  && projectId &&stageId && (
+        <VoiceSettingsPanel
+          open={isVoiceSettingsOpen}
+          onOpenChange={setIsVoiceSettingsOpen}
+          settings={voiceSettings}
+          voice_menu={voiceMenu}
+          project_id={projectId}
+          stage_id = {stageId}
+          subtitle={subtitle}
+          voice_url={voice_url}
+          onSave={(settings) => {
+            instance.post('/api/v2/voice/update_voice_config', { 
+              project_id: projectId,
+              stage_id: stageId,
+              voice_name: settings.voice_name,
+            }).then(() => {
+                setVoiceSettings(settings)
+            })
+          }}
+        />
+      )}
       </div>
     </div>
     </>

@@ -89,11 +89,21 @@ export interface UploadDialogProps {
 export interface VoiceSettingsPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  settings?: VoiceSettings
+  settings?: VoiceSettings,
+  voice_menu: { [key: string]: string }
+  project_id: string
+  stage_id: string
+  scene_id?: string
+  subtitle?: string
+  voice_url?: string
   onSave: (settings: VoiceSettings) => void
+  // onGenerate: (scene_id: string) => {subtitle: string, voice_path: string}
 }
 
 export interface VoiceSettings {
-  voiceType: string
-  backgroundSound: string
+  voice_name: string
+  background: string
+  voice_pitch: number
+  voice_speed: number
+  voice_volume: number
 }
