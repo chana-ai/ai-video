@@ -109,7 +109,7 @@ export default function ScenePage() {
                 }}
                   />
                 
-                <Button
+                {/* <Button
                 // className="bg-purple-600 hover:bg-purple-700 mt-2 sm:mt-0"
                 className="bg-green-600 hover:bg-green-700"
                 onClick={() => {
@@ -117,7 +117,7 @@ export default function ScenePage() {
                 }}
               >
                 Generate Voice
-              </Button>
+              </Button> */}
               </div>
 
               
@@ -275,6 +275,9 @@ export default function ScenePage() {
           stage_id = {stageId}
           subtitle={subtitle}
           voice_url={voice_url}
+          onGenerate={ (voice_path: string)=>{
+              setVoiceUrl(voice_path)
+          }}
           onSave={(settings) => {
             instance.post('/api/v2/voice/update_voice_config', { 
               project_id: projectId,

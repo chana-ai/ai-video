@@ -41,12 +41,12 @@ export function SceneSettings({
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
   const [imageUrl, setImageUrl] = useState()
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
-  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>()
-
+  
   const [title, setTitle] = useState(scene?.title || "")
   const [description, setDescription] = useState(scene?.description ||"")
   const [prompt, setPrompt] = useState<string>(scene?.prompt || "")
   const [videoSetting, setVideoSetting] = useState<VideoSettings>()
+  const [voiceMenu, setVoiceMenu] = useState({} as { [key: string]: string })
 
 
   const [activeTab, setActiveTab] = useState<"prompt" | "prompt_cn">("prompt")
@@ -72,8 +72,15 @@ export function SceneSettings({
     setImageUrl(scene?.image_url)
     setVideoPrompt(scene?.voice_setting)
     // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)  
+
+    instance.post("/api/v2/voice/list_voices", {
+      project_id: scene?.project_id,
+      stage_id: scene?.stage_id
+    }).then((res) => {
+      setVoiceMenu(res)
+    })
   },
-    [scene?.video_prompt, scene?.description, scene?.video_prompt_cn]
+    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.description, scene?.video_prompt_cn]
   )
   
 
@@ -431,10 +438,13 @@ export function SceneSettings({
       <PromptEditPanel
         open={isPromptEditOpen}
         onClose={() => setIsPromptEditOpen(false)}
-        value={prompt || scene?.prompt}
+        value={scene.prompt}
         onChange={setPrompt}
         onSave={() => {
           // console.log(`prompt : ${prompt}`)
+          if(!prompt){
+            return 
+          }
           onUpdate({ ...scene, prompt: prompt, isModified: true }, "prompt")
         }}
       />
@@ -451,6 +461,37 @@ export function SceneSettings({
         }
       />
 
+      {/* Voice Settings Panel - Only renders when isVoiceSettingsOpen is true */}
+      {isVoiceSettingsOpen  && scene?.project_id && scene?.stage_id && (
+        <VoiceSettingsPanel
+          open={isVoiceSettingsOpen}
+          onOpenChange={setIsVoiceSettingsOpen}
+          settings={scene?.voice_setting}
+          voice_menu={voiceMenu}
+          project_id={scene?.project_id?.toString()}
+          stage_id = {scene?.stage_id?.toString()}
+          subtitle={scene?.description}
+          voice_url={scene?.voice_url}
+          scene_id={scene.id}
+          onGenerate={ (voice_path: string) => {
+             scene.voice_url = voice_path
+          }}
+          onSave={(settings) => {
+            instance.post('/api/v2/voice/update_voice_config', { 
+              project_id: scene?.project_id,
+              stage_id: scene?.stage_id, 
+              voice_name: settings.voice_name,
+              scene_id: scene.id
+            }).then(() => {
+                console.log('update config success')
+                scene.voice_setting = settings
+            // setVoiceSettings(settings)
+              console.log('.............', scene.voice_setting)
+            })
+            
+          }}
+        />
+      )}
     </div>
   )
 }

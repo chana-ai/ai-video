@@ -29,19 +29,20 @@ export interface Scene {
   video_prompt_cn: string
   update_time: string
   status: SceneStatus
-  image_url?: string
-  video_url?: string
   task_id?: string
   
   project_id: number
   stage_id: number
-
   seq_id: number
   pre_seq_id: number
   next_seq_id: number
 
   video_setting?: VideoSettings
-  voice_setting?: VoiceSettings
+  voice_setting?: VoiceSettings,
+  voice_url?:string
+  image_url?: string
+  video_url?: string
+
   isModified?: boolean
 }
 
@@ -97,7 +98,7 @@ export interface VoiceSettingsPanelProps {
   subtitle?: string
   voice_url?: string
   onSave: (settings: VoiceSettings) => void
-  // onGenerate: (scene_id: string) => {subtitle: string, voice_path: string}
+  onGenerate: (voice_path: string) => void
 }
 
 export interface VoiceSettings {

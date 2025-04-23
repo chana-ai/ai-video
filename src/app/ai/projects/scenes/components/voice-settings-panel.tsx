@@ -31,6 +31,7 @@ export function VoiceSettingsPanel({
   subtitle,
   voice_url,
   onSave,
+  onGenerate
 }: VoiceSettingsPanelProps) { 
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
@@ -58,9 +59,13 @@ export function VoiceSettingsPanel({
 
   useEffect(() => {
     setupVoice(voice_url || "")
+
   }, [voice_url])
 
   const setupVoice = (remote_video_url: string) => {
+    if(remote_video_url == null || remote_video_url == '' )
+      return
+
     const audio = new Audio(remote_video_url)
       
     // Add event listeners
@@ -95,11 +100,12 @@ export function VoiceSettingsPanel({
       stage_id: stage_id,
     }
     if (scene_id) {
-      post_data.scene_id = scene_id;
+      post_data['scene_id'] = scene_id;
     }
 
     instance.post('/api/v2/voice/generate_voice', post_data).then((res) => {
       setupVoice(res.voice_path)
+      onGenerate(res.voice_path)
     })
 
     
