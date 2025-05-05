@@ -51,6 +51,7 @@ export function SceneSettings({
 
   const [activeTab, setActiveTab] = useState<"prompt" | "prompt_cn">("prompt")
 
+  const [isLoading, setIsLoading] = useState(false);
   const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
   const [isVideoPrompt, setIsVideoPrompt] = useState(false)
   const [videoPromptCN, setVideoPromptCN] = useState(scene?.video_prompt_cn || "")
@@ -66,6 +67,7 @@ export function SceneSettings({
 
   useEffect(() => {
     setVideoPrompt(scene?.video_prompt)
+    setVideoPromptCN(scene?.video_prompt_cn)
     setDescription(scene?.description)
     // setVideoPromptCN(scene?.video_prompt_cn)
     setVideoSetting(scene?.video_setting)
@@ -116,6 +118,7 @@ export function SceneSettings({
   }
 
   const handleGenerateVideoPrompt = async () =>{
+    setIsLoading(true);
     instance.post('/api/v2/scene/generateVideoPrompt', {
       scene_id: scene.id,
       stage_id: scene.stage_id,
@@ -125,7 +128,7 @@ export function SceneSettings({
       onUpdate({...scene, video_prompt: res.video_prompt, video_prompt_cn: res.video_prompt_cn, isModified: true}, '')
       setVideoPrompt(res.video_prompt)
       setVideoPromptCN(res.video_prompt_cn)
-      
+      setIsLoading(false);
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
     });
@@ -307,12 +310,13 @@ export function SceneSettings({
               </div>
               <div className="flex items-center gap-2 mt-2 sm:mt-0">
                 <Button
-                  //ref={generateVideoRef}
+                  disabled={isLoading}
+                  ref={generateVideoRef}
                   className="bg-purple-600 hover:bg-purple-700 relative"
-                  onClick={ () => {
-                    handleGenerateVideoPrompt()
+                  onClick={async () => {
+                    handleGenerateVideoPrompt();
+
                   }}
-                  
                 > Generate Video Prompt</Button>
               </div>
             </div>
@@ -322,43 +326,26 @@ export function SceneSettings({
              {/* <h2 className="text-xl font-bold">生成的分镜视频提示词</h2> */}
              
              <div className="flex border-b">
-                <button
-                  className={`px-4 py-2 ${
-                    activeTab === "prompt"
-                      ? "text-purple-600 border-b-2 border-purple-600"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => {
-                    setActiveTab("prompt")
-                    console.log(`prompt: ${videoPrompt}`)
-                  }
-                }
-                >
-                  提示词
-                </button>
-                {/* <button
-                  className={`px-4 py-2 ${
-                    activeTab === "prompt_cn"
-                      ? "text-purple-600 border-b-2 border-purple-600"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => {
-                    setActiveTab("prompt_cn")
-                    console.log(`promptCN: ${videoPromptCN}`)
-                  }}
-                >
-                  中文提示词
-                </button> */}
+               
               </div>
 
-              <Textarea
-                value={activeTab === "prompt" ? (videoPrompt || "") : (videoPromptCN || "")}
-                onChange={(e) => {
-                  setVideoPrompt(e.target.value), setIsVideoPrompt(true)
-                }}
-                placeholder={`Enter ${activeTab === "prompt" ? "prompt" : "prompt_cn"} here...`}
-                className="min-h-[200px] resize-none"
-              />
+              <div className="relative">
+                <Textarea
+                  value={videoPromptCN}
+                  placeholder={`Ente here...`}
+                  className="min-h-[200px] resize-none "  
+                  disabled={isLoading}
+                  onChange={(e) => {
+                    setVideoPrompt(e.target.value), setIsVideoPrompt(true)
+                  }}
+                />
+
+                {isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="inline-block w-6 h-6 border-4 border-gray-200 rounded-full border-t-purple-600 animate-spin" />
+                  </div>
+                )}
+              </div>
         </div>
         <div className="relative">
           <div className="flex justify-end gap-2 pt-4">
@@ -495,4 +482,18 @@ export function SceneSettings({
     </div>
   )
 }
+
+// /* You can add this to your CSS file or in a <style jsx> block */
+// .spinner {
+//   border: 4px solid #f3f3f3;
+//   border-top: 4px solid #3498db;
+//   border-radius: 50%;
+//   width: 24px;
+//   height: 24px;
+//   animation: spin 1s linear infinite;
+// }
+// @keyframes spin {
+//   0% { transform: rotate(0deg); }
+//   100% { transform: rotate(360deg); }
+// }
 

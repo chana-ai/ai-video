@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,24 +11,58 @@ import type { ScriptGenerationData } from '../types'
 import Header from "../../header";
 import instance from "@/lib/axios";
 import { set } from 'date-fns'
+import { SheetTitle } from '@/components/ui/sheet'
 
 export default function ScriptConfiguration() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const projectId = searchParams.get('projectId')
-  const stageId = searchParams.get('stageId')
-
+  const projectId = searchParams.get('project_id')
+  const stageId = searchParams.get('stage_id')
+  
   const [generationType, setGenerationType] = useState<'subject' | 'script'>('subject')
   const [subject, setSubject] = useState('')
   const [script, setScript] = useState('')
   const [characters, setCharacters] = useState('')
   const [scenes, setScenes] = useState('')
-  const [character_changed, setCharacterChanged] = useState(true)
-  const [scene_changed, setSceneChanged] = useState(true)
+  const [character_changed, setCharacterChanged] = useState(false)
+  const [scene_changed, setSceneChanged] = useState(false)
   const [errors, setErrors] = useState({ characters: '', scenes: '' })
   const [isGenerating, setIsGenerating] = useState(false)
   const [subjectWordCount, setSubjectWordCount] = useState(0)
   const [scriptWordCount, setScriptWordCount] = useState(0)
+  const [disableChange, setDisableChange] = useState(false)
+
+  console.log('projectId: '+projectId + ' stageId: '+stageId)
+  useEffect(() => {
+    if (!projectId || !stageId) {
+      console.error('Project ID or Stage ID is missing');
+      return;
+    }
+    instance.get("/api/v2/script/getScriptInitResult", {
+      params: {
+        project_id: projectId,
+        stage_id: stageId
+      }
+    }).then((res) => {
+      console.log('res: '+JSON.stringify(res))
+      if(!res || Object.keys(res).length === 0){
+        setSubject('')
+        setScript('')
+        setCharacters('')
+        setScenes('')
+        setDisableChange(false)
+        return 
+      }
+      
+      setSubject(res.title)
+      setCharacters(JSON.stringify(res.characters, null, 2))
+      setScenes(JSON.stringify(res.scenes, null, 2))
+      setDisableChange(true)
+    })
+  },
+    [projectId, stageId]
+  )
+
 
   const countWords = (text: string) => {
     return text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -59,8 +93,7 @@ export default function ScriptConfiguration() {
         setScenes(JSON.stringify(res.scenes, null, 2));
         setCharacterChanged(true)
         setSceneChanged(true)
-  
-      })
+        })
 
     } catch (error) {
       console.error('Generation error:', error);
@@ -80,34 +113,32 @@ export default function ScriptConfiguration() {
 
     if (!charactersValid || !scenesValid) return
 
-    if (character_changed) {
-      instance.post('/api/v2/character/create_batch', {
-        characters: JSON.parse(characters),
+    
+    instance.post('/api/v2/character/create_batch', {
+      characters: JSON.parse(characters),
+      project_id: projectId,
+      stage_id: stageId
+    }).then((res)=>{
+      console.log('res: '+JSON.stringify(res))
+      setCharacterChanged(false)
+    }).catch(err =>{
+      console.error('Error creating characters:', err.message)
+      setErrors(prevErrors => ({...prevErrors, characters: err.message}))
+    }
+    )
+  
+    instance.post('/api/v2/scene/create_batch', {
+        scenes: JSON.parse(scenes),
         project_id: projectId,
         stage_id: stageId
-      }).then((res)=>{
-        console.log('res: '+JSON.stringify(res))
-        setCharacterChanged(false)
-      }).catch(err =>{
-        console.error('Error creating characters:', err.message)
-        setErrors(prevErrors => ({...prevErrors, characters: err.message}))
-      }
-      )
-    }
-    
-    if(scene_changed){
-        instance.post('/api/v2/scene/create_batch', {
-            scenes: JSON.parse(scenes),
-            project_id: projectId,
-            stage_id: stageId
-        }).then((res)=>{
-          console.log('Scenes creation response: '+JSON.stringify(res))
-          setSceneChanged(false)
-        }).catch((error)=>{
-          console.error('Error creating scenes:', error);
-          setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
-        });
-    }
+    }).then((res)=>{
+      console.log('Scenes creation response: '+JSON.stringify(res))
+      setSceneChanged(false)
+    }).catch((error)=>{
+      console.error('Error creating scenes:', error);
+      setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
+    });
+
     
   }
 
@@ -153,6 +184,7 @@ export default function ScriptConfiguration() {
               <>
                 <Input
                   value={subject}
+                  disabled={disableChange}
                   onChange={(e) => {
                     const newSubject = e.target.value.slice(0, 100);
                     setSubject(newSubject);
@@ -174,13 +206,14 @@ export default function ScriptConfiguration() {
                   }}
                   placeholder="Enter your script (max 500 words)"
                   className="h-32"
+                  disabled={disableChange}
                 />
                 <p className="text-sm text-gray-500">{scriptWordCount}/500 words</p>
               </>
             )}
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || (generationType === 'subject' ? !subject : !script)}
+              disabled={isGenerating || (generationType === 'subject' ? !subject : !script) || disableChange}
               className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
@@ -194,10 +227,11 @@ export default function ScriptConfiguration() {
             <label className="text-xl font-semibold mb-2 block">Characters</label>
             <Textarea
               value={characters}
+              disabled={disableChange}
               onChange={(e) => setCharacters(e.target.value)}
               placeholder="Character JSON will appear here"
               className="font-mono h-80"
-              readOnly
+              
             />
             {errors.characters && (
               <p className="text-red-500 mt-2 text-sm">{errors.characters}</p>
@@ -208,6 +242,7 @@ export default function ScriptConfiguration() {
             <label className="text-xl font-semibold mb-2 block">Scene/Stage</label>
             <Textarea
               value={scenes}
+              disabled={disableChange}
               onChange={(e) => {
                   setScenes(e.target.value)
                   setSceneChanged(false)

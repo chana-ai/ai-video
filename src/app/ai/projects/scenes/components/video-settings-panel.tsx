@@ -158,8 +158,6 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
                 />
               </div>
 
-
-
             {/* Camera Controls */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Camera</label>

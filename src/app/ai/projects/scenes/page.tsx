@@ -122,7 +122,7 @@ export default function ScenePage() {
 
               
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
+              {/* <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
                 {isSaving ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -131,7 +131,7 @@ export default function ScenePage() {
                 ) : (
                   "保存"
                 )}
-              </Button>
+              </Button> */}
               <Button className="bg-green-600 hover:bg-green-700">导出</Button>
             </div>
           </div>

@@ -22,7 +22,7 @@ export function PromptEditPanel({ open, onClose, value, onChange, onSave }: Prom
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-grow resize-none mb-4"
+          className="flex-grow resize-none mb-4 bg-background text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           placeholder="Enter scene prompt..."
         />
         <div className="flex justify-end gap-2">

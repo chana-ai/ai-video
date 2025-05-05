@@ -9,6 +9,7 @@ import { CreateProjectDialog } from './components/create-project-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import instance from "@/lib/axios";
 import config from '@/app/settings/config'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 
 interface Project {
@@ -25,6 +26,7 @@ export default function Projects() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [projects, setProjects] = useState<Project[]>([])
+  const router = useRouter()
 
   useEffect(() => {
     searchProjects(1)
@@ -64,7 +66,8 @@ export default function Projects() {
   const ProjectCard = ({ project }: { project: Project }) => (
     <Card 
       key={project.id} 
-      className="p-4 sm:p-6 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] flex flex-col justify-between h-full"
+      onClick={() => router.push(`/ai/projects/script-configuration?project_id=${project.id}&stage_id=${project.stage_id}`)}
+      className="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
     >
       <div className="flex-grow">
         <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4 text-center h-12 sm:h-14 flex items-center justify-center">
@@ -89,7 +92,10 @@ export default function Projects() {
           variant="ghost" 
           size="sm"
           className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 sm:p-2"
-          onClick={() => handleDelete(project.id, project.stage_id)}
+          onClick={(e) => {
+            e.stopPropagation()
+            handleDelete(project.id, project.stage_id)
+          }}
         >
           <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
           <span className="sr-only">Delete project</span>
@@ -101,7 +107,7 @@ export default function Projects() {
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-        <h1 className="text-2xl sm:text-3xl font-bold">Project Stage 列表</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Project 列表</h1>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <div className="relative w-full sm:w-auto">

@@ -44,7 +44,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     instance.post('/api/v2/project/create', formData).then(res => {
       console.log('res: '+JSON.stringify(res))  // {project_id， stage_id}
 
-      router.push(`/ai/projects/script-configuration?projectId=${res.project_id}&stageId=${res.stage_id}`)
+      router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
     }).catch(error => {
       setErrorMessage(error.message)
     })
