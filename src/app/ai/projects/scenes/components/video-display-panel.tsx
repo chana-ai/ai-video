@@ -30,7 +30,7 @@ export function VideoDisplayPanel({
           )}
         </div>
       </div>
-      <div className="flex justify-end mt-4">
+      {/* <div className="flex justify-end mt-4">
         <Button
           variant="outline"
           className="flex items-center gap-2"
@@ -40,7 +40,7 @@ export function VideoDisplayPanel({
           <Download className="h-4 w-4" />
           Download
         </Button>
-      </div>
+      </div> */}
      
     </div>
 

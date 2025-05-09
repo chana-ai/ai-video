@@ -11,6 +11,7 @@ import Header from "../../header";
 import instance from "@/lib/axios";
 import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
+import ExportUrlPanel from "./components/export_url_panel"
 import { VoiceSettings } from "./types"
 
 export default function ScenePage() {
@@ -28,6 +29,12 @@ export default function ScenePage() {
   const [voiceMenu, setVoiceMenu] = useState({} as { [key: string]: string })
   const [subtitle, setSubtitle] = useState<string>()
   const [voice_url, setVoiceUrl] = useState<string>()
+
+
+  const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
+
+  const [isExporting, setIsExporting] = useState(false)
+
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
       setScenes(buildSceneOrder(res?.scenes))
@@ -87,6 +94,19 @@ export default function ScenePage() {
     setIsSaving(false)
   }
 
+  const handleCombineVideo = async () => {
+    setIsExporting(true)
+    //TODO: 调用合并视频的API, 之后循坏检查合并状态
+    // 合并完成之后，调用导出视频的API
+    // 导出完成之后，调用导出URL的API
+    // 导出URL完成之后，调用导出URL的API
+    // 导出URL完成之后，调用导出URL的API
+    // 导出URL完成之后，调用导出URL的API
+    // 导出URL完成之后，调用导出URL的API
+    
+    
+  }
+
   return (
     <>
     <Header
@@ -103,11 +123,11 @@ export default function ScenePage() {
           <div className="flex justify-between items-center mb-4">
             
               <div className="flex items-center gap-4">
-                <Mic className="h-4 w-4 text-gray-400" onClick={ () =>  {
+                {/* <Mic className="h-4 w-4 text-gray-400" onClick={ () =>  {
                     scenes.length > 0 && setSubtitle(scenes.map(scene => scene.description).join("."))
                     setIsVoiceSettingsOpen(true)
                 }}
-                  />
+                  /> */}
                 
                 {/* <Button
                 // className="bg-purple-600 hover:bg-purple-700 mt-2 sm:mt-0"
@@ -122,17 +142,34 @@ export default function ScenePage() {
 
               
             <div className="flex gap-2">
-              {/* <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
+            <Mic className="h-4 w-4 text-gray-400" onClick={ () =>  {
+                    scenes.length > 0 && setSubtitle(scenes.map(scene => scene.description).join("."))
+                    setIsVoiceSettingsOpen(true)
+                }} />
+             
+             {/* <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
                 {isSaving ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    保存中...
+                    合并中...
                   </>
                 ) : (
-                  "保存"
+                  "合并"
                 )}
-              </Button> */}
-              <Button className="bg-green-600 hover:bg-green-700">导出</Button>
+              </Button> 
+            </div> */}
+              <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowExportUrlPanel(true)}>导出</Button>
+
+              <Button variant="outline" onClick={handleCombineVideo}>
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    合并中...
+                  </>
+                ) : (
+                  "合并"
+                )}
+              </Button> 
             </div>
           </div>
           
@@ -289,6 +326,16 @@ export default function ScenePage() {
           }}
         />
       )}
+
+      {showExportUrlPanel && projectId && stageId && (
+        <ExportUrlPanel
+          open={showExportUrlPanel}
+          project_id={projectId}
+          stage_id={stageId}  
+          onClose={() => setShowExportUrlPanel(false)}
+        />
+      )}  
+
       </div>
     </div>
     </>

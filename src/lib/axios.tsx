@@ -5,7 +5,7 @@ import { configConsumerProps } from "antd/es/config-provider";
 
 export const instance = axios.create({
     baseURL: `${config.host}`,
-    timeout: 20000,
+    timeout: 40000,
 });
 
 console.log(`Axios instance created with baseURL: ${instance.defaults.baseURL} and the config.host:  ${config.host}` );
