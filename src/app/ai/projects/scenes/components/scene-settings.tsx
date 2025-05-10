@@ -30,7 +30,7 @@ export function SceneSettings({
   scene,
   onUpdate,
 }: Omit<SceneSettingsProps, "onVideoPreviewToggle" | "isVideoPreviewOpen">) {
-  
+
   // if (!scene) return null
 
   const [isEditing, setIsEditing] = useState(false)
@@ -41,7 +41,7 @@ export function SceneSettings({
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
   const [imageUrl, setImageUrl] = useState()
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
-  
+
   const [title, setTitle] = useState(scene?.title || "")
   const [description, setDescription] = useState(scene?.description ||"")
   const [prompt, setPrompt] = useState<string>(scene?.prompt || "")
@@ -56,24 +56,24 @@ export function SceneSettings({
   const [isVideoPrompt, setIsVideoPrompt] = useState(false)
   const [videoPromptCN, setVideoPromptCN] = useState(scene?.video_prompt_cn || "")
   const [isVideoPromptCN, setIsVideoPromptCN] = useState(false)
-  
+
   // const promptRef = useRef<HTMLTextAreaElement>(null)
   const generateVideoRef = useRef<HTMLButtonElement>(null)
 
   console.log("scene in scene-settings is  ", scene)
 
-  
-  
+
+
 
   useEffect(() => {
     setVideoPrompt(scene?.video_prompt)
     setVideoPromptCN(scene?.video_prompt_cn)
-    setDescription(scene?.description)
+    // setDescription(scene?.description)
     // setVideoPromptCN(scene?.video_prompt_cn)
     setVideoSetting(scene?.video_setting)
     setImageUrl(scene?.image_url)
     setVideoPrompt(scene?.voice_setting)
-    // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)  
+    // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)
 
     instance.post("/api/v2/voice/list_voices", {
       project_id: scene?.project_id,
@@ -82,9 +82,9 @@ export function SceneSettings({
       setVoiceMenu(res)
     })
   },
-    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.description, scene?.video_prompt_cn]
+    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.video_prompt_cn]
   )
-  
+
 
   const hasImage = Boolean(scene?.image_url)
 
@@ -114,7 +114,7 @@ export function SceneSettings({
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
     });
-    
+
   }
 
   const handleGenerateVideoPrompt = async () =>{
@@ -165,7 +165,7 @@ export function SceneSettings({
         setIsGeneratingVideo(false)
         setIsVideoPrompt(false)
         setIsVideoPromptCN(false)
-  
+
         console.error(`Error generating initial image: ${error.message}`);
     });
 
@@ -186,7 +186,7 @@ export function SceneSettings({
       data['video_prompt_cn'] = videoPromptCN;
     }
 
-    instance.post('/api/v2/scene/savePrompts', 
+    instance.post('/api/v2/scene/savePrompts',
         data
     ).then((res) => {
         setIsVideoPrompt(false)
@@ -276,7 +276,7 @@ export function SceneSettings({
               </div>
             </div>
 
-           
+
 
             {/* Voice Section */}
             <div className="flex flex-wrap items-center justify-between">
@@ -297,9 +297,9 @@ export function SceneSettings({
         </Panel>
 
         <PanelResizeHandle className="w-2 bg-gray-200 hover:bg-gray-300 transition-colors" />
-        
+
         <Panel defaultSize={50} minSize={20}>
-          
+
            {/* Video Control Section */}
            <div className="flex flex-wrap items-center justify-between">
               <div className="flex items-center gap-4">
@@ -321,19 +321,19 @@ export function SceneSettings({
               </div>
             </div>
 
-        <div className="relative"></div>    
+        <div className="relative"></div>
         <div className="relative">
              {/* <h2 className="text-xl font-bold">生成的分镜视频提示词</h2> */}
-             
+
              <div className="flex border-b">
-               
+
               </div>
 
               <div className="relative">
                 <Textarea
                   value={videoPromptCN}
                   placeholder={`Ente here...`}
-                  className="min-h-[200px] resize-none "  
+                  className="min-h-[200px] resize-none "
                   disabled={isLoading}
                   onChange={(e) => {
                     setVideoPrompt(e.target.value), setIsVideoPrompt(true)
@@ -349,8 +349,8 @@ export function SceneSettings({
         </div>
         <div className="relative">
           <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 disabled = {isVideoPrompt == false && isVideoPromptCN == false}
                 onClick={() => {
                   setIsVideoPrompt(false)
@@ -373,7 +373,7 @@ export function SceneSettings({
               </Button> */}
             </div>
           </div>
-        
+
           <div className="relative">
           <VideoDisplayPanel
             // id = {scene?.id}
@@ -425,12 +425,12 @@ export function SceneSettings({
       <PromptEditPanel
         open={isPromptEditOpen}
         onClose={() => setIsPromptEditOpen(false)}
-        value={scene.prompt}
+        value={prompt}
         onChange={setPrompt}
         onSave={() => {
           // console.log(`prompt : ${prompt}`)
           if(!prompt){
-            return 
+            return
           }
           onUpdate({ ...scene, prompt: prompt, isModified: true }, "prompt")
         }}
@@ -444,7 +444,7 @@ export function SceneSettings({
         onSave={ (video_setting)=> {
           onUpdate({ ...scene, video_setting: video_setting, isModified: true }, "video_setting")
         }
-          
+
         }
       />
 
@@ -464,9 +464,9 @@ export function SceneSettings({
              scene.voice_url = voice_path
           }}
           onSave={(settings) => {
-            instance.post('/api/v2/voice/update_voice_config', { 
+            instance.post('/api/v2/voice/update_voice_config', {
               project_id: scene?.project_id,
-              stage_id: scene?.stage_id, 
+              stage_id: scene?.stage_id,
               voice_name: settings.voice_name,
               scene_id: scene.id
             }).then(() => {
@@ -475,7 +475,7 @@ export function SceneSettings({
             // setVoiceSettings(settings)
               console.log('.............', scene.voice_setting)
             })
-            
+
           }}
         />
       )}
