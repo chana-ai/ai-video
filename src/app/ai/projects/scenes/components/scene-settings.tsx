@@ -68,7 +68,7 @@ export function SceneSettings({
   useEffect(() => {
     setVideoPrompt(scene?.video_prompt)
     setVideoPromptCN(scene?.video_prompt_cn)
-    // setDescription(scene?.description)
+    setDescription(scene?.description)
     // setVideoPromptCN(scene?.video_prompt_cn)
     setVideoSetting(scene?.video_setting)
     setImageUrl(scene?.image_url)
@@ -82,7 +82,7 @@ export function SceneSettings({
       setVoiceMenu(res)
     })
   },
-    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.video_prompt_cn]
+    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.description, scene?.video_prompt_cn]
   )
 
 
