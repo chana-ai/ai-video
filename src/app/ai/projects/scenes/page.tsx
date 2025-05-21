@@ -12,7 +12,7 @@ import instance from "@/lib/axios";
 import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
 import ExportUrlPanel from "./components/export_url_panel"
-import { VoiceSettings } from "./types"
+import { VoiceSettings, Task } from "./types"
 
 export default function ScenePage() {
   const [scenes, setScenes] = useState<Scene[]>([] as Scene[])
@@ -35,9 +35,19 @@ export default function ScenePage() {
 
   const [isExporting, setIsExporting] = useState(false)
 
+  const [taskList, setTaskList] = useState<Task[]>([])
+
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      setScenes(buildSceneOrder(res?.scenes))
+      const remote_scenes = res?.scenes
+      setScenes(buildSceneOrder(remote_scenes))
+      let localTaskList = []
+      for (const scene of remote_scenes) {
+        //初始化 task 全部用 INIT。
+          localTaskList.push({scene_id: scene.id, video_url: scene.video_url, status: "INIT"})
+      }
+      setTaskList(localTaskList)
+      console.log('Task List: '+JSON.stringify(taskList))
     })
 
     instance.get(`/api/v2/project/detail?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
@@ -51,8 +61,75 @@ export default function ScenePage() {
     }).then((res) => {
       setVoiceMenu(res)
     })
+
+    setInterval(() => {
+      checkTaskStatus()
+    }, 15000)
+
   }, [projectId, stageId])
   
+
+ 
+
+  const checkTaskStatus = async () => {
+    let need_check_task = false
+    for(const task of taskList){
+      if(task.status == 'PROCESSING' || task.status == 'INIT' || task.status == 'PENDING'){
+        need_check_task = true
+        break
+      }
+    }
+    if(!need_check_task){
+      return
+    }
+    
+    const scene_ids = taskList.map(task => task.scene_id)
+    if (!scene_ids){
+      return
+    }
+
+    instance.get(`/api/v2/task/scene_status?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+      console.log('Scene Status: '+JSON.stringify(res.data))
+      let id_task_map = {}    
+      for(const scene_task of res.data){
+        id_task_map[scene_task.scene_id] = scene_task
+      }
+
+      let local_id_task_map = {}
+      for(const task of taskList){
+        local_id_task_map[task.scene_id] = task
+      }
+
+      let updateScenes = []
+      let scene_updated = false
+      for(const scene of scenes){
+        const task = id_task_map[scene.id]
+        if(!task){
+          updateScenes.push(scene)
+          continue
+        }
+        
+        if(task.status == 'COMPLETED' && task.status != local_id_task_map[scene.id].status){
+          // 当远程的任务状态是 COMPLETE， 并且和本地的状态不一致，是新更新的。 
+          updateScenes.push({ ...scene, video_url: task.video_url })
+          scene_updated = true
+        }else{
+          updateScenes.push(scene)
+        }
+        local_id_task_map[scene.id].status = task.status
+      }
+
+      setTaskList(Object.values(local_id_task_map))
+
+      // 如果本地有更新，则更新本地
+      if (scene_updated){
+        setScenes(updateScenes)
+      }
+
+    })
+  }
+
+
   const buildSceneOrder = (scenes: Scene[]): Scene[] => {
     return scenes
   }
@@ -271,6 +348,7 @@ export default function ScenePage() {
           <SceneSettings
             scene={selectedScene}
             onUpdate={(updatedScene: Scene, key: string) => {        
+              setSelectedScene({ ...selectedScene, title: 'current title' })
 
               if (["title", "description", "prompt", "video_setting"].includes(key)) {
                 // 这几个需要用户将当前UI上的更爱上传到服务器端并生效的（自动更改）

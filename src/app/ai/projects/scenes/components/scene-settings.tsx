@@ -63,8 +63,6 @@ export function SceneSettings({
   console.log("scene in scene-settings is  ", scene)
 
 
-
-
   useEffect(() => {
     setVideoPrompt(scene?.video_prompt)
     setVideoPromptCN(scene?.video_prompt_cn)
@@ -73,6 +71,7 @@ export function SceneSettings({
     setVideoSetting(scene?.video_setting)
     setImageUrl(scene?.image_url)
     setVideoPrompt(scene?.voice_setting)
+    setPrompt(scene?.prompt)
     // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)
 
     instance.post("/api/v2/voice/list_voices", {
@@ -82,7 +81,7 @@ export function SceneSettings({
       setVoiceMenu(res)
     })
   },
-    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.description, scene?.video_prompt_cn]
+    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.description, scene?.video_prompt_cn, scene?.prompt]
   )
 
 
@@ -214,7 +213,12 @@ export function SceneSettings({
             {isEditing ? (
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value)
+                  // onUpdate({ ...scene, title: title, isModified: true }, 'title')
+                
+                
+                } }
                 onBlur={() => {
                   setIsEditing(false)
                   onUpdate({ ...scene, title: title, isModified: true }, 'title')
@@ -336,7 +340,8 @@ export function SceneSettings({
                   className="min-h-[200px] resize-none "
                   disabled={isLoading}
                   onChange={(e) => {
-                    setVideoPrompt(e.target.value), setIsVideoPrompt(true)
+                    setVideoPromptCN(e.target.value)
+                    setIsVideoPromptCN(true)
                   }}
                 />
 

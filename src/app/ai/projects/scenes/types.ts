@@ -29,7 +29,8 @@ export interface Scene {
   video_prompt_cn: string
   update_time: string
   status: SceneStatus
-  task_id?: string
+  task_id?: number
+  task_status?: string
   
   project_id: number
   stage_id: number
@@ -42,6 +43,8 @@ export interface Scene {
   voice_url?:string
   image_url?: string
   video_url?: string
+
+  
 
   isModified?: boolean
 }
@@ -107,4 +110,11 @@ export interface VoiceSettings {
   voice_pitch: number
   voice_speed: number
   voice_volume: number
+}
+
+export interface Task {
+  scene_id: number
+  task_id: number
+  status: string
+  video_url: string
 }

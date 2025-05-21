@@ -2,6 +2,7 @@ import { Save, Plus, Trash2, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { SceneCardProps, SceneStatus } from "../types"
+import { Label } from "@radix-ui/react-dropdown-menu"
 
 export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete }: SceneCardProps) {
   const getStatusBadge = (status: SceneStatus) => {
@@ -42,6 +43,12 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
       <div className="flex justify-between items-start mb-4">
         <h3 className="font-medium">{scene.title}</h3>
         <div className="flex gap-1">
+         <Label
+            className={`h-8 w-8 ${scene.isModified ? "text-red-500" : "text-green-500"}`}
+          >
+            {scene.task_status? 'loading':'done'}
+          </Label> 
+
           <Button
             variant="ghost"
             size="icon"
