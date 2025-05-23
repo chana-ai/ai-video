@@ -1,4 +1,4 @@
-import { Save, Plus, Trash2, Clock } from "lucide-react"
+import { Save, Plus, Trash2, Clock, Webcam, MonitorPlay } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { SceneCardProps, SceneStatus } from "../types"
@@ -43,11 +43,25 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
       <div className="flex justify-between items-start mb-4">
         <h3 className="font-medium">{scene.title}</h3>
         <div className="flex gap-1">
-         <Label
+         {/* <Label
             className={`h-8 w-8 ${scene.isModified ? "text-red-500" : "text-green-500"}`}
           >
             {scene.task_status? 'loading':'done'}
-          </Label> 
+          </Label>  */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-8 w-8 ${!scene.video_url ? "text-red-500" : "text-green-500"}`}
+            // onClick={(e) => {
+            //   e.stopPropagation()
+            //   onSave(scene.id)
+            // }}
+            onMouseOver={() => {
+              console.log('mouse over')
+            }}
+          >
+            <MonitorPlay className="h-4 w-4" />
+          </Button>
 
           <Button
             variant="ghost"
@@ -55,7 +69,8 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             className={`h-8 w-8 ${scene.isModified ? "text-red-500" : "text-green-500"}`}
             onClick={(e) => {
               e.stopPropagation()
-              onSave(scene.id)
+              alert('该功能暂未开放')
+              // onSave(scene.id)
             }}
           >
             <Save className="h-4 w-4" />
@@ -66,7 +81,8 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             className="h-8 w-8"
             onClick={(e) => {
               e.stopPropagation()
-              onAdd(scene.id)
+              alert('该功能暂未开放')
+              // onAdd(scene.id)
             }}
           >
             <Plus className="h-4 w-4" />
@@ -77,11 +93,12 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             className="h-8 w-8"
             onClick={(e) => {
               e.stopPropagation()
-              onDelete(scene.id)
+              alert('该功能暂未开放')
+              // onDelete(scene.id)
             }}
           >
             <Trash2 className="h-4 w-4" />
-          </Button>
+          </Button> 
         </div>
       </div>
       <div className="flex items-center justify-between">

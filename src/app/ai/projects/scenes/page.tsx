@@ -61,38 +61,37 @@ export default function ScenePage() {
     }).then((res) => {
       setVoiceMenu(res)
     })
-
-    setInterval(() => {
-      checkTaskStatus()
-    }, 15000)
-
+  
+    instance.get(`/api/v2/task/running_video_scene_ids?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+      let tasks = []
+      for(const task_id of res){
+        tasks.push({scene_id: task_id, status: 'PROCESSING'})
+      }
+      setTaskList(tasks)
+    })
   }, [projectId, stageId])
   
 
+  useEffect(() => {
+    console.log('Task List: '+JSON.stringify(taskList))
+    const timmer = setInterval(checkTaskStatus, 120000);
+    return () => {
+      // 组件卸载时 清除定时器
+      clearInterval(timmer);
+    }
+  }, [taskList])
  
 
   const checkTaskStatus = async () => {
-    let need_check_task = false
-    for(const task of taskList){
-      if(task.status == 'PROCESSING' || task.status == 'INIT' || task.status == 'PENDING'){
-        need_check_task = true
-        break
-      }
-    }
-    if(!need_check_task){
+ 
+    if(taskList.length == 0){
       return
     }
-    
-    const scene_ids = taskList.map(task => task.scene_id)
-    if (!scene_ids){
-      return
-    }
-
     instance.get(`/api/v2/task/scene_status?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      console.log('Scene Status: '+JSON.stringify(res.data))
-      let id_task_map = {}    
-      for(const scene_task of res.data){
-        id_task_map[scene_task.scene_id] = scene_task
+      console.log('Scene Status: '+JSON.stringify(res))
+      let remote_id_task_status = {}    
+      for(const scene_task of res){
+        remote_id_task_status[scene_task.scene_id] = scene_task
       }
 
       let local_id_task_map = {}
@@ -102,30 +101,37 @@ export default function ScenePage() {
 
       let updateScenes = []
       let scene_updated = false
+      let task_updated = false
       for(const scene of scenes){
-        const task = id_task_map[scene.id]
-        if(!task){
+        const task = remote_id_task_status[scene.id]
+        const local_task = local_id_task_map[scene.id]
+        if(!task || !local_task){
           updateScenes.push(scene)
           continue
         }
-        
-        if(task.status == 'COMPLETED' && task.status != local_id_task_map[scene.id].status){
+
+        if(task.status == 'COMPLETED' && local_task.status != 'COMPLETED'){
           // 当远程的任务状态是 COMPLETE， 并且和本地的状态不一致，是新更新的。 
           updateScenes.push({ ...scene, video_url: task.video_url })
           scene_updated = true
         }else{
           updateScenes.push(scene)
         }
-        local_id_task_map[scene.id].status = task.status
+        if(task.status != local_task.status){
+          // 更新为远程的 status
+          local_id_task_map[scene.id] = task
+          task_updated = true
+        }
       }
 
-      setTaskList(Object.values(local_id_task_map))
+      if(task_updated){
+        setTaskList(Object.values(local_id_task_map))
+      }
 
       // 如果本地有更新，则更新本地
       if (scene_updated){
         setScenes(updateScenes)
       }
-
     })
   }
 
@@ -173,15 +179,27 @@ export default function ScenePage() {
 
   const handleCombineVideo = async () => {
     setIsExporting(true)
-    //TODO: 调用合并视频的API, 之后循坏检查合并状态
-    // 合并完成之后，调用导出视频的API
-    // 导出完成之后，调用导出URL的API
-    // 导出URL完成之后，调用导出URL的API
-    // 导出URL完成之后，调用导出URL的API
-    // 导出URL完成之后，调用导出URL的API
-    // 导出URL完成之后，调用导出URL的API
-    
-    
+    //1. 调用合并视频的API, 之后循坏检查合并状态
+    let clips_ready = true
+    for(const scene of scenes){
+      if(scene.video_url == null){
+        clips_ready = false
+        break
+      }
+    }
+    if(!clips_ready){
+      alert("请确保所有clip都已经生成")
+      return
+    }
+    // 2. 合并完成之后，调用导出视频的API
+    setIsExporting(true)
+    instance.post('/api/v2/project/combine_project_scene_clips', {
+      project_id: projectId,
+      stage_id: stageId,
+    }).then((res)=>{
+      console.log('Combine Video: '+JSON.stringify(res))
+      setIsExporting(false)
+    })
   }
 
   return (

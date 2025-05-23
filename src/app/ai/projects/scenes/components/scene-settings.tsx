@@ -39,23 +39,20 @@ export function SceneSettings({
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [isVideoSettingsOpen, setIsVideoSettingsOpen] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
-  const [imageUrl, setImageUrl] = useState()
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
 
   const [title, setTitle] = useState(scene?.title || "")
   const [description, setDescription] = useState(scene?.description ||"")
   const [prompt, setPrompt] = useState<string>(scene?.prompt || "")
   const [videoSetting, setVideoSetting] = useState<VideoSettings>()
-  const [voiceMenu, setVoiceMenu] = useState({} as { [key: string]: string })
+  // const [voiceMenu, setVoiceMenu] = useState({} as { [key: string]: string })
 
-
-  const [activeTab, setActiveTab] = useState<"prompt" | "prompt_cn">("prompt")
-
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [generatingImageError, setGeneratingImageError] = useState(false)
   const [isLoading, setIsLoading] = useState(false);
-  const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
-  const [isVideoPrompt, setIsVideoPrompt] = useState(false)
+  // const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
+  // const [isVideoPrompt, setIsVideoPrompt] = useState(false)
   const [videoPromptCN, setVideoPromptCN] = useState(scene?.video_prompt_cn || "")
-  const [isVideoPromptCN, setIsVideoPromptCN] = useState(false)
 
   // const promptRef = useRef<HTMLTextAreaElement>(null)
   const generateVideoRef = useRef<HTMLButtonElement>(null)
@@ -64,26 +61,27 @@ export function SceneSettings({
 
 
   useEffect(() => {
-    setVideoPrompt(scene?.video_prompt)
-    setVideoPromptCN(scene?.video_prompt_cn)
+    console.log("scene in scene-settings is  ",  scene?.video_prompt_cn || '' , " ----------")
+    setVideoPromptCN(scene?.video_prompt_cn || '')
     setDescription(scene?.description)
     // setVideoPromptCN(scene?.video_prompt_cn)
     setVideoSetting(scene?.video_setting)
-    setImageUrl(scene?.image_url)
-    setVideoPrompt(scene?.voice_setting)
     setPrompt(scene?.prompt)
+
     // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)
 
-    instance.post("/api/v2/voice/list_voices", {
-      project_id: scene?.project_id,
-      stage_id: scene?.stage_id
-    }).then((res) => {
-      setVoiceMenu(res)
-    })
   },
-    [scene?.project_id, scene?.stage_id, scene?.video_prompt, scene?.description, scene?.video_prompt_cn, scene?.prompt]
+    [scene]
   )
 
+  // useEffect(() => {
+  //   instance.post("/api/v2/voice/list_voices", {
+  //     project_id: scene?.project_id,
+  //     stage_id: scene?.stage_id
+  //   }).then((res) => {
+  //     setVoiceMenu(res)
+  //   })
+  // }, [scene?.project_id, scene?.stage_id])
 
   const hasImage = Boolean(scene?.image_url)
 
@@ -102,31 +100,31 @@ export function SceneSettings({
   }
 
   const handleGenerateImage = async () => {
+    setIsGeneratingImage(true)
     instance.post('/api/v2/scene/generateSceneImage', {
       scene_id: scene.id,
       project_id: scene.project_id,
       stage_id: scene.stage_id,
     }).then((res) => {
       console.log(`Scene ${scene.id} updated successfully.`);
-      setImageUrl(res.image_url)
       onUpdate({...scene, image_url: res.image_url, isModified: true}, '');
+      setIsGeneratingImage(false)
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
+      setIsGeneratingImage(false)
+      setGeneratingImageError(error.message)
     });
-
   }
 
   const handleGenerateVideoPrompt = async () =>{
     setIsLoading(true);
     instance.post('/api/v2/scene/generateVideoPrompt', {
-      scene_id: scene.id,
-      stage_id: scene.stage_id,
-      project_id: scene.project_id
+      scene_id: scene?.id,
+      stage_id: scene?.stage_id,
+      project_id: scene?.project_id
     }).then((res) => {
-      console.log(`Scene ${scene.id} video prompt ${res.video_prompt} updated successfully.`);
-      onUpdate({...scene, video_prompt: res.video_prompt, video_prompt_cn: res.video_prompt_cn, isModified: true}, '')
-      setVideoPrompt(res.video_prompt)
-      setVideoPromptCN(res.video_prompt_cn)
+      console.log(`Scene ${scene?.id} video prompt ${res?.video_prompt_cn} updated successfully.`);
+      onUpdate({...scene, video_prompt_cn: res.video_prompt_cn, isModified: true}, '')
       setIsLoading(false);
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
@@ -142,29 +140,24 @@ export function SceneSettings({
         regenerate_prompt: regenerate_prompt
     }
 
-    if(isVideoPrompt && regenerate_prompt == false){
-        data['video_prompt'] = videoPrompt;
-    }
-    // if(isVideoPromptCN){
-    //   data['video_prompt_cn'] = videoPromptCN;
+    // if(isVideoPrompt && regenerate_prompt == false){
+    //     data['video_prompt'] = videoPrompt;
     // }
+    if(isVideoPromptCN){
+      data['video_prompt_cn'] = videoPromptCN;
+    }
 
     instance.post('/api/v2/scene/createClip', data).then((res) => {
         if(regenerate_prompt){
           // 重新生成的
-          onUpdate({...scene, video_prompt: res.video_prompt, video_prompt_cn: videoPromptCN, isModified: true}, "");
+          onUpdate({...scene, video_prompt_cn: videoPromptCN, isModified: true}, "");
         }else{
-          onUpdate({...scene, video_prompt: videoPrompt, video_prompt_cn: videoPromptCN, isModified: false}, "");
+          onUpdate({...scene, video_prompt_cn: videoPromptCN, isModified: false}, "");
         }
 
-        setIsVideoPrompt(false)
-        // setIsVideoPromptCN(false)
         setIsGeneratingVideo(false)
     }).catch( error => {
         setIsGeneratingVideo(false)
-        setIsVideoPrompt(false)
-        setIsVideoPromptCN(false)
-
         console.error(`Error generating initial image: ${error.message}`);
     });
 
@@ -174,27 +167,15 @@ export function SceneSettings({
     let data = {
       scene_id: scene?.id,
       stage_id: scene?.stage_id,
-      project_id: scene?.project_id
-    }
-
-    if(isVideoPrompt){
-      data['video_prompt'] = videoPrompt;
-    }
-
-    if(isVideoPromptCN){
-      data['video_prompt_cn'] = videoPromptCN;
+      project_id: scene?.project_id,
+      video_prompt_cn: videoPromptCN
     }
 
     instance.post('/api/v2/scene/savePrompts',
         data
     ).then((res) => {
-        setIsVideoPrompt(false)
-        setIsVideoPromptCN(false)
-
+      console.log("save prompts success")
     }).catch( error => {
-        setIsVideoPrompt(false)
-        setIsVideoPromptCN(false)
-
         console.error(`Error generating initial image: ${error.message}`);
     });
   }
@@ -236,7 +217,7 @@ export function SceneSettings({
             <div className="relative">
               <Textarea
                 // ref={promptRef}
-                value={description|| ""}
+                value={description}
                 placeholder="Enter scene descrpiton"
                 className="min-h-[100px] resize-none"
                 onChange={ (e) => {setDescription(e.target.value)}}
@@ -265,25 +246,32 @@ export function SceneSettings({
                 <Button
                   className="bg-purple-600 hover:bg-purple-700"
                   onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
                 >
                   Generate Image
                 </Button>
+                {isGeneratingImage && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="inline-block w-6 h-6 border-4 border-gray-200 rounded-full border-t-purple-600 animate-spin" />
+                  </div>
+                )}
+                <div style={{ color: 'red' }}>{generatingImageError} </div>                
               </div>
               <div className="aspect-video bg-gray-200 rounded-lg">
-                {imageUrl && (
+                
                   <img
-                    src= {imageUrl || "/placeholder.svg"}
+                    src= {scene?.image_url || "/placeholder.svg"}
                     alt="Preview"
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full rounded-lg object-contain"
                   />
-                )}
+                
               </div>
             </div>
 
 
 
             {/* Voice Section */}
-            <div className="flex flex-wrap items-center justify-between">
+            {/* <div className="flex flex-wrap items-center justify-between">
               <div className="flex items-center gap-4">
                 <h3 className="font-medium">Voice</h3>
                 <Mic className="h-4 w-4 text-gray-400" onClick={ () => setIsVoiceSettingsOpen(true)}/>
@@ -296,7 +284,7 @@ export function SceneSettings({
               >
                 Generate Voice
               </Button>
-            </div>
+            </div> */}
           </div>
         </Panel>
 
@@ -332,7 +320,6 @@ export function SceneSettings({
              <div className="flex border-b">
 
               </div>
-
               <div className="relative">
                 <Textarea
                   value={videoPromptCN}
@@ -341,7 +328,6 @@ export function SceneSettings({
                   disabled={isLoading}
                   onChange={(e) => {
                     setVideoPromptCN(e.target.value)
-                    setIsVideoPromptCN(true)
                   }}
                 />
 
@@ -356,17 +342,13 @@ export function SceneSettings({
           <div className="flex justify-end gap-2 pt-4">
               <Button
                 variant="outline"
-                disabled = {isVideoPrompt == false && isVideoPromptCN == false}
                 onClick={() => {
-                  setIsVideoPrompt(false)
-                  setIsVideoPromptCN(false)
-                  console.log('scene: {scene_id} and video_prompt: {video_prompt} and trigger: {trigger}')
-                  handleSavePromptes(false)
+                  handleSavePromptes()
                 }}
               >
                 仅保存
               </Button>
-              <Button  disabled={ !(scene?.image_url !=null && videoPrompt!=null) } onClick={() => {
+              <Button  disabled={ !(scene?.image_url !=null) } onClick={() => {
                   handleGenerateVideo()
                 }}>
                   生成视频
