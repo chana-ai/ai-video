@@ -75,10 +75,6 @@ export interface VideoSettingsProps {
 export interface VideoDisplayProps {
   videoUrl?: string
   isGenerating?: boolean
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onDownload: () => void
-  onConfirm: (id: number, prompt: string, trigger: boolean) => void
 }
 
 

@@ -7,12 +7,8 @@ import type { VideoDisplayProps } from "../types"
 export function VideoDisplayPanel({
   // id,
   videoUrl,
-  // video_prompt,
   isGenerating,
-  // hasImage,
-  onDownload,
-  // onConfirm
-}: Omit<VideoDisplayProps, "open" | "onOpenChange" | "onConfirm"> ) {
+}: VideoDisplayProps ) {
 
   return (
     <div className="h-full w-full bg-white rounded-lg shadow-md p-4 flex flex-col">

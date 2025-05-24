@@ -51,7 +51,7 @@ export function SceneSettings({
   const [generatingImageError, setGeneratingImageError] = useState(false)
   const [isLoading, setIsLoading] = useState(false);
   // const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
-  // const [isVideoPrompt, setIsVideoPrompt] = useState(false)
+  const [isVideoPromptChanged, setIsVideoPromptChanged] = useState(false)
   const [videoPromptCN, setVideoPromptCN] = useState(scene?.video_prompt_cn || "")
 
   // const promptRef = useRef<HTMLTextAreaElement>(null)
@@ -137,16 +137,9 @@ export function SceneSettings({
         scene_id: scene?.id,
         project_id: scene?.project_id,
         stage_id: scene?.stage_id,
-        regenerate_prompt: regenerate_prompt
+        regenerate_prompt: regenerate_prompt,
+        video_prompt_cn: videoPromptCN
     }
-
-    // if(isVideoPrompt && regenerate_prompt == false){
-    //     data['video_prompt'] = videoPrompt;
-    // }
-    if(isVideoPromptCN){
-      data['video_prompt_cn'] = videoPromptCN;
-    }
-
     instance.post('/api/v2/scene/createClip', data).then((res) => {
         if(regenerate_prompt){
           // 重新生成的
@@ -164,6 +157,9 @@ export function SceneSettings({
   }
 
   const handleSavePromptes = () =>{
+    if(isVideoPromptChanged == false){
+      return
+    }
     let data = {
       scene_id: scene?.id,
       stage_id: scene?.stage_id,
@@ -175,8 +171,10 @@ export function SceneSettings({
         data
     ).then((res) => {
       console.log("save prompts success")
+      setIsVideoPromptChanged(false)
     }).catch( error => {
         console.error(`Error generating initial image: ${error.message}`);
+        setIsVideoPromptChanged(false)
     });
   }
 
@@ -270,7 +268,8 @@ export function SceneSettings({
 
 
 
-            {/* Voice Section */}
+            {/* Voice Section */
+            /**  Disable voice setting for now */}
             {/* <div className="flex flex-wrap items-center justify-between">
               <div className="flex items-center gap-4">
                 <h3 className="font-medium">Voice</h3>
@@ -328,6 +327,7 @@ export function SceneSettings({
                   disabled={isLoading}
                   onChange={(e) => {
                     setVideoPromptCN(e.target.value)
+                    setIsVideoPromptChanged(true)
                   }}
                 />
 
@@ -342,36 +342,26 @@ export function SceneSettings({
           <div className="flex justify-end gap-2 pt-4">
               <Button
                 variant="outline"
+                disabled={ isVideoPromptChanged == false }
                 onClick={() => {
                   handleSavePromptes()
                 }}
               >
                 仅保存
               </Button>
-              <Button  disabled={ !(scene?.image_url !=null) } onClick={() => {
+              <Button  disabled={ isGeneratingVideo ||scene?.image_url ==null || videoPromptCN == null || videoPromptCN == "" } 
+              onClick={() => {
                   handleGenerateVideo()
                 }}>
                   生成视频
               </Button>
-              {/* <Button  disabled={!(scene?.image_url!=null && videoPromptCN!=null && isVideoPromptCN)}
-                  onClick = { ()=> handleGenerateVideo(true)}
-                >
-                  使用中文并生成视频
-              </Button> */}
             </div>
           </div>
 
           <div className="relative">
           <VideoDisplayPanel
-            // id = {scene?.id}
-            // video_prompt={videoPrompt || scene?.video_prompt}
             videoUrl={scene?.video_url}
             isGenerating={isGeneratingVideo}
-            onDownload={handleVideoDownload}
-            onConfirm={(scene_id, video_prompt, trigger = false) => {
-                console.log(' scene: {scene_id} and video_prompt: {video_prompt} and trigger: {trigger}')
-                handleGenerateVideo(video_prompt, trigger)
-            }}
           />
           </div>
         </Panel>
