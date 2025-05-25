@@ -31,6 +31,10 @@ export function PromptEditPanel({ open, onClose, value, onChange, onSave }: Prom
           </Button>
           <Button
             onClick={() => {
+              if(value == null || value == ""){
+                alert("Prompt cannot be empty")
+                return
+              } 
               onSave()
               onClose()
             }}

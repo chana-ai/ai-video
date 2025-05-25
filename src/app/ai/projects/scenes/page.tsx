@@ -36,6 +36,7 @@ export default function ScenePage() {
   const [isExporting, setIsExporting] = useState(false)
 
   const [taskList, setTaskList] = useState<Task[]>([])
+  const [isVideoTaskInProgress, setIsVideoTaskInProgress] = useState(false)  //针对selectedScene是否有视频生成任务。
 
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
@@ -74,7 +75,7 @@ export default function ScenePage() {
 
   useEffect(() => {
     console.log('Task List: '+JSON.stringify(taskList))
-    const timmer = setInterval(checkTaskStatus, 120000);
+    const timmer = setInterval(checkTaskStatus, 30000);
     return () => {
       // 组件卸载时 清除定时器
       clearInterval(timmer);
@@ -167,6 +168,15 @@ export default function ScenePage() {
       console.error('Failed to save scene:', error)
       // Optionally show error message to user
     }
+  }
+
+  const calculateIsVideoTaskInProgress = () => {
+    for(const task of taskList){
+      if(selectedScene && task.scene_id == selectedScene.id){
+        return task.status == 'PROCESSING' || task.status == 'INIT' || task.status == 'PENDING'
+      }
+    }
+    return false
   }
 
   const handleGlobalSave = async () => {
@@ -365,35 +375,37 @@ export default function ScenePage() {
         <div className="flex-grow p-4 overflow-y-auto">
           <SceneSettings
             scene={selectedScene}
-            onUpdate={(updatedScene: Scene, key: string) => {        
-              setSelectedScene({ ...selectedScene, title: 'current title' })
+            onUpdate={(key: string, value: any) => {        
 
-              if (["title", "description", "prompt", "video_setting"].includes(key)) {
-                // 这几个需要用户将当前UI上的更爱上传到服务器端并生效的（自动更改）
-                instance.post('/api/v2/scene/update', {
-                  id: updatedScene.id,
+              if (["title", "description", "image_prompt", "video_setting"].includes(key)) {
+                let data = {
+                  id: selectedScene.id,
                   project_id: projectId,
                   stage_id: stageId,
-                  ...(key === "prompt" ? { image_prompt: updatedScene[key] } : { [key]: updatedScene[key] }),
-                  // Add other necessary fields
-                }).then(() => {
-                  console.log(`Scene ${updatedScene.id} updated successfully.`);
-                  setScenes(scenes.map((scene) => 
-                    scene.id === updatedScene.id ? updatedScene : scene
-                  ))
-                  setSelectedScene(updatedScene)
+                }
+                data[key] = value
+                
+                // 这几个需要用户将当前UI上的更爱上传到服务器端并生效的（自动更改）
+                instance.post('/api/v2/scene/update', data).then(() => {
+                  console.log(`Scene ${selectedScene.id} updated successfully.`);
+                  setSelectedScene({ ...selectedScene, [key]: value})
                 }).catch((error) => {
-                  console.error(`Error updating scene ${updatedScene.id}: ${error}`);
+                  console.error(`Error updating scene ${selectedScene.id}: ${error}`);
                 });
-              }//If 
-              else {
-                setScenes(scenes.map((scene) => 
-                  scene.id === updatedScene.id ? updatedScene : scene
-                ))
-                setSelectedScene(updatedScene)
+              }else{
+                // 这几个需要用户将当前UI上的数值进行更改，不需要上传到服务器端，因为本身这些值是服务器生成并返回的 
+                // video_prompt_cn, image_url, video_url, 
+                setSelectedScene({ ...selectedScene, [key]: value})
               }
 
+              if(key == "image_prompt"){
+                key = "prompt"   // 服务器返回的是  prompt, 这里需要转化一下。
+              }
+              setScenes(scenes.map((scene) => 
+                scene.id === selectedScene.id ? { ...scene, [key]: value} : scene
+              ))
             }}
+            isVideoTaskInProgress={calculateIsVideoTaskInProgress()}
           />
         </div>
 

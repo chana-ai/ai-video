@@ -29,6 +29,7 @@ import instance from "@/lib/axios";
 export function SceneSettings({
   scene,
   onUpdate,
+  isVideoTaskInProgress,
 }: Omit<SceneSettingsProps, "onVideoPreviewToggle" | "isVideoPreviewOpen">) {
 
   // if (!scene) return null
@@ -48,7 +49,7 @@ export function SceneSettings({
   // const [voiceMenu, setVoiceMenu] = useState({} as { [key: string]: string })
 
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
-  const [generatingImageError, setGeneratingImageError] = useState(false)
+  
   const [isLoading, setIsLoading] = useState(false);
   // const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
   const [isVideoPromptChanged, setIsVideoPromptChanged] = useState(false)
@@ -57,31 +58,23 @@ export function SceneSettings({
   // const promptRef = useRef<HTMLTextAreaElement>(null)
   const generateVideoRef = useRef<HTMLButtonElement>(null)
 
-  console.log("scene in scene-settings is  ", scene)
-
+  //Following are error messages
+  const [generatingImageError, setGeneratingImageError] = useState(false)
+  const [clipErrorMessage, setClipErrorMessage] = useState(false)
 
   useEffect(() => {
     console.log("scene in scene-settings is  ",  scene?.video_prompt_cn || '' , " ----------")
     setVideoPromptCN(scene?.video_prompt_cn || '')
-    setDescription(scene?.description)
+    setDescription(scene?.description || '')
     // setVideoPromptCN(scene?.video_prompt_cn)
     setVideoSetting(scene?.video_setting)
-    setPrompt(scene?.prompt)
+    setPrompt(scene?.prompt || '')
 
     // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)
 
   },
     [scene]
   )
-
-  // useEffect(() => {
-  //   instance.post("/api/v2/voice/list_voices", {
-  //     project_id: scene?.project_id,
-  //     stage_id: scene?.stage_id
-  //   }).then((res) => {
-  //     setVoiceMenu(res)
-  //   })
-  // }, [scene?.project_id, scene?.stage_id])
 
   const hasImage = Boolean(scene?.image_url)
 
@@ -95,7 +88,7 @@ export function SceneSettings({
 
   const handleUpload = (file: File) => {
     const imageUrl = URL.createObjectURL(file)
-    onUpdate({ ...scene, image_url: imageUrl, isModified: true }, '')
+    onUpdate("image_url", imageUrl)
     setIsUploadDialogOpen(false)
   }
 
@@ -107,7 +100,7 @@ export function SceneSettings({
       stage_id: scene.stage_id,
     }).then((res) => {
       console.log(`Scene ${scene.id} updated successfully.`);
-      onUpdate({...scene, image_url: res.image_url, isModified: true}, '');
+      onUpdate("image_url", res.image_url);
       setIsGeneratingImage(false)
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
@@ -123,11 +116,11 @@ export function SceneSettings({
       stage_id: scene?.stage_id,
       project_id: scene?.project_id
     }).then((res) => {
-      console.log(`Scene ${scene?.id} video prompt ${res?.video_prompt_cn} updated successfully.`);
-      onUpdate({...scene, video_prompt_cn: res.video_prompt_cn, isModified: true}, '')
+      onUpdate("video_prompt_cn", res.video_prompt_cn)
       setIsLoading(false);
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
+      setIsLoading(false);
     });
   }
 
@@ -141,17 +134,17 @@ export function SceneSettings({
         video_prompt_cn: videoPromptCN
     }
     instance.post('/api/v2/scene/createClip', data).then((res) => {
-        if(regenerate_prompt){
-          // 重新生成的
-          onUpdate({...scene, video_prompt_cn: videoPromptCN, isModified: true}, "");
-        }else{
-          onUpdate({...scene, video_prompt_cn: videoPromptCN, isModified: false}, "");
-        }
-
+        onUpdate("video_prompt_cn", videoPromptCN)
         setIsGeneratingVideo(false)
     }).catch( error => {
         setIsGeneratingVideo(false)
         console.error(`Error generating initial image: ${error.message}`);
+        let response = error.response.data
+        if(response.code == 533){
+          setClipErrorMessage(response.message)
+        } else {
+          setClipErrorMessage("系统开了小差，联系下管理员，或者稍后再试")
+        }
     });
 
   }
@@ -171,16 +164,14 @@ export function SceneSettings({
         data
     ).then((res) => {
       console.log("save prompts success")
+      onUpdate("video_prompt_cn", videoPromptCN)
       setIsVideoPromptChanged(false)
     }).catch( error => {
         console.error(`Error generating initial image: ${error.message}`);
+        let response = error.response.data
+        setClipErrorMessage(response.message)
         setIsVideoPromptChanged(false)
     });
-  }
-
-  const handleVideoDownload = () => {
-    // Implement video download logic
-    console.log("Downloading video...")
   }
 
   return (
@@ -194,20 +185,17 @@ export function SceneSettings({
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value)
-                  // onUpdate({ ...scene, title: title, isModified: true }, 'title')
-                
-                
                 } }
                 onBlur={() => {
+                  onUpdate("title", title)
                   setIsEditing(false)
-                  onUpdate({ ...scene, title: title, isModified: true }, 'title')
                 }}
                 autoFocus
                 className="text-xl font-bold"
               />
             ) : (
               <h2 className="text-xl font-bold cursor-pointer" onClick={() => setIsEditing(true)}>
-                {scene.title}
+                {scene?.title}
               </h2>
             )}
 
@@ -219,14 +207,15 @@ export function SceneSettings({
                 placeholder="Enter scene descrpiton"
                 className="min-h-[100px] resize-none"
                 onChange={ (e) => {setDescription(e.target.value)}}
-                onBlur={() => onUpdate({ ...scene, description: description, isModified: true }, 'description')}
+                onBlur={() => {
+                  onUpdate("description", description)
+                }}
               />
               <Button
                 variant="ghost"
                 size="icon"
                 className="absolute top-2 right-2"
                 onClick={() => {
-                  //setEditedPrompt(scene.description)
                   setIsPromptEditOpen(true)
                 }}
               >
@@ -256,20 +245,20 @@ export function SceneSettings({
                 <div style={{ color: 'red' }}>{generatingImageError} </div>                
               </div>
               <div className="aspect-video bg-gray-200 rounded-lg">
-                
+                {scene?.image_url && (
                   <img
                     src= {scene?.image_url || "/placeholder.svg"}
                     alt="Preview"
                     className="w-full h-full rounded-lg object-contain"
                   />
-                
+                )}
               </div>
-            </div>
+              </div>
 
 
 
             {/* Voice Section */
-            /**  Disable voice setting for now */}
+            /**  Disable voice setting */}
             {/* <div className="flex flex-wrap items-center justify-between">
               <div className="flex items-center gap-4">
                 <h3 className="font-medium">Voice</h3>
@@ -340,6 +329,7 @@ export function SceneSettings({
         </div>
         <div className="relative">
           <div className="flex justify-end gap-2 pt-4">
+              <div style={{ color: 'red' }}>{clipErrorMessage} </div>                
               <Button
                 variant="outline"
                 disabled={ isVideoPromptChanged == false }
@@ -349,7 +339,7 @@ export function SceneSettings({
               >
                 仅保存
               </Button>
-              <Button  disabled={ isGeneratingVideo ||scene?.image_url ==null || videoPromptCN == null || videoPromptCN == "" } 
+              <Button  disabled={ isVideoTaskInProgress || isGeneratingVideo ||scene?.image_url ==null || videoPromptCN == null || videoPromptCN == "" } 
               onClick={() => {
                   handleGenerateVideo()
                 }}>
@@ -362,6 +352,7 @@ export function SceneSettings({
           <VideoDisplayPanel
             videoUrl={scene?.video_url}
             isGenerating={isGeneratingVideo}
+            isVideoTaskInProgress={isVideoTaskInProgress}
           />
           </div>
         </Panel>
@@ -372,7 +363,7 @@ export function SceneSettings({
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
         onUpload={handleUpload}
-        existingImage={scene.image_url}
+        existingImage={scene?.image_url}
       />
 
       {/* Confirm Replace Dialog */}
@@ -402,14 +393,14 @@ export function SceneSettings({
       <PromptEditPanel
         open={isPromptEditOpen}
         onClose={() => setIsPromptEditOpen(false)}
-        value={prompt}
+        value={prompt || ''}
         onChange={setPrompt}
         onSave={() => {
           // console.log(`prompt : ${prompt}`)
           if(!prompt){
             return
           }
-          onUpdate({ ...scene, prompt: prompt, isModified: true }, "prompt")
+          onUpdate("image_prompt", prompt)
         }}
       />
 
@@ -419,7 +410,7 @@ export function SceneSettings({
         onOpenChange={setIsVideoSettingsOpen}
         settings={videoSetting}
         onSave={ (video_setting)=> {
-          onUpdate({ ...scene, video_setting: video_setting, isModified: true }, "video_setting")
+          onUpdate("video_setting", video_setting)
         }
 
         }

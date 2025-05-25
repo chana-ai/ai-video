@@ -8,6 +8,7 @@ export function VideoDisplayPanel({
   // id,
   videoUrl,
   isGenerating,
+  isVideoTaskInProgress,
 }: VideoDisplayProps ) {
 
   return (
@@ -15,7 +16,7 @@ export function VideoDisplayPanel({
       <h3 className="text-lg font-medium mb-4">Video Preview</h3>
       <div className="flex-grow">
         <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
-          {isGenerating ? (
+          {isGenerating  || isVideoTaskInProgress? (
             <div className="absolute inset-0 flex items-center justify-center">
               <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
             </div>

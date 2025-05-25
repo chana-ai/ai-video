@@ -60,9 +60,10 @@ export interface SceneCardProps {
 
 export interface SceneSettingsProps {
   scene: Scene | null
-  onUpdate: (scene: Scene, key: string) => void
+  onUpdate: (key: string, value: any) => void
   onVideoPreviewToggle: () => void
   isVideoPreviewOpen: boolean
+  isVideoTaskInProgress: boolean
 }
 
 export interface VideoSettingsProps {
@@ -74,7 +75,8 @@ export interface VideoSettingsProps {
 
 export interface VideoDisplayProps {
   videoUrl?: string
-  isGenerating?: boolean
+  isGenerating?: boolean,
+  isVideoTaskInProgress?: boolean
 }
 
 
