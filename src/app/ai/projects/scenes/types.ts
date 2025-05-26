@@ -76,7 +76,8 @@ export interface VideoSettingsProps {
 export interface VideoDisplayProps {
   videoUrl?: string
   isGenerating?: boolean,
-  isVideoTaskInProgress?: boolean
+  isVideoTaskInProgress?: boolean,
+  onClose?: () => void
 }
 
 

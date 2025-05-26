@@ -12,7 +12,7 @@ export default function ExportUrlPanel({ open, onClose, project_id, stage_id }: 
   
   // Close modal when clicking outside
   useEffect(() => {
-    instance.get(`/api/v2/project/get_resource_urls?project_id=${project_id}&stage_id=${stage_id}`).then((res)=>{
+    instance.get(`/api/v2/project/get_video_raw_materials?project_id=${project_id}&stage_id=${stage_id}`).then((res)=>{
         console.log(res)
         setUrls(res)
     })

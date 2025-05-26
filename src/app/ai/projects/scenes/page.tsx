@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, use } from "react"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, RefreshCw, Mic} from "lucide-react"
+import { ChevronUp, ChevronDown, RefreshCw, Mic, Combine} from "lucide-react"
 import { SceneCard } from "./components/scene-card"
 import { SceneSettings } from "./components/scene-settings"
 import type { Scene } from "./types"
@@ -13,6 +13,7 @@ import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
 import ExportUrlPanel from "./components/export_url_panel"
 import { VoiceSettings, Task } from "./types"
+import { VideoDisplayPanel } from "./components/video-display-panel"
 
 export default function ScenePage() {
   const [scenes, setScenes] = useState<Scene[]>([] as Scene[])
@@ -36,8 +37,13 @@ export default function ScenePage() {
   const [isExporting, setIsExporting] = useState(false)
 
   const [taskList, setTaskList] = useState<Task[]>([])
-  const [isVideoTaskInProgress, setIsVideoTaskInProgress] = useState(false)  //针对selectedScene是否有视频生成任务。
 
+  
+
+  // 合并后的是 预览视频
+  const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)
+  const [combinedVideoUrl, setCombinedVideoUrl] = useState<string>()
+  const [combine_error_message, setCombineErrorMessage] = useState<string>()
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
       const remote_scenes = res?.scenes
@@ -75,7 +81,7 @@ export default function ScenePage() {
 
   useEffect(() => {
     console.log('Task List: '+JSON.stringify(taskList))
-    const timmer = setInterval(checkTaskStatus, 30000);
+    const timmer = setInterval(checkTaskStatus, 120000);
     return () => {
       // 组件卸载时 清除定时器
       clearInterval(timmer);
@@ -209,6 +215,14 @@ export default function ScenePage() {
     }).then((res)=>{
       console.log('Combine Video: '+JSON.stringify(res))
       setIsExporting(false)
+    }).catch((error)=>{
+      console.error('Combine Video Error: '+JSON.stringify(error))
+      setIsExporting(false)
+      if (error.code == "ERR_NETWORK" ){
+        setCombineErrorMessage("网络连接临时错误")
+        return
+      }
+      setCombineErrorMessage(error.response.data.message)
     })
   }
 
@@ -275,7 +289,11 @@ export default function ScenePage() {
                   "合并"
                 )}
               </Button> 
+              <Button variant="outline" onClick={() => setIsPreviewingVideo(true)}  disabled={combinedVideoUrl == null} >
+                预览
+              </Button> 
             </div>
+            <div style={{ color: 'red' }}>{combine_error_message} </div>                
           </div>
           
           <h2 className="text-xl font-bold">Scenes</h2>
@@ -443,6 +461,16 @@ export default function ScenePage() {
           onClose={() => setShowExportUrlPanel(false)}
         />
       )}  
+
+
+  {  isPreviewingVideo && combinedVideoUrl &&  (
+        <VideoDisplayPanel
+        videoUrl={combinedVideoUrl}
+        isGenerating={false}
+        isVideoTaskInProgress={false}
+        onClose={() => setIsPreviewingVideo(false)}
+        />
+      )}
 
       </div>
     </div>

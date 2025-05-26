@@ -9,6 +9,7 @@ export function VideoDisplayPanel({
   videoUrl,
   isGenerating,
   isVideoTaskInProgress,
+  onClose,
 }: VideoDisplayProps ) {
 
   return (
@@ -21,7 +22,7 @@ export function VideoDisplayPanel({
               <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           ) : videoUrl ? (
-            <video src={videoUrl} className="w-full h-full object-cover" controls />
+            <video src={videoUrl} className="w-full h-full object-cover object-contain" controls />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">No video available</div>
           )}
