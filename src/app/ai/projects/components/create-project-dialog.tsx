@@ -17,7 +17,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
     aspect: '1:1',
-    theme: 'ad',
+    theme: 'animation',
     style: 'cinimation',
     audiences: 'KIDS',
     narration: true,
@@ -121,7 +121,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
                   <SelectValue placeholder="广告" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ad">广告</SelectItem>
+                  <SelectItem value="advertise">广告</SelectItem>
                   <SelectItem value="promotion">推广</SelectItem>
                 </SelectContent>
               </Select>

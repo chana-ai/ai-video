@@ -33,21 +33,26 @@ export default function ScenePage() {
 
 
   const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
-
-  const [isExporting, setIsExporting] = useState(false)
-
   const [taskList, setTaskList] = useState<Task[]>([])
 
   
 
   // 合并后的是 预览视频
-  const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)
-  const [combinedVideoUrl, setCombinedVideoUrl] = useState<string>()
-  const [combine_error_message, setCombineErrorMessage] = useState<string>()
+  const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)  //控制显示显示 面板
+  const [combinedVideoUrl, setCombinedVideoUrl] = useState<string>()  // 合并后生成的 videoURl 
+  const [isCombiningTaskRunning, setIsCombiningTaskRunning] = useState(false)   //当前是否有正在进行合并任务，若有，则已知循环检测状态。
+  const [combine_error_message, setCombineErrorMessage] = useState<string>()  //合并错误消息。
+
+
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      const remote_scenes = res?.scenes
-      setScenes(buildSceneOrder(remote_scenes))
+      let remote_scenes = buildSceneOrder(res?.scenes)
+      setScenes(remote_scenes)
+      if(remote_scenes.length > 0){
+        // 如果 scenes 不为空，则设置第一个为 selectedScene
+        setSelectedScene(remote_scenes[0])
+      }
+      
       let localTaskList = []
       for (const scene of remote_scenes) {
         //初始化 task 全部用 INIT。
@@ -76,6 +81,9 @@ export default function ScenePage() {
       }
       setTaskList(tasks)
     })
+
+    checkCombiningTaskStatus()
+
   }, [projectId, stageId])
   
 
@@ -87,7 +95,41 @@ export default function ScenePage() {
       clearInterval(timmer);
     }
   }, [taskList])
- 
+
+
+  useEffect(() => {
+    if(isCombiningTaskRunning){
+      const timmer = setInterval(checkCombiningTaskStatus, 150000);
+      return () => {
+        clearInterval(timmer);
+      }
+    }
+    //每次发生变化的时候， 重新检查下是否有最新的video_url了，并全部获取出来
+    instance.get(`/api/v2/project/get_project_combine_videos?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+      console.log('Project Combining Clip Stats: '+JSON.stringify(res))
+      //TODO: 服务器返回是 list 的格式， 需要取最后一个的video_url. 以后再改为全部的不同版本
+      //{"id": video.id,
+      // "name": video.name,
+      // "url": video.get_oss_url,
+      // "reference_id": video.reference_id,
+      // "version": video.version}
+      if(res.length > 0){
+        setCombinedVideoUrl(res[res.length - 1].url)
+      }
+    })
+    
+  }, [isCombiningTaskRunning])
+
+  const checkCombiningTaskStatus = async () => {
+    instance.get(`/api/v2/project/get_project_combing_clip_stats?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+      console.log('Project Combining Clip Stats: '+JSON.stringify(res))
+      if(res.status == 'PROCESSING' || res.status == 'PENDING' || res.status == 'INIT'){
+        setIsCombiningTaskRunning(true)
+      }else{
+        setIsCombiningTaskRunning(false)
+      }
+    })
+  }
 
   const checkTaskStatus = async () => {
  
@@ -194,7 +236,7 @@ export default function ScenePage() {
   }
 
   const handleCombineVideo = async () => {
-    setIsExporting(true)
+    
     //1. 调用合并视频的API, 之后循坏检查合并状态
     let clips_ready = true
     for(const scene of scenes){
@@ -208,16 +250,16 @@ export default function ScenePage() {
       return
     }
     // 2. 合并完成之后，调用导出视频的API
-    setIsExporting(true)
+    
     instance.post('/api/v2/project/combine_project_scene_clips', {
       project_id: projectId,
       stage_id: stageId,
     }).then((res)=>{
       console.log('Combine Video: '+JSON.stringify(res))
-      setIsExporting(false)
+      setIsCombiningTaskRunning(true)
     }).catch((error)=>{
       console.error('Combine Video Error: '+JSON.stringify(error))
-      setIsExporting(false)
+      setIsCombiningTaskRunning(false)
       if (error.code == "ERR_NETWORK" ){
         setCombineErrorMessage("网络连接临时错误")
         return
@@ -279,8 +321,8 @@ export default function ScenePage() {
             </div> */}
               <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowExportUrlPanel(true)}>导出</Button>
 
-              <Button variant="outline" onClick={handleCombineVideo}>
-                {isSaving ? (
+              <Button variant="outline" onClick={handleCombineVideo} disabled={isCombiningTaskRunning}>
+                {isCombiningTaskRunning ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     合并中...
