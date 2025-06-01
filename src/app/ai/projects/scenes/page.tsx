@@ -483,11 +483,11 @@ export default function ScenePage() {
           onGenerate={ (voice_path: string)=>{
               setVoiceUrl(voice_path)
           }}
-          onSave={(settings) => {
+          onSave={(settings: VoiceSettings) => {
             instance.post('/api/v2/voice/update_voice_config', { 
               project_id: projectId,
-              stage_id: stageId,
-              voice_name: settings.voice_name,
+                stage_id: stageId,
+                voice_name: settings.voice_name,
             }).then(() => {
                 setVoiceSettings(settings)
             })

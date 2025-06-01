@@ -38,6 +38,8 @@ export function VoiceSettingsPanel({
   // const [voice_path, setVoicePath] = useState<string>(voice_url || "")
   const [duration, setDuration] = useState(0)
 
+  const [isGenerating, setIsGenerating] = useState(false)
+
   const defaultSettings: VoiceSettings = {
     voice_name: settings?.voice_name || "超真实笑笑",
     background: settings?.background || "无",
@@ -89,12 +91,11 @@ export function VoiceSettingsPanel({
   }
 
   const handleSave = () => {
-    onSave(defaultSettings)
     onOpenChange(false)
   }
 
   const handleGenerate = () => {
-
+    setIsGenerating(true)
     let post_data = {
       project_id: project_id,
       stage_id: stage_id,
@@ -104,11 +105,10 @@ export function VoiceSettingsPanel({
     }
 
     instance.post('/api/v2/voice/generate_voice', post_data).then((res) => {
+      setIsGenerating(false)
       setupVoice(res.voice_path)
       onGenerate(res.voice_path)
     })
-
-    
   }
 
   return (
@@ -209,6 +209,7 @@ export function VoiceSettingsPanel({
             </Button>
             <Button 
               className="flex-1 bg-purple-600 hover:bg-purple-700 text-white" 
+              disabled={isGenerating}
               onClick={handleGenerate}
             >
               生成语音
