@@ -19,6 +19,7 @@ interface Project {
   stage_name: string
   status: 'Processing' | 'Complete' | 'Init'
   update_time: string
+  screen_url?: string
 }
 
 export default function Projects() {
@@ -39,7 +40,7 @@ export default function Projects() {
       // ...(config.debug ? { user_id: 1 } : {}),
       ...(name ? { name } : {}), 
     }).then((res)=>{
-      setProjects(res)
+      setProjects(res?.data || res || [])
     })
   }
   const handleDelete = (id: string, stage_id: string) => {
@@ -67,39 +68,59 @@ export default function Projects() {
     <Card 
       key={project.id} 
       onClick={() => router.push(`/ai/projects/script-configuration?project_id=${project.id}&stage_id=${project.stage_id}`)}
-      className="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+      className="cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg overflow-hidden"
     >
-      <div className="flex-grow">
-        <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4 text-center h-12 sm:h-14 flex items-center justify-center">
-          {project.name}:{project.stage_name}
-        </h2>
-      </div>
-      <div className="flex flex-col sm:flex-row items-center justify-between mt-2 sm:mt-4 space-y-2 sm:space-y-0">
-        <span
-          className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-            project.status === 'Processing'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-green-100 text-green-800'
-          }`}
-        >
-          {project.status}
-        </span>
-        <div className="flex items-center text-gray-500">
-          <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-          <span className="text-xs sm:text-sm">{project.update_time}</span>
+      {/* Screen Image - Zoom to fit */}
+      {(
+        <div className="w-full h-40 bg-gray-100 overflow-hidden">
+          <img 
+            src={project.screen_url || '/default-project.png'} 
+            alt={`${project.name} preview`}
+            className="w-full h-full object-cover object-center"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 sm:p-2"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleDelete(project.id, project.stage_id)
-          }}
-        >
-          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-          <span className="sr-only">Delete project</span>
-        </Button>
+      )}
+      
+      <div className="p-3">
+        {/* First Row - Project Name */}
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold text-center line-clamp-2 leading-tight">
+            {project.name}:{project.stage_name}
+          </h2>
+        </div>
+        
+        {/* Second Row - Status, Timestamp, Delete Icon */}
+        <div className="flex items-center justify-between">
+          <span
+            className={`px-2 py-1 rounded-full text-xs ${
+              project.status === 'Processing'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-green-100 text-green-800'
+            }`}
+          >
+            {project.status}
+          </span>
+          <div className="flex items-center text-gray-500 text-xs">
+            <Clock className="w-3 h-3 mr-1" />
+            <span>{project.update_time}</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDelete(project.id, project.stage_id)
+            }}
+          >
+            <Trash2 className="w-3 h-3" />
+            <span className="sr-only">Delete project</span>
+          </Button>
+        </div>
       </div>
     </Card>
   )

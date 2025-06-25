@@ -111,6 +111,11 @@ export interface VoiceSettings {
   voice_volume: number
 }
 
+export interface CombinedVideo {
+  version: number
+  url: string
+}
+
 export interface Task {
   scene_id: number
   task_id: number

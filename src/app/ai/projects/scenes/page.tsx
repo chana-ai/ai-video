@@ -12,8 +12,9 @@ import instance from "@/lib/axios";
 import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
 import ExportUrlPanel from "./components/export_url_panel"
-import { VoiceSettings, Task } from "./types"
+import { VoiceSettings, CombinedVideo, Task } from "./types"
 import { VideoDisplayPanel } from "./components/video-display-panel"
+import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 
 export default function ScenePage() {
   const [scenes, setScenes] = useState<Scene[]>([] as Scene[])
@@ -39,24 +40,29 @@ export default function ScenePage() {
 
   // 合并后的是 预览视频
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)  //控制显示显示 面板
-  const [combinedVideoUrl, setCombinedVideoUrl] = useState<string>()  // 合并后生成的 videoURl 
+  const [combinedVideos, setCombinedVideos] = useState<CombinedVideo[]>([])  // 合并后生成的 videoURl 列表
   const [isCombiningTaskRunning, setIsCombiningTaskRunning] = useState(false)   //当前是否有正在进行合并任务，若有，则已知循环检测状态。
   const [combine_error_message, setCombineErrorMessage] = useState<string>()  //合并错误消息。
 
 
   useEffect(() => {
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      let remote_scenes = buildSceneOrder(res?.scenes)
+      let remote_scenes = buildSceneOrder(res?.scenes || [])
       setScenes(remote_scenes)
       if(remote_scenes.length > 0){
         // 如果 scenes 不为空，则设置第一个为 selectedScene
         setSelectedScene(remote_scenes[0])
       }
       
-      let localTaskList = []
+      let localTaskList: Task[] = []
       for (const scene of remote_scenes) {
         //初始化 task 全部用 INIT。
-          localTaskList.push({scene_id: scene.id, video_url: scene.video_url, status: "INIT"})
+          localTaskList.push({
+            scene_id: Number(scene.id), 
+            task_id: 0, 
+            video_url: scene.video_url || "", 
+            status: "INIT"
+          })
       }
       setTaskList(localTaskList)
       console.log('Task List: '+JSON.stringify(taskList))
@@ -71,13 +77,18 @@ export default function ScenePage() {
       project_id: projectId,
       stage_id: stageId
     }).then((res) => {
-      setVoiceMenu(res)
+      setVoiceMenu(res?.data || {})
     })
   
     instance.get(`/api/v2/task/running_video_scene_ids?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      let tasks = []
-      for(const task_id of res){
-        tasks.push({scene_id: task_id, status: 'PROCESSING'})
+      let tasks: Task[] = []
+      for(const task_id of res?.data || []){
+        tasks.push({
+          scene_id: Number(task_id), 
+          task_id: 0, 
+          video_url: "", 
+          status: 'PROCESSING'
+        })
       }
       setTaskList(tasks)
     })
@@ -113,8 +124,8 @@ export default function ScenePage() {
       // "url": video.get_oss_url,
       // "reference_id": video.reference_id,
       // "version": video.version}
-      if(res.length > 0){
-        setCombinedVideoUrl(res[res.length - 1].url)
+      if(res.videos.length > 0){
+        setCombinedVideos(res.videos)
       }
     })
     
@@ -138,12 +149,12 @@ export default function ScenePage() {
     }
     instance.get(`/api/v2/task/scene_status?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
       console.log('Scene Status: '+JSON.stringify(res))
-      let remote_id_task_status = {}    
+      let remote_id_task_status: { [key: string]: any } = {}   
       for(const scene_task of res){
         remote_id_task_status[scene_task.scene_id] = scene_task
       }
 
-      let local_id_task_map = {}
+      let local_id_task_map: { [key: string]: Task } = {}
       for(const task of taskList){
         local_id_task_map[task.scene_id] = task
       }
@@ -220,7 +231,7 @@ export default function ScenePage() {
 
   const calculateIsVideoTaskInProgress = () => {
     for(const task of taskList){
-      if(selectedScene && task.scene_id == selectedScene.id){
+      if(selectedScene && task.scene_id.toString() == selectedScene.id){
         return task.status == 'PROCESSING' || task.status == 'INIT' || task.status == 'PENDING'
       }
     }
@@ -331,7 +342,7 @@ export default function ScenePage() {
                   "合并"
                 )}
               </Button> 
-              <Button variant="outline" onClick={() => setIsPreviewingVideo(true)}  disabled={combinedVideoUrl == null} >
+              <Button variant="outline" onClick={() => setIsPreviewingVideo(true)} disabled={combinedVideos.length === 0}>
                 预览
               </Button> 
             </div>
@@ -400,11 +411,20 @@ export default function ScenePage() {
                                     isModified: true,
                                     // Add other required fields
                                     prompt: "",
+                                    video_prompt: "",
+                                    video_prompt_cn: "",
                                     update_time: new Date().toISOString(),
-                                    project_id: projectId || "",
-                                    stage_id: stageId || "",
+                                    project_id: Number(projectId) || 0,
+                                    stage_id: Number(stageId) || 0,
                                     seq_id: scenes.length + 1,
-                                    video_setting: {}
+                                    pre_seq_id: 0,
+                                    next_seq_id: 0,
+                                    video_setting: {
+                                      model: "",
+                                      camera: "frame",
+                                      duration: "",
+                                      motion: ""
+                                    }
                                   }
                                   const index = scenes.findIndex((s) => s.id === id)
                                   const newScenes = [...scenes]
@@ -414,7 +434,7 @@ export default function ScenePage() {
                                 onDelete={(id) => {
                                   setScenes(scenes.filter((s) => s.id !== id))
                                   if (selectedScene?.id === id) {
-                                    setSelectedScene(null)
+                                    setSelectedScene({} as Scene)
                                   }
                                 }}
                               />
@@ -438,7 +458,7 @@ export default function ScenePage() {
             onUpdate={(key: string, value: any) => {        
 
               if (["title", "description", "image_prompt", "video_setting"].includes(key)) {
-                let data = {
+                let data: any = {
                   id: selectedScene.id,
                   project_id: projectId,
                   stage_id: stageId,
@@ -505,12 +525,11 @@ export default function ScenePage() {
       )}  
 
 
-  {  isPreviewingVideo && combinedVideoUrl &&  (
-        <VideoDisplayPanel
-        videoUrl={combinedVideoUrl}
-        isGenerating={false}
-        isVideoTaskInProgress={false}
-        onClose={() => setIsPreviewingVideo(false)}
+      {isPreviewingVideo && combinedVideos.length > 0 && (
+        <MultiVideoDisplayPanel
+          combinedVideos={combinedVideos}
+          isGenerating={isCombiningTaskRunning}
+          onClose={() => setIsPreviewingVideo(false)}
         />
       )}
 
