@@ -63,7 +63,7 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             <MonitorPlay className="h-4 w-4" />
           </Button>
 
-          <Button
+          {/* <Button
             variant="ghost"
             size="icon"
             className={`h-8 w-8 ${scene.isModified ? "text-red-500" : "text-green-500"}`}
@@ -74,7 +74,7 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             }}
           >
             <Save className="h-4 w-4" />
-          </Button>
+          </Button> */}
           <Button
             variant="ghost"
             size="icon"
