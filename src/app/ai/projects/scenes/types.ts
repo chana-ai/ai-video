@@ -54,8 +54,8 @@ export interface SceneCardProps {
   isSelected: boolean
   onSelect: (id: string) => void
   onSave: (id: string) => void
-  onAdd: (id: string) => void
-  onDelete: (id: string) => void
+  onAdd: (scene: Scene) => void
+  onDelete: (scene: Scene) => void
 }
 
 export interface SceneSettingsProps {

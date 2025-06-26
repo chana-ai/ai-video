@@ -81,8 +81,7 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             className="h-8 w-8"
             onClick={(e) => {
               e.stopPropagation()
-              alert('该功能暂未开放')
-              // onAdd(scene.id)
+              onAdd(scene)
             }}
           >
             <Plus className="h-4 w-4" />
@@ -93,8 +92,7 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
             className="h-8 w-8"
             onClick={(e) => {
               e.stopPropagation()
-              alert('该功能暂未开放')
-              // onDelete(scene.id)
+              onDelete(scene)
             }}
           >
             <Trash2 className="h-4 w-4" />

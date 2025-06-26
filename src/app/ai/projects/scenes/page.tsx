@@ -279,6 +279,77 @@ export default function ScenePage() {
     })
   }
 
+
+  const handleSceneAdd = async (scene: Scene) => {
+
+    console.log(`add a scene after JSON: ${JSON.stringify(scene)}`)
+    instance.post('/api/v2/scene/add', {
+      project_id: projectId,
+      stage_id: stageId,
+      scene_id: scene.id
+    }).then((res)=>{
+      const newScene: Scene = {
+        id: res.id,
+        title: res.title,
+        description: res.description,
+        status: "init",
+        isModified: true,
+        // Add other required fields
+        project_id: Number(scene.project_id) || 0,
+        stage_id: Number(scene.stage_id) || 0,
+        seq_id: res.seq_id,
+        pre_seq_id: res.pre_seq_id,
+        next_seq_id: res.next_seq_id,
+        video_setting: {
+          model: "",
+          camera: "frame",
+          duration: "",
+          motion: ""
+        }
+      }
+
+      const next_scene = scenes.find((s) => s.seq_id === scene.next_seq_id)
+      if (next_scene){
+        next_scene.pre_seq_id = newScene.seq_id
+      }
+      scene.next_seq_id = newScene.seq_id
+
+      console.log(`newScene: ${JSON.stringify(newScene)}`)
+      const index = scenes.findIndex((s) => s.id === scene.id)
+      const newScenes = [...scenes]
+      newScenes.splice(index + 1, 0, newScene)
+      setScenes(newScenes)
+    }).catch((error)=>{
+      console.error('Add Scene Error: '+JSON.stringify(error))
+    })
+  }
+
+  const handleSceneDelete = async (scene: Scene) => {
+    console.log(`delete scene ${scene.id}`)
+    instance.post('/api/v2/scene/delete', {
+      project_id: projectId,
+        stage_id: stageId,
+        scene_id: scene.id
+      }).then((res)=>{
+        console.log(`delete scene ${scene.id} success`)
+      // Find pre and next scenes
+      const pre_scene = scenes.find((s) => s.seq_id === scene.pre_seq_id)
+      const next_scene = scenes.find((s) => s.seq_id === scene.next_seq_id)
+
+      if (pre_scene){
+        pre_scene.next_seq_id = scene.next_seq_id
+      }
+      if (next_scene){
+        next_scene.pre_seq_id = scene.pre_seq_id
+      }
+      // Create new scenes array excluding deleted scene
+      const newScenes = scenes.filter((s) => s.id !== scene.id)
+      setScenes(newScenes)
+      }).catch((error)=>{
+        console.error('Delete Scene Error: '+JSON.stringify(error))
+      })
+  }
+
   return (
     <>
     <Header
@@ -402,40 +473,11 @@ export default function ScenePage() {
                                 isSelected={scene.id === selectedScene?.id}
                                 onSelect={() => handleSceneSelect(scene)}
                                 onSave={(id) => console.log("save", id)}
-                                onAdd={(id) => {
-                                  const newScene: Scene = {
-                                    id: Date.now().toString(),
-                                    title: "新分镜",
-                                    description: "",
-                                    status: "init",
-                                    isModified: true,
-                                    // Add other required fields
-                                    prompt: "",
-                                    video_prompt: "",
-                                    video_prompt_cn: "",
-                                    update_time: new Date().toISOString(),
-                                    project_id: Number(projectId) || 0,
-                                    stage_id: Number(stageId) || 0,
-                                    seq_id: scenes.length + 1,
-                                    pre_seq_id: 0,
-                                    next_seq_id: 0,
-                                    video_setting: {
-                                      model: "",
-                                      camera: "frame",
-                                      duration: "",
-                                      motion: ""
-                                    }
-                                  }
-                                  const index = scenes.findIndex((s) => s.id === id)
-                                  const newScenes = [...scenes]
-                                  newScenes.splice(index + 1, 0, newScene)
-                                  setScenes(newScenes)
+                                onAdd={(scene) => {
+                                  handleSceneAdd(scene)
                                 }}
-                                onDelete={(id) => {
-                                  setScenes(scenes.filter((s) => s.id !== id))
-                                  if (selectedScene?.id === id) {
-                                    setSelectedScene({} as Scene)
-                                  }
+                                onDelete={(scene) => {
+                                  handleSceneDelete(scene)
                                 }}
                               />
                             </div>
