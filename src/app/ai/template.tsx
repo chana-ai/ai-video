@@ -10,6 +10,10 @@ import {
   SquareUser,
   Clapperboard,
   BookOpenText,
+  Wallet,
+  ChevronRight,
+  CreditCard,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +22,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function Template({ children }: { children: React.ReactNode }) {
+  const [showBalanceSubmenu, setShowBalanceSubmenu] = useState(false);
+
   return (
     <>
       <div className="grid h-screen w-full pl-[56px]">
@@ -118,6 +125,70 @@ export default function Template({ children }: { children: React.ReactNode }) {
                 projects
               </TooltipContent> 
             </Tooltip> 
+          </nav>
+          <nav className="mt-auto grid gap-1 p-2">
+            <div 
+              className="relative"
+              onClick={() => setShowBalanceSubmenu(!showBalanceSubmenu)}
+              // onMouseLeave={() => setShowBalanceSubmenu(false)}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-lg"
+                    aria-label="Balance & Bill"
+                  >
+                    <Wallet className="size-5" />
+                  </Button>
+                </TooltipTrigger>
+                {/* <TooltipContent side="right" sideOffset={5}>
+                  Balance & Bill
+                </TooltipContent> */}
+              </Tooltip>
+              
+              {/* Sub-icons that appear on hover */}
+              {showBalanceSubmenu && (
+                <div className="absolute left-full top-0 ml-2 flex flex-col gap-1" style={{ transform: 'translateY(-40px)' }}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href="/ai/balance-bill">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-lg bg-white border shadow-sm hover:bg-gray-50"
+                          aria-label="Refill"
+                        >
+                          <CreditCard className="size-4" />
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={5}>
+                      Refill
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href="/ai/balance-bill/bill">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-lg bg-white border shadow-sm hover:bg-gray-50"
+                          aria-label="Bill Detail"
+                        >
+                          <Receipt className="size-4" />
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={5}>
+                      Bill Detail
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
           </nav>
           {/* <nav className="mt-auto grid gap-1 p-2">
             <Tooltip>

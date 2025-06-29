@@ -109,4 +109,3 @@ export function SceneCard({ scene, isSelected, onSelect, onSave, onAdd, onDelete
     </div>
   )
 }
-
