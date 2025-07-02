@@ -5,7 +5,8 @@ import Header from "../header";
 import { useEffect, useState } from "react";
 import instance from "@/lib/axios";
 import {getPhone} from '@/lib/localcache';
-
+import { useRouter } from "next/navigation";
+import { Modal, Button as AntButton } from "antd";
 
 export default function Dashboard() {
   const [summary, setSummary] = useState({
@@ -21,6 +22,8 @@ export default function Dashboard() {
   });
 
   const [balance, setBalance] = useState(0.0);
+  const [withdrawVisible, setWithdrawVisible] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
   
@@ -71,6 +74,21 @@ export default function Dashboard() {
                 {balance}
               </Descriptions.Item>
             </Descriptions>
+            <div className="flex gap-4 mt-4">
+              <AntButton type="primary" onClick={() => router.push("/ai/balance-bill")}>充值</AntButton>
+              <AntButton onClick={() => setWithdrawVisible(true)}>提现</AntButton>
+            </div>
+            <Modal
+              open={withdrawVisible}
+              onCancel={() => setWithdrawVisible(false)}
+              footer={null}
+              title="联系客服提现"
+            >
+              <div className="flex flex-col items-center">
+                <img src="/wechat-group.png" alt="WeChat Group" className="w-48 h-48 object-contain mb-4" />
+                <div>请扫码添加客服微信，进行提现操作(仅仅支持原路退回)</div>
+              </div>
+            </Modal>
           </Card>
           
           <Card title="Recent events">
