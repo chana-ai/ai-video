@@ -74,7 +74,7 @@ export default function Dashboard() {
                 {balance}
               </Descriptions.Item>
             </Descriptions>
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-row gap-2 mt-4 items-center">
               <AntButton type="primary" onClick={() => router.push("/ai/balance-bill")}>充值</AntButton>
               <AntButton onClick={() => setWithdrawVisible(true)}>提现</AntButton>
             </div>

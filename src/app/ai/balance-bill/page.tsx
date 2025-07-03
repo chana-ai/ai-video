@@ -12,6 +12,7 @@ import Header from "../header";
 
 interface PaymentHistory {
   id: string;
+  orderNo: string;
   date: string;
   channel: string;
   amount: number;
@@ -22,6 +23,7 @@ export default function BalanceBillPage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string>('');
+  const [orderNo, setOrderNo] = useState<string>('');
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [countdown, setCountdown] = useState(600); // 10 minutes in seconds
 
@@ -29,6 +31,7 @@ export default function BalanceBillPage() {
 
   useEffect(() => {
     // Load payment history
+    setOrderNo("");
     loadPaymentHistory();
   }, []);
 
@@ -44,47 +47,61 @@ export default function BalanceBillPage() {
   }, [showPaymentPopup, countdown]);
 
   const loadPaymentHistory = async () => {
-    try {
-      const response = await instance.get('/api/payment/history');
-      setPaymentHistory(response.data || []);
-    } catch (error) {
-      console.error('Failed to load payment history:', error);
-    }
+    
+    await instance.get('/api/v1/credit-refill/search').then(res => {
+      setPaymentHistory(res.data || []);
+    }).catch(err => {
+      console.error('Failed to load payment history:', err);
+    });
+    
   };
 
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount);
   };
 
-  const handlePay = async () => {
+  const handlePay = async (orderNo?: string) => {
     if (!selectedAmount) return;
 
-    try {
-      const response = await instance.post('/wechat-pay/qrcode', {
-        amount: selectedAmount
-      });
-      
-      // Convert byte array to base64 for display
-      const base64Data = btoa(String.fromCharCode(...new Uint8Array(response.data)));
+    let payload = {
+      amountInCents: selectedAmount,
+    }
+    if (orderNo) {
+      payload.orderNo = orderNo;
+    }
+
+    instance.post('/api/v1/credit-refill/prepay?channel=wechat', payload).then(res => {
+      const base64Data = res.data.base64Image;
       setQrCodeData(`data:image/png;base64,${base64Data}`);
+      setOrderNo(res.data.orderNo);
       setShowPaymentPopup(true);
       setCountdown(600);
-    } catch (error) {
-      console.error('Failed to generate QR code:', error);
-    }
+    }).catch(err => {
+      console.error('Failed to generate QR code:', err);
+    });
+    
   };
 
   const handleCompletePayment = async () => {
-    try {
-      await instance.post('/wechat-pay/complete');
+
+    instance.post('/api/v1/credit-refill/state', {
+      orderNo: orderNo
+    }).then(res => {
       setShowPaymentPopup(false);
       setSelectedAmount(null);
-      setCountdown(600);
       // Reload payment history
       loadPaymentHistory();
-    } catch (error) {
-      console.error('Failed to complete payment:', error);
-    }
+    }).catch(err => {
+      console.error('Failed to complete payment:', err);
+    });
+  };
+
+  const handleClose = async (orderNo: string) => {
+    instance.post('/api/v1/credit-refill/close', {
+      orderNo: orderNo
+    }).then(res => {
+      loadPaymentHistory();
+    });
   };
 
   const formatTime = (seconds: number) => {
@@ -119,19 +136,17 @@ export default function BalanceBillPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                {amounts.map((amount) => (
-                  <Button
-                    key={amount}
-                    variant={selectedAmount === amount ? "default" : "outline"}
-                    onClick={() => handleAmountSelect(amount)}
-                    className="min-w-[80px]"
-                  >
-                    ¥{amount}
-                  </Button>
-                ))}
-              </div>
+            <div className="flex flex-row gap-2 items-center">
+              {amounts.map((amount) => (
+                <Button
+                  key={amount}
+                  variant={selectedAmount === amount ? "default" : "outline"}
+                  onClick={() => handleAmountSelect(amount)}
+                  className="min-w-[80px]"
+                >
+                  ¥{amount}
+                </Button>
+              ))}
               <Button
                 onClick={handlePay}
                 disabled={!selectedAmount}
@@ -153,18 +168,33 @@ export default function BalanceBillPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Order No</TableHead>
                   <TableHead>Channel</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>State</TableHead>
+                  
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paymentHistory.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>{payment.date}</TableCell>
+                    <TableCell>{payment.orderNo}</TableCell>
                     <TableCell>{payment.channel}</TableCell>
                     <TableCell>¥{payment.amount}</TableCell>
                     <TableCell>{getStateBadge(payment.state)}</TableCell>
+                    <TableCell>
+                      {payment.state === 'paying' ? (
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handlePay(payment.orderNo)}>Continue</Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleClose(payment.orderNo)}>Close</Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          {/* <Button size="sm" variant="destructive" onClick={() => handleClose(payment.orderNo)}>Close</Button> */}
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {paymentHistory.length === 0 && (

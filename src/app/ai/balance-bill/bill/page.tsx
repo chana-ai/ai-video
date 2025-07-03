@@ -18,34 +18,69 @@ interface BalanceUsage {
   balance_after: number;
 }
 
+interface MonthUsage {
+  month: string;
+  usage: number;
+  amount: number;
+  balance_after: number;
+}
+
 export default function BillPage() {
   const [balanceUsage, setBalanceUsage] = useState<BalanceUsage[]>([]);
   const [totalCredit, setTotalCredit] = useState(0);
   const [totalDebit, setTotalDebit] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [tab, setTab] = useState("6months");
+  const [monthUsage, setMonthUsage] = useState<MonthUsage[]>([]);
+  const [dayUsage, setDayUsage] = useState<BalanceUsage[]>([]);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
     loadBalanceUsage();
-  }, []);
+    loadCurrentBalance();
+    // Simulate month usage data
+    setMonthUsage([
+      { month: "2024-03", usage: 10, amount: 100, balance_after: 900 },
+      { month: "2024-02", usage: 8, amount: 80, balance_after: 800 },
+      { month: "2024-01", usage: 12, amount: 120, balance_after: 700 },
+      { month: "2023-12", usage: 7, amount: 70, balance_after: 580 },
+      { month: "2023-11", usage: 9, amount: 90, balance_after: 510 },
+      { month: "2023-10", usage: 11, amount: 110, balance_after: 420 },
+    ]);
+
+    setDayUsage(balanceUsage);
+  }, [balanceUsage.length]);
 
   const loadBalanceUsage = async () => {
-    try {
-      const response = await instance.get('/api/balance/usage');
-      const data = response.data || [];
+    
+    instance.get('/api/balance/usage').then(res => {
+      const data = res.data || [];
       setBalanceUsage(data);
       
-      // Calculate totals
-      const credit = data.filter((item: BalanceUsage) => item.type === 'credit')
-        .reduce((sum: number, item: BalanceUsage) => sum + item.amount, 0);
-      const debit = data.filter((item: BalanceUsage) => item.type === 'debit')
-        .reduce((sum: number, item: BalanceUsage) => sum + item.amount, 0);
+      // setTotalCredit(credit);
+      setTotalDebit(res.debit);
       
-      setTotalCredit(credit);
-      setTotalDebit(debit);
-      setCurrentBalance(data.length > 0 ? data[0].balance_after : 0);
-    } catch (error) {
-      console.error('Failed to load balance usage:', error);
-    }
+    }).catch(err => {
+      console.error('Failed to load balance usage:', err);
+    });
+  
+  };
+
+  const loadCurrentBalance = async () => {
+    instance.get('/user/getCredits').then(res => {
+      setCurrentBalance(res.data);
+    }).catch(err => {
+      console.error('Failed to load current balance:', err);
+    });
+  };
+
+  const loadDayDetail = async (date: string) => {
+    //Date: 2025-07-01
+    instance.get('/api/bill/usage/day?date=' + date).then(res => {
+      setDayUsage(res.data);
+    }).catch(err => {
+      console.error('Failed to load day detail:', err);
+    });
   };
 
   const getTypeIcon = (type: string) => {
@@ -85,7 +120,7 @@ export default function BillPage() {
             </CardContent>
           </Card>
           
-          <Card>
+          {/* <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Credit (2 months)</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
@@ -93,7 +128,7 @@ export default function BillPage() {
             <CardContent>
               <div className="text-2xl font-bold text-green-600">+¥{totalCredit.toFixed(2)}</div>
             </CardContent>
-          </Card>
+          </Card> */}
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -106,50 +141,98 @@ export default function BillPage() {
           </Card>
         </div>
 
-        {/* Balance Usage Table */}
+        {/* Tabs for usage */}
         <Card>
           <CardHeader>
-            <CardTitle>Balance Usage (Last 2 Months)</CardTitle>
+            <CardTitle>Balance Usage</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Balance After</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {balanceUsage.map((usage) => (
-                  <TableRow key={usage.id}>
-                    <TableCell>{usage.date}</TableCell>
-                    <TableCell>{usage.description}</TableCell>
-                    <TableCell>{usage.category}</TableCell>
-                    <TableCell className={usage.type === 'credit' ? 'text-green-600' : 'text-red-600'}>
-                      {formatAmount(usage.amount, usage.type)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(usage.type)}
-                        {getTypeBadge(usage.type)}
-                      </div>
-                    </TableCell>
-                    <TableCell>¥{usage.balance_after.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-                {balanceUsage.length === 0 && (
+            <div className="mb-4 flex gap-2">
+              <button
+                className={`px-4 py-2 rounded ${tab === "6months" ? "bg-black text-white" : "bg-gray-200"}`}
+                onClick={() => setTab("6months")}
+              >
+                Last 6 Months
+              </button>
+              <button
+                className={`px-4 py-2 rounded ${tab === "30days" ? "bg-black text-white" : "bg-gray-200"}`}
+                onClick={() => setTab("30days")}
+              >
+                Last 30 Days
+              </button>
+            </div>
+            {tab === "6months" && (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500">
-                      No balance usage found for the last 2 months
-                    </TableCell>
+                    <TableHead>Month</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Balance After</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {monthUsage.map((m) => (
+                    <TableRow key={m.month}>
+                      <TableCell>{m.month}</TableCell>
+                      <TableCell>{m.usage}</TableCell>
+                      <TableCell>¥{m.amount}</TableCell>
+                      <TableCell>¥{m.balance_after}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {tab === "30days" && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Balance After</TableHead>
+                    <TableHead>Detail</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dayUsage.map((usage) => (
+                    <>
+                      <TableRow key={usage.id}>
+                        <TableCell>{usage.date}</TableCell>
+                        <TableCell>{usage.description}</TableCell>
+                        <TableCell>{formatAmount(usage.amount, usage.type)}</TableCell>
+                        <TableCell>¥{usage.balance_after.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <button
+                            className="px-2 py-1 border rounded text-xs hover:bg-gray-100"
+                            onClick={() => setDetailId(detailId === usage.id ? null : usage.id)}
+                          >
+                            Detail
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {detailId === usage.id && (
+                        <tr>
+                          <td colSpan={5} className="bg-gray-50 p-4">
+                            <div className="space-y-2">
+                              <div><b>Date-Time:</b> {usage.date}</div>
+                              <div><b>Description:</b> {usage.description}</div>
+                              <div><b>Category:</b> {usage.category}</div>
+                              <div><b>Type:</b> {usage.type}</div>
+                              <div><b>Price:</b> ¥{usage.amount.toFixed(2)}</div>
+                              <div><b>Amount:</b> {usage.amount}</div>
+                              <div><b>Balance After:</b> ¥{usage.balance_after.toFixed(2)}</div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {/* Footer message */}
+            <div className="mt-6 text-center text-sm text-gray-500">需要发票请联系客服微信</div>
           </CardContent>
         </Card>
       </div>
