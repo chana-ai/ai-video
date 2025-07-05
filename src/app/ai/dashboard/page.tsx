@@ -28,8 +28,8 @@ export default function Dashboard() {
   useEffect(() => {
   
     instance.get('/dashboard/video-summary').then((res) => {
-        setSummary(res.data)
-        console.log("UserSummary is: "+ JSON.stringify(res.data))
+        setSummary(res)
+        console.log("UserSummary is: "+ JSON.stringify(res))
     }).catch(error => {
       console.log(error);
     });

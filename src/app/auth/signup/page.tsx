@@ -26,8 +26,16 @@ export default function LoginForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter()
 
-  const onPhoneChange = (e: { target: { value: SetStateAction<string>; }; }) => {
-    setPhone(e.target.value)
+  const onPhoneChange = (e: { target: { value: string; }; }) => {
+    let value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    if (value.startsWith('86')) {
+      value = value.substring(2);
+    }
+    setPhone(value);
+  }
+
+  const getFullPhone = () => {
+    return phone.startsWith('86') ? phone : '86' + phone;
   }
 
   const onEmailChange = (e: { target: { value: SetStateAction<string>; }; }) => {
@@ -57,11 +65,11 @@ export default function LoginForm() {
       setErrorMessage('两次密码不一致');
       return;
     }
-    console.log("phone: "+ phone + " email: " + email + " password:"+ password)
+    console.log("phone: "+ getFullPhone() + " email: " + email + " password:"+ password)
 
     try{
       instance.post("/user/register", {
-        "phoneNumber": phone,
+        "phoneNumber": getFullPhone(),
         "password": password, 
         "email": email
       }).then(() => {
@@ -91,8 +99,18 @@ export default function LoginForm() {
         <div className="grid gap-2">
           <div className="grid grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="first-name">*手机号(以861开头)</Label>
-              <Input id="phone" placeholder="手机号" onChange={onPhoneChange} required />
+              <Label htmlFor="first-name">*手机号</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">+86</span>
+                <Input 
+                  id="phone" 
+                  placeholder="请输入手机号" 
+                  value={phone}
+                  onChange={onPhoneChange} 
+                  className="pl-12"
+                  required 
+                />
+              </div>
             </div>
           </div>
           <div className="grid gap-2">

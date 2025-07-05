@@ -8,79 +8,143 @@ import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import instance from "@/lib/axios";
 import Header from "@/app/ai/header";
 
-interface BalanceUsage {
-  id: string;
+interface DayBillRecord {
+  id: number;
   date: string;
-  description: string;
-  amount: number;
-  type: 'credit' | 'debit';
-  category: string;
-  balance_after: number;
+  total_consumption: number;
+  recharged_consumption: number;
+  gift_consumption: number;
 }
 
-interface MonthUsage {
-  month: string;
-  usage: number;
+interface DayDetailRecord {
+  date: string;
+  billing_type: string;
+  api_id: string;
   amount: number;
-  balance_after: number;
+  update_time: string;
+}
+
+// interface MonthUsage {
+//   month: string;
+//   usage: number;
+//   amount: number;
+//   balance_after: number;
+// }
+
+interface TabInfo {
+  id: string;
+  title: string;
+  type: 'main' | 'detail';
+  date?: string;
+}
+
+interface DayDetailState {
+  records: DayDetailRecord[];
+  current: number;
+  pages: number;
+  size: number;
+  total: number;
 }
 
 export default function BillPage() {
-  const [balanceUsage, setBalanceUsage] = useState<BalanceUsage[]>([]);
-  const [totalCredit, setTotalCredit] = useState(0);
+  const [dayBillRecords, setDayBillRecords] = useState<DayBillRecord[]>([]);
+  const [dayDetails, setDayDetails] = useState<{ [key: string]: DayDetailState }>({});
+  const [tabs, setTabs] = useState<TabInfo[]>([
+    { id: 'main', title: 'Last 30 Days', type: 'main' }
+  ]);
+  const [activeTab, setActiveTab] = useState('main');
   const [totalDebit, setTotalDebit] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
-  const [tab, setTab] = useState("6months");
-  const [monthUsage, setMonthUsage] = useState<MonthUsage[]>([]);
-  const [dayUsage, setDayUsage] = useState<BalanceUsage[]>([]);
-  const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadBalanceUsage();
-    loadCurrentBalance();
-    // Simulate month usage data
-    setMonthUsage([
-      { month: "2024-03", usage: 10, amount: 100, balance_after: 900 },
-      { month: "2024-02", usage: 8, amount: 80, balance_after: 800 },
-      { month: "2024-01", usage: 12, amount: 120, balance_after: 700 },
-      { month: "2023-12", usage: 7, amount: 70, balance_after: 580 },
-      { month: "2023-11", usage: 9, amount: 90, balance_after: 510 },
-      { month: "2023-10", usage: 11, amount: 110, balance_after: 420 },
+    loadSummary();
+    loadDayBillRecord();
+    // Mock data for dayBillRecords
+    setDayBillRecords([
+      { id: 1, date: '2025-07-01', total_consumption: 30, recharged_consumption: 20, gift_consumption: 10 },
+      { id: 2, date: '2025-06-30', total_consumption: 25, recharged_consumption: 15, gift_consumption: 10 },
+      { id: 3, date: '2025-06-29', total_consumption: 40, recharged_consumption: 30, gift_consumption: 10 },
+      { id: 4, date: '2025-06-28', total_consumption: 20, recharged_consumption: 10, gift_consumption: 10 },
+      { id: 5, date: '2025-06-27', total_consumption: 35, recharged_consumption: 25, gift_consumption: 10 },
     ]);
+  }, []);
 
-    setDayUsage(balanceUsage);
-  }, [balanceUsage.length]);
-
-  const loadBalanceUsage = async () => {
-    
-    instance.get('/api/balance/usage').then(res => {
-      const data = res.data || [];
-      setBalanceUsage(data);
-      
-      // setTotalCredit(credit);
-      setTotalDebit(res.debit);
-      
+  const loadSummary = async () => {
+    instance.get('/user/getCredits').then(res => {
+      setCurrentBalance(res.data.credit || 0);
     }).catch(err => {
       console.error('Failed to load balance usage:', err);
     });
-  
-  };
 
-  const loadCurrentBalance = async () => {
-    instance.get('/user/getCredits').then(res => {
-      setCurrentBalance(res.data);
+    instance.get('/api/v1/bill/getDebit?months=2').then(res => {
+      setTotalDebit(res.data.debit || 0);
     }).catch(err => {
-      console.error('Failed to load current balance:', err);
+      console.error('Failed to load balance usage:', err);
     });
   };
 
-  const loadDayDetail = async (date: string) => {
-    //Date: 2025-07-01
-    instance.get('/api/bill/usage/day?date=' + date).then(res => {
-      setDayUsage(res.data);
+  const loadDayBillRecord = async () => {
+    instance.get('/api/v1/bill/usage?interval=day').then(res => {
+      setDayBillRecords(res.data.records || []);
     }).catch(err => {
       console.error('Failed to load day detail:', err);
     });
+  }
+
+  const loadDayDetail = async (date: string, page = 0) => {
+    // Check if tab already exists
+    const existingTab = tabs.find(tab => tab.date === date);
+    if (!existingTab) {
+      // Create new tab
+      const newTab: TabInfo = {
+        id: `detail-${date}`,
+        title: date,
+        type: 'detail',
+        date: date
+      };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTab(newTab.id);
+    } else {
+      setActiveTab(existingTab.id);
+    }
+
+    // Load data if not already loaded or if page changed
+    const currentDetails = dayDetails[date];
+    if (!currentDetails || currentDetails.current !== page) {
+      instance.post('/api/v1/bill/day_detail', {
+        date: date,
+        page: page,
+        pageSize: 20
+      }).then(res => {
+        setDayDetails(prev => ({
+          ...prev,
+          [date]: {
+            records: res.data.records || [],
+            current: res.data.current || 1,
+            pages: res.data.pages || 1,
+            size: res.data.size || 20,
+            total: res.data.total || 0
+          }
+        }));
+      }).catch(err => {
+        console.error('Failed to load day detail:', err);
+      });
+    }
+  };
+
+  const closeTab = (tabId: string) => {
+    if (tabs.length <= 1) return; // Don't close the last tab
+    
+    setTabs(prev => prev.filter(tab => tab.id !== tabId));
+    
+    // If closing active tab, switch to main tab
+    if (activeTab === tabId) {
+      setActiveTab('main');
+    }
+  };
+
+  const handlePageChange = (date: string, page: number) => {
+    loadDayDetail(date, page);
   };
 
   const getTypeIcon = (type: string) => {
@@ -147,90 +211,120 @@ export default function BillPage() {
             <CardTitle>Balance Usage</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 flex gap-2">
-              <button
-                className={`px-4 py-2 rounded ${tab === "6months" ? "bg-black text-white" : "bg-gray-200"}`}
-                onClick={() => setTab("6months")}
-              >
-                Last 6 Months
-              </button>
-              <button
-                className={`px-4 py-2 rounded ${tab === "30days" ? "bg-black text-white" : "bg-gray-200"}`}
-                onClick={() => setTab("30days")}
-              >
-                Last 30 Days
-              </button>
+            {/* Tab Headers */}
+            <div className="mb-4 flex gap-2 border-b">
+              {tabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className={`flex items-center gap-2 px-4 py-2 cursor-pointer border-b-2 ${
+                    activeTab === tab.id ? 'border-black' : 'border-transparent'
+                  }`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <span>{tab.title}</span>
+                  {tab.type === 'detail' && (
+                    <button
+                      className="ml-2 text-gray-400 hover:text-gray-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTab(tab.id);
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-            {tab === "6months" && (
+
+            {/* Tab Content */}
+            {activeTab === 'main' && (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Month</TableHead>
-                    <TableHead>Usage</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Balance After</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Total Consumption</TableHead>
+                    <TableHead>Recharged</TableHead>
+                    <TableHead>Gift</TableHead>
+                    <TableHead>Detail</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {monthUsage.map((m) => (
-                    <TableRow key={m.month}>
-                      <TableCell>{m.month}</TableCell>
-                      <TableCell>{m.usage}</TableCell>
-                      <TableCell>¥{m.amount}</TableCell>
-                      <TableCell>¥{m.balance_after}</TableCell>
+                  {dayBillRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>{record.date}</TableCell>
+                      <TableCell>¥{record.total_consumption.toFixed(2)}</TableCell>
+                      <TableCell>¥{record.recharged_consumption.toFixed(2)}</TableCell>
+                      <TableCell>¥{record.gift_consumption.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <button
+                          className="px-2 py-1 border rounded text-xs hover:bg-gray-100"
+                          onClick={() => loadDayDetail(record.date)}
+                        >
+                          Detail
+                        </button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             )}
-            {tab === "30days" && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Usage</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Balance After</TableHead>
-                    <TableHead>Detail</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dayUsage.map((usage) => (
-                    <>
-                      <TableRow key={usage.id}>
-                        <TableCell>{usage.date}</TableCell>
-                        <TableCell>{usage.description}</TableCell>
-                        <TableCell>{formatAmount(usage.amount, usage.type)}</TableCell>
-                        <TableCell>¥{usage.balance_after.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <button
-                            className="px-2 py-1 border rounded text-xs hover:bg-gray-100"
-                            onClick={() => setDetailId(detailId === usage.id ? null : usage.id)}
-                          >
-                            Detail
-                          </button>
-                        </TableCell>
+
+            {/* Detail Tab Content */}
+            {activeTab !== 'main' && dayDetails[activeTab.replace('detail-', '')] && (
+              <div>
+                <h4 className="font-semibold mb-4">
+                  Daily Details for {activeTab.replace('detail-', '')}
+                </h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Billing Type</TableHead>
+                      <TableHead>API ID</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Update Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dayDetails[activeTab.replace('detail-', '')].records.map((detail, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{detail.date}</TableCell>
+                        <TableCell>{detail.billing_type}</TableCell>
+                        <TableCell>{detail.api_id}</TableCell>
+                        <TableCell>¥{detail.amount.toFixed(2)}</TableCell>
+                        <TableCell>{detail.update_time}</TableCell>
                       </TableRow>
-                      {detailId === usage.id && (
-                        <tr>
-                          <td colSpan={5} className="bg-gray-50 p-4">
-                            <div className="space-y-2">
-                              <div><b>Date-Time:</b> {usage.date}</div>
-                              <div><b>Description:</b> {usage.description}</div>
-                              <div><b>Category:</b> {usage.category}</div>
-                              <div><b>Type:</b> {usage.type}</div>
-                              <div><b>Price:</b> ¥{usage.amount.toFixed(2)}</div>
-                              <div><b>Amount:</b> {usage.amount}</div>
-                              <div><b>Balance After:</b> ¥{usage.balance_after.toFixed(2)}</div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  ))}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                {/* Pagination for detail tab */}
+                <div className="flex justify-end items-center gap-2 mt-4">
+                  <button
+                    className="px-2 py-1 border rounded disabled:opacity-50"
+                    disabled={dayDetails[activeTab.replace('detail-', '')].current === 1}
+                    onClick={() => handlePageChange(activeTab.replace('detail-', ''), dayDetails[activeTab.replace('detail-', '')].current - 1)}
+                  >
+                    Previous
+                  </button>
+                  <span>
+                    Page {dayDetails[activeTab.replace('detail-', '')].current} of {dayDetails[activeTab.replace('detail-', '')].pages}
+                  </span>
+                  <button
+                    className="px-2 py-1 border rounded disabled:opacity-50"
+                    disabled={dayDetails[activeTab.replace('detail-', '')].current === dayDetails[activeTab.replace('detail-', '')].pages}
+                    onClick={() => handlePageChange(activeTab.replace('detail-', ''), dayDetails[activeTab.replace('detail-', '')].current + 1)}
+                  >
+                    Next
+                  </button>
+                  <span className="ml-4 text-gray-500">
+                    Total: {dayDetails[activeTab.replace('detail-', '')].total}
+                  </span>
+                </div>
+              </div>
             )}
+
             {/* Footer message */}
             <div className="mt-6 text-center text-sm text-gray-500">需要发票请联系客服微信</div>
           </CardContent>

@@ -11,13 +11,14 @@ import instance from "@/lib/axios";
 import Header from "../header";
 
 interface PaymentHistory {
-  id: string;
   orderNo: string;
-  date: string;
+  amountInCents: number;
   channel: string;
-  amount: number;
-  state: 'pending' | 'completed' | 'failed';
+  createTime: string;
+  updateTime: string;
+  state: string;
 }
+
 
 export default function BalanceBillPage() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -25,9 +26,13 @@ export default function BalanceBillPage() {
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [orderNo, setOrderNo] = useState<string>('');
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [current, setCurrent] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [size, setSize] = useState(10);
+  const [total, setTotal] = useState(0);
   const [countdown, setCountdown] = useState(600); // 10 minutes in seconds
-
-  const amounts = [100, 200, 500, 700, 1000];
+  const [error, setError] = useState<string | null>(null);
+  const amounts = [0.01, 100, 200, 500, 700, 1000];
 
   useEffect(() => {
     // Load payment history
@@ -46,34 +51,51 @@ export default function BalanceBillPage() {
     return () => clearTimeout(timer);
   }, [showPaymentPopup, countdown]);
 
-  const loadPaymentHistory = async () => {
-    
-    await instance.get('/api/v1/credit-refill/search').then(res => {
-      setPaymentHistory(res.data || []);
+  const loadPaymentHistory = async (pageNo = 1) => {
+    let payload: any = {
+      pageNo,
+      pageSize: size
+    }
+    instance.post('/api/v1/credit-refill/search', payload).then(res => {
+      setPaymentHistory(res.records || []);
+      setCurrent(res.current || 1);
+      setPages(res.pages || 1);
+      setSize(res.size || 10);
+      setTotal(res.total || 0);
     }).catch(err => {
       console.error('Failed to load payment history:', err);
     });
-    
   };
 
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount);
   };
 
-  const handlePay = async (orderNo?: string) => {
-    if (!selectedAmount) return;
+  const handlePay = async (orderNo?: string, amount?: number) => {
+    setError(null);
+    //针对用户点击pay这种情况，则不合法
+    if (!orderNo && !selectedAmount) {
+      setError("Please select an amount to refill first");
+      return
+    };
 
-    let payload = {
-      amountInCents: selectedAmount,
+    if(orderNo  && !amount){
+      //大概率不会发生。
+      return;
+    }
+
+    let payload: any = {
+      amountInCents: amount || (selectedAmount || 0)*100,
+      channel: 'WECHAT'
     }
     if (orderNo) {
       payload.orderNo = orderNo;
     }
 
-    instance.post('/api/v1/credit-refill/prepay?channel=wechat', payload).then(res => {
-      const base64Data = res.data.base64Image;
-      setQrCodeData(`data:image/png;base64,${base64Data}`);
-      setOrderNo(res.data.orderNo);
+    instance.post('/api/v1/credit-refill/prepay', payload).then(res => {
+      const base64Data = res.base64Image;
+      setQrCodeData(`${base64Data}`);
+      setOrderNo(res.orderNo);
       setShowPaymentPopup(true);
       setCountdown(600);
     }).catch(err => {
@@ -113,8 +135,10 @@ export default function BalanceBillPage() {
   const getStateBadge = (state: string) => {
     switch (state) {
       case 'completed':
+      case 'SUCCESS':
         return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
       case 'pending':
+      case 'NOPAY':
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
       case 'failed':
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
@@ -122,6 +146,10 @@ export default function BalanceBillPage() {
         return <Badge variant="secondary">{state}</Badge>;
     }
   };
+
+  const getBeijingTime = (time: string) => {
+    return new Date(time).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  }
 
   return (
     <>
@@ -148,13 +176,14 @@ export default function BalanceBillPage() {
                 </Button>
               ))}
               <Button
-                onClick={handlePay}
+                onClick={() => handlePay()}
                 disabled={!selectedAmount}
                 className="bg-green-600 hover:bg-green-700"
               >
                 Pay
               </Button>
             </div>
+            {error && <p className="text-red-500">{error}</p>}
           </CardContent>
         </Card>
 
@@ -171,27 +200,37 @@ export default function BalanceBillPage() {
                   <TableHead>Order No</TableHead>
                   <TableHead>Channel</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>updateTime</TableHead>
                   <TableHead>State</TableHead>
-                  
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paymentHistory.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>{payment.date}</TableCell>
+                  <TableRow key={payment.orderNo}>
+                    <TableCell>{getBeijingTime(payment.createTime)}</TableCell>
                     <TableCell>{payment.orderNo}</TableCell>
-                    <TableCell>{payment.channel}</TableCell>
-                    <TableCell>¥{payment.amount}</TableCell>
+                    <TableCell>{payment.channel === 'WECHAT' ? '微信' : payment.channel}</TableCell>
+                    <TableCell>¥{(payment.amountInCents / 100).toFixed(2)}</TableCell>
+                    <TableCell>{getBeijingTime(payment.updateTime)}</TableCell>
                     <TableCell>{getStateBadge(payment.state)}</TableCell>
                     <TableCell>
-                      {payment.state === 'paying' ? (
+                      {payment.state === 'NOTPAY' && (
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handlePay(payment.orderNo)}>Continue</Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleClose(payment.orderNo)}>Close</Button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          {/* <Button size="sm" variant="destructive" onClick={() => handleClose(payment.orderNo)}>Close</Button> */}
+                          <Button
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handlePay(payment.orderNo, payment.amountInCents)}
+                          >
+                            Continue Payment
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline" 
+                            onClick={() => handleClose(payment.orderNo)}
+                          >
+                            Close Payment
+                          </Button>
                         </div>
                       )}
                     </TableCell>
@@ -199,13 +238,32 @@ export default function BalanceBillPage() {
                 ))}
                 {paymentHistory.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-gray-500">
+                    <TableCell colSpan={5} className="text-center text-gray-500">
                       No payment history found
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
+            {/* Pagination Controls */}
+            <div className="flex justify-end items-center gap-2 mt-4">
+              <button
+                className="px-2 py-1 border rounded disabled:opacity-50"
+                disabled={current === 1}
+                onClick={() => loadPaymentHistory(current - 1)}
+              >
+                Previous
+              </button>
+              <span>Page {current} of {pages}</span>
+              <button
+                className="px-2 py-1 border rounded disabled:opacity-50"
+                disabled={current === pages}
+                onClick={() => loadPaymentHistory(current + 1)}
+              >
+                Next
+              </button>
+              <span className="ml-4 text-gray-500">Total: {total}</span>
+            </div>
           </CardContent>
         </Card>
       </div>
