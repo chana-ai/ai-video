@@ -40,8 +40,8 @@ export default function Login() {
   }, [countdown]);
 
   const loadCaptcha = () => {
-    instance.get('/api/captcha').then(res => {
-      setCaptchaImage(res.data.image);
+    instance.get('/user/captcha?phoneNumber=' + getFullPhone()).then(res => {
+      setCaptchaImage(res);
     }).catch(err => {
       console.error('Failed to load captcha:', err);
     });
@@ -53,6 +53,10 @@ export default function Login() {
       value = value.substring(2);
     }
     setPhone(value);
+
+    if (activeTab === 'sms' && captchaImage === '' && phone.length === 11) {
+      loadCaptcha()
+    }
   };
 
   const getFullPhone = () => {
@@ -82,7 +86,7 @@ export default function Login() {
     }
 
     try {
-      await instance.post('/api/sms/send', {
+      instance.post('/user/sendVerifyCode', {
         phoneNumber: getFullPhone(),
         captcha: captcha
       });
@@ -134,18 +138,18 @@ export default function Login() {
     setErrorMessage('');
 
     try {
-      const res = await instance.post('/user/login/sms', {
+      instance.post('/user/login', {
         phoneNumber: getFullPhone(),
-        smsCode: smsCode
+        code: smsCode
+      }).then(res => {
+        const { phoneNumber: rPhone, userId: rUserId, token: rToken } = res.data;
+        setCredentials(rToken);
+        setUserId(rUserId);
+        setLoginPhone(rPhone);
+        router.push('/ai/dashboard');
+      }).catch(err => {
+        setErrorMessage(err.response?.data?.message || '登录失败');
       });
-
-      const { phoneNumber: rPhone, userId: rUserId, token: rToken } = res.data;
-      setCredentials(rToken);
-      setUserId(rUserId);
-      setLoginPhone(rPhone);
-      router.push('/ai/dashboard');
-    } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || '登录失败');
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +183,9 @@ export default function Login() {
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
-              onClick={() => setActiveTab('sms')}
+              onClick={() => {
+                setActiveTab('sms')
+              }}
             >
               短信登录
             </button>
