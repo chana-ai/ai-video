@@ -16,6 +16,7 @@ export default function Login() {
   const [smsCode, setSmsCode] = useState('');
   const [captcha, setCaptcha] = useState('');
   const [captchaImage, setCaptchaImage] = useState('');
+  const [sessionId, setSessionId] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +41,9 @@ export default function Login() {
   }, [countdown]);
 
   const loadCaptcha = () => {
-    instance.get('/user/captcha?phoneNumber=' + getFullPhone()).then(res => {
-      setCaptchaImage(res);
+    instance.get('/user/captcha').then(res => {
+      setCaptchaImage(res.base64);
+      setSessionId(res.sessionId);
     }).catch(err => {
       console.error('Failed to load captcha:', err);
     });
@@ -76,7 +78,7 @@ export default function Login() {
   };
 
   const sendSmsCode = async () => {
-    if (!phone) {
+    if (!phone || phone.length !== 11) {
       setErrorMessage('请输入手机号');
       return;
     }
@@ -85,14 +87,15 @@ export default function Login() {
       return;
     }
 
+
     try {
       instance.post('/user/sendVerifyCode', {
         phoneNumber: getFullPhone(),
-        captcha: captcha
+        captcha: captcha,
+        sessionId: sessionId
       });
       setCountdown(60);
       setErrorMessage('');
-      loadCaptcha(); // Refresh captcha
     } catch (error: any) {
       setErrorMessage(error.response?.data?.message || '发送失败');
       loadCaptcha(); // Refresh captcha on error
