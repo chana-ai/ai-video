@@ -56,6 +56,7 @@ export default function CreateVideo() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
+  const [showSettings, setShowSettings] = useState(true);
 
   //Initilization
   useEffect(() => {
@@ -63,20 +64,20 @@ export default function CreateVideo() {
     instance
       .get("/tags")
       .then((response) => {
-        setTagList(response.data);
+        setTagList(response.data|| response);
       })
       .catch((error) => {
         console.log(error);
       });
 
     instance.get('/audio/synthesis').then(res=>{
-       setSynthesisList(res.data)
+       setSynthesisList(res.data|| res)
     }).catch(err => {
         console.error(err)
     })
 
     instance.get('/video/source').then(res=>{
-        setVideoSourceList(res.data)
+        setVideoSourceList(res.data|| res)
     }).catch(err => {
         console.error(err)
     })
@@ -123,13 +124,13 @@ export default function CreateVideo() {
         subject: subject,
       })
       .then((res) => {
-        setScript(res.data.script);
+        setScript(res.script);
         setDisableScripGeneration(false)
       })
       .catch((error) => {
         setDisableScripGeneration(false)
-        console.error(error);
-        setErrorMessage(error)
+        console.error(error.message);
+        setErrorMessage(error.message)
       });
       
   };
@@ -184,266 +185,140 @@ export default function CreateVideo() {
   const advancedSetting= ()=>{
 
     return (
-      <div>
-        <Collapse
-          size="large"
-          items={[
-            {
-              key: "1",
-              label: "高级视频设置",
-              children: (
-                <>
-                  <Descriptions>
-                    <DescriptionsItem label="画面比例">
-                      <select
-                        value={videoSetting.size}
-                        onChange={(e) => buildVideoSetting({ size: e.target.value })}
-                      >
-                        <option value="16:9">16 : 9</option>
-                        <option value="9:16">9 : 16</option>
-                      </select>
-                    </DescriptionsItem>
-                    <DescriptionsItem label="视频素材种类">
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <div>
-                          <select
-                            value={videoSetting.source}
-                            onChange={onSelectVideoSource}
-                          >
-                            {videoSourceList.map((source) => (
-                              <option key={source.value} value={source.value}>
-                                {source.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      
-                      </div>
-                    </DescriptionsItem>
-                    <DescriptionsItem label="视频素材选择">
-                    <div  style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <div style={{ marginTop: '20px' }}>
-                              {videoSetting.source === "local" ||
-                              videoSetting.source === "mixed" ? (
-                                <select
-                                  multiple
-                                  name="请选择一个或者多个素材"
-                                  value={videoSetting.materialIds}
-                                  onChange={(e) => {
-                                       buildVideoSetting({ materialIds: Array.from(e.target.selectedOptions).map(option => option.value) })
-                                  }}
-                                >
-                                  {materialList.map((option) => (
-                                    <option
-                                      key={option.id}
-                                      value={option.id}
-                                    >
-                                      {option.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : null}
-                            </div>
-                    </div>
-                    </DescriptionsItem>
-
-                  </Descriptions>
-                </>
-              ),
-            },
-            {
-              key: "2",
-              label: "高级音频设置",
-              children: (
-                <>
-                  <Descriptions>
-                    <DescriptionsItem label="配音声音">
-                      <select
-                        value={audioSetting.synthesis || 'zh-CN-YunxiaNeural'} 
-                        onChange={(e) => buildAudioSetting({ synthesis: e.target.value })}
-                      >
-                        {synthesisList.map((option, key) => {
-                          return (
-                            <option value={option.value} key={key}>
-                              {option.label}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </DescriptionsItem>
-                    <DescriptionsItem label="背景音乐">
-                      <select
-                        value={audioSetting.bgm}
-                        onChange={(e) => buildAudioSetting({ bgm: e.target.value })}
-                      >
-                        <option value="nobgm">无</option>
-                        <option value="aibgm">AI自动</option>
-                        {/* {musicList.map((option, key) => (
-                          <option value={option.id} key={key}>
-                            {option.name}{" "}
-                          </option>
-                        ))} */}
-                      </select>
-                    </DescriptionsItem>
-                  </Descriptions>
-                </>
-              ),
-            },
-          ]}
-        />
+      <div className="flex flex-row gap-8 bg-[#232425] rounded-lg p-6 mb-8 w-full max-w-3xl mx-auto">
+      {/* 视频设置 */}
+      <div className="flex-1 min-w-[180px] max-w-xs">
+        <div className="text-white font-semibold mb-2">视频</div>
+        <div className="flex gap-2 mb-4">
+            <Button className={`border border-green-500 rounded-lg text-base font-medium py-2 px-6 ${videoSetting.size === '16:9' ? 'bg-green-500 text-white' : 'bg-white text-blank-600'}`} onClick={() => buildVideoSetting({ size: '16:9' })}>16:9</Button>
+            <Button className={`border border-green-500 rounded-lg text-base font-medium py-2 px-6 ${videoSetting.size === '9:16' ? 'bg-green-500 text-white' : 'bg-white text-blank-600'}`} onClick={() => buildVideoSetting({ size: '9:16' })}>9:16</Button>
+        </div>
       </div>
+      {/* 音频设置 */}
+      <div className="flex-1 min-w-[180px] max-w-xs">
+        <div className="text-white font-semibold mb-2">音频</div>
+        <div className="mb-2">
+          <label className="text-gray-400 mr-2">配音声音</label>
+          <select 
+            className="bg-[#232425] border border-[#444] text-white rounded px-2 py-1 w-full max-w-xs"
+            value={audioSetting.voice}
+            onChange={(e) => buildAudioSetting({ voice: e.target.value })}
+          >
+            {synthesisList.map((item, index) => (
+              <option key={index} value={item.value} selected={item.value === audioSetting.synthesis}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-gray-400 mr-2">背景音乐</label>
+          <select className="bg-[#232425] border border-[#444] text-white rounded px-2 py-1 w-full max-w-xs">
+            <option>自动匹配</option>
+          </select>
+        </div>
+      </div>
+      {/* 字幕设置 */}
+      {/* <div className="flex-1 min-w-[180px] max-w-xs">
+        <div className="flex items-center mb-2">
+          <input type="checkbox" checked readOnly className="accent-green-500 mr-2" />
+          <span className="text-white font-semibold">字幕</span>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <select className="bg-[#232425] border border-[#444] text-white rounded px-2 py-1 w-24">
+            <option>微软雅黑</option>
+          </select>
+          <select className="bg-[#232425] border border-[#444] text-white rounded px-2 py-1 w-20">
+            <option>40px</option>
+          </select>
+          <input type="color" value="#FFFFFF" className="w-8 h-8 border border-[#444] rounded" readOnly />
+        </div>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <input type="color" value="#333333" className="w-8 h-8 border border-[#444] rounded" readOnly />
+          <select className="bg-[#232425] border border-[#444] text-white rounded px-2 py-1 w-16">
+            <option>1px</option>
+          </select>
+        </div>
+        <div>
+          <select className="bg-[#232425] border border-[#444] text-white rounded px-2 py-1 w-24">
+            <option>底部</option>
+          </select>
+        </div>
+      </div> */}
+    </div>
   );
   }
   return (
     <>
       <Header title="Create Video"></Header>
-      <div className="p-4">
-        <Card title="快速生成视频">
-          <Timeline
-            items={[
-              // {
-              //   //color: "green",
-              //   children: (
-              //     <>
-              //       <Card title="一、主题-(你可以跳过这部分直接在提示词里面输入视频文案)" bordered={false}>
-              //         <Space
-              //           size={15}
-              //           direction="vertical"
-              //           style={{ display: "flex" }}
-              //         >
-              //           <Input.TextArea
-              //             placeholder="请用简单的一句话描述你的视频文案"
-              //             value={subject}
-              //             rows={1}
-              //             onChange={(e) => setSubject(e.target.value)}
-              //           />
-              //           <div
-              //             style={{
-              //               display: "flex",
-              //               flexDirection: "row-reverse",
-              //             }}
-              //           >
-              //             <Button
-              //               size="large"
-              //               style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
-              //               type="primary"
-              //               onClick={generateScript}
-              //             >
-              //               生成文案
-              //             </Button>
-              //           </div>
-              //         </Space>
-              //       </Card>
-              //     </>
-              //   ),
-              // },
-              {
-                children: (
-                  <>
-                  { /*<Card> */}
-                    {/* <Card {title="二、视频文案" bordered={false}}> */}
-                      <Space
-                        size={15}
-                        direction="vertical"
-                        style={{ display: "flex" }}
-                      >
-                      <label>标题<label style={{ color: 'red' }}>*</label></label>
-                      
-                      <Input
-                        id="title"
-                        placeholder="请输入视频标题"
-                        value={name}
-                        onChange={(e) => setName(e.target.value.substring(0, 30))}
-                        maxLength={30}
-                        style={{ width: '30%' }}
-                      />
-                      <Space
-                        size={15}
-                        direction="vertical"
-                        style={{ display: "flex" }}
-                      ></Space>
-                        <Space
-                        size={15}
-                        direction="vertical"
-                        style={{ display: "flex" }}
-                        >
-                        <label> 文案提示词 </label>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <Input.TextArea
-                            placeholder="请用简单的一句话描述你的视频文案"
-                            value={subject}
-                            rows={1}
-                            onChange={(e) => setSubject(e.target.value)}
-                            style={{ flex: 1, marginRight: '10px' }}
-                          />
-                          <Button
-                            size="large"
-                            style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
-                            type="primary"
-                            onClick={generateScript}
-                            disabled={disableScriptGeneration ? disableScriptGeneration : false}
-                          >
-                            生成文案
-                          </Button>
-                        </div>
-                      </Space>
-                       <label></label>
-                       <label><label style={{ color: 'red' }}>*</label>文案(你可以直接编辑，也可以通过主题生成文案)</label> <Input.TextArea
-                          id="script"
-                          placeholder="generate or input your script here"
-                          value={script}
-                          onChange={(e) => setScript(e.target.value)}
-                          rows={4}
-                        />
+      <div className="p-4 flex flex-col items-center">
 
-                        <label>标签<label style={{ color: 'red' }}>*</label></label>
-                        <Space className={styles.spaceBetween}>
-                          
-                          
-                          <Select
-                            mode="multiple"
-                            allowClear
-                            size="large"
-                            style={{ width: "300px" }}
-                            placeholder="Please select tags"
-                            value={selectedTags}
-                            onChange={(values) => setSelectedTags(values)}
-                            dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
-                          >
-                            {tagList.map((tag) => (
-                              <Select.Option key={tag.id} value={tag.name}>
-                                {tag.name}
-                              </Select.Option>
-                            ))}
-                          </Select>
-                          <label style={{ color: 'red' }}>{errorMessage}</label>
-                          <Button
-                            size="large"
-                            style={{ width: "200px", backgroundColor: "#000000", color: "#ffffff", border: "1px solid #d9d9d9" }}
-                            type="primary"
-                            onClick={submitVideoTask}
-                          >
-                            生成视频
-                          </Button>
-                        </Space>
-                        <div>
-                            {(advancedSetting() )}
+        {/* Title and script generation controls (restored) */}
+        <div className="mb-4 w-full max-w-3xl flex flex-col items-center">
+          <div className="flex w-full items-center mb-2">
+            <label className="w-32 text-left">标题<span style={{ color: 'red' }}>*</span></label>
+            <Input
+              id="title"
+              placeholder="请输入视频标题"
+              value={name}
+              onChange={(e) => setName(e.target.value.substring(0, 30))}
+              maxLength={30}
+              className="flex-1"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+        <div className="mb-4 w-full max-w-3xl flex flex-col items-center">
+          <div className="flex w-full items-center mb-2">
+            <label className="w-32 text-left">文案提示词</label>
+            <Input
+              placeholder="请用简单的一句话描述你的视频文案"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="flex-1"
+              style={{ width: '100%' }}
+            />
+            <Button
+              className="ml-4 bg-white border border-green-500 text-blank-600 rounded-lg text-base font-medium py-2 px-6"
+              style={{ width: 200 }}
+              onClick={generateScript}
+              disabled={disableScriptGeneration ? disableScriptGeneration : false}
+            >
+              生成文案
+            </Button>
+          </div>
+        </div>
+        <div className="mb-4 w-full max-w-3xl flex flex-col items-center">
+          <div className="flex w-full items-center mb-2">
+            <label className="w-32 text-left"><span style={{ color: 'red' }}>*</span>文案</label>
+            <Input.TextArea
+              id="script"
+              placeholder="generate or input your script here"
+              value={script}
+              onChange={(e) => setScript(e.target.value)}
+              rows={6}
+              maxLength={800}
+              className="flex-1"
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div className="text-right text-xs text-gray-400 w-full max-w-3xl pr-4">{script.length}/800</div>
+        </div>
 
-                        </div>
-                      </Space>
-                    { /*</Card>  */}
-                  </>
-                ),
-              },
-              
-            ]}
-          />
-        </Card>
+        {/* Settings section with fold/unfold */}
+        <div className="flex items-center gap-2 mb-2 mt-6 cursor-pointer select-none w-full max-w-3xl mx-auto" onClick={() => setShowSettings((v) => !v)}>
+          <span className="text-blank-500"><svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path fill="currentColor" fillRule="evenodd" d="M11.2 2.27c.5-.36 1.1-.36 1.6 0l1.43 1.04a1.25 1.25 0 001.45.04l1.6-.98a1.25 1.25 0 011.7.45l.8 1.39a1.25 1.25 0 00.98.62l1.7.13c.6.05 1.1.5 1.18 1.1l.22 1.6a1.25 1.25 0 00.6.93l1.4.8c.54.3.74.98.45 1.52l-.98 1.6a1.25 1.25 0 00.04 1.45l1.04 1.43c.36.5.36 1.1 0 1.6l-1.04 1.43a1.25 1.25 0 00-.04 1.45l.98 1.6a1.25 1.25 0 01-.45 1.7l-1.39.8a1.25 1.25 0 00-.62.98l-.13 1.7a1.25 1.25 0 01-1.1 1.18l-1.6.22a1.25 1.25 0 00-.93.6l-.8 1.4a1.25 1.25 0 01-1.52.45l-1.6-.98a1.25 1.25 0 00-1.45.04l-1.43 1.04a1.25 1.25 0 01-1.6 0l-1.43-1.04a1.25 1.25 0 00-1.45-.04l-1.6.98a1.25 1.25 0 01-1.7-.45l-.8-1.39a1.25 1.25 0 00-.98-.62l-1.7-.13a1.25 1.25 0 01-1.18-1.1l-.22-1.6a1.25 1.25 0 00-.6-.93l-1.4-.8a1.25 1.25 0 01-.45-1.52l.98-1.6a1.25 1.25 0 00-.04-1.45L2.27 13.2a1.25 1.25 0 010-1.6l1.04-1.43a1.25 1.25 0 00.04-1.45l-.98-1.6a1.25 1.25 0 01.45-1.7l1.39-.8a1.25 1.25 0 00.62-.98l.13-1.7A1.25 1.25 0 016.6 3.3l1.6-.22a1.25 1.25 0 00.93-.6l.8-1.4a1.25 1.25 0 011.52-.45l1.6.98c.4.25.9.25 1.3 0z" clipRule="evenodd"/></svg></span>
+          <span className="text-blank-500 font-semibold text-lg">设置</span>
+          <span className="ml-2 text-gray-400">{showSettings ? '▲' : '▼'}</span>
+        </div>
+        {showSettings && (
+          advancedSetting()
+        )}
+
+        {/* Generate button and cost indicator */}
+        <div className="flex w-full max-w-3xl mx-auto mt-4 justify-end">
+          <Button className="bg-white border border-green-500 text-blank-600 rounded-lg text-base font-medium py-2 px-6" style={{ width: 200 } } onClick={submitVideoTask}>生成</Button>
+        </div>
       </div>
     </>
   );

@@ -22,13 +22,14 @@ export default function Dashboard() {
   });
 
   const [balance, setBalance] = useState(0.0);
+  const [bonusBalance, setBonusBalance] = useState(0.0);
   const [withdrawVisible, setWithdrawVisible] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
   
     instance.get('/dashboard/video-summary').then((res) => {
-        setSummary(res)
+        setSummary(res.data || res)
         console.log("UserSummary is: "+ JSON.stringify(res))
     }).catch(error => {
       console.log(error);
@@ -38,9 +39,11 @@ export default function Dashboard() {
   useEffect(() => {
    
     setBalance(0.0);
-    instance.get('/user/getCredits').then((res) => {
+    setBonusBalance(0.0);
+    instance.get('/user/balance').then((res) => {
         console.log("getCredit is: "+ JSON.stringify(res));
-        setBalance(res.data.credit?res.data.credit:0.0);
+        setBalance(res.rechargeBalance/100.0 || 0.0);
+        setBonusBalance(res.bonusBalance/100.0 || 0.0);
     }).catch(error => {
         console.log(error)
     });
@@ -70,8 +73,11 @@ export default function Dashboard() {
           </Card>
           <Card title="余额">
             <Descriptions colon={false}>
-              <Descriptions.Item label="余额" span={3}>
-                {balance}
+              <Descriptions.Item label="充值余额" span={3}>
+                ¥{balance.toFixed(2)}
+              </Descriptions.Item>
+              <Descriptions.Item label="赠送余额" span={3}>
+                ¥{bonusBalance.toFixed(2)}
               </Descriptions.Item>
             </Descriptions>
             <div className="flex flex-row gap-2 mt-4 items-center">

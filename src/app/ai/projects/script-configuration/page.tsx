@@ -7,11 +7,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RefreshCw } from 'lucide-react'
 import { Input } from "@/components/ui/input"
-import type { ScriptGenerationData } from '../types'
+import type { ScriptGenerationData, ProjectMetaInfo } from '../types'
 import Header from "../../header";
 import instance from "@/lib/axios";
 import { set } from 'date-fns'
-import { SheetTitle } from '@/components/ui/sheet'
+
+const themeMap = {
+  advertise: "广告",
+  promotion: "推广"
+}
+
+const styleMap = {
+  cinimation: "影视",
+  disney: "迪士尼",
+  pixar: "皮克斯",
+  dreamworks: "梦工厂",
+  other: "其他"
+}
 
 export default function ScriptConfiguration() {
   const router = useRouter()
@@ -31,13 +43,41 @@ export default function ScriptConfiguration() {
   const [subjectWordCount, setSubjectWordCount] = useState(0)
   const [scriptWordCount, setScriptWordCount] = useState(0)
   const [disableChange, setDisableChange] = useState(false)
+  const [projectMetaInfo, setProjectMetaInfo] = useState<ProjectMetaInfo>({})
+  const [init, setInit] = useState(false)
+  const [version, setVersion] = useState("")
+
+  const [savingScene, setSavingScene] = useState(false)
+  const [savingCharacter, setSavingCharacter] = useState(false)
+  const [savingScript, setSavingScript] = useState(false)
 
   console.log('projectId: '+projectId + ' stageId: '+stageId)
+  
   useEffect(() => {
     if (!projectId || !stageId) {
       console.error('Project ID or Stage ID is missing');
       return;
     }
+
+    // Fetch project details
+    instance.get(`/api/v2/project/get_raw_project?project_id=${projectId}`).then((res) => {
+      console.log('Project details: ' + JSON.stringify(res))
+      if (res) {
+        setProjectMetaInfo({
+          name: res.name|| '',
+          audience: res.audiences || '',
+          theme: res.theme || '',
+          style: res.style || '',
+          purpose:  res.purpose || '',
+          aspect:  res.aspect || '',
+          narration:  res.narration || true
+        })
+      }
+    }).catch(err => {
+      console.error('Failed to fetch project details:', err)
+    })
+    
+
     instance.get("/api/v2/script/getScriptInitResult", {
       params: {
         project_id: projectId,
@@ -51,13 +91,20 @@ export default function ScriptConfiguration() {
         setCharacters('')
         setScenes('')
         setDisableChange(false)
+        setInit(false)
         return 
       }
       
       setSubject(res.title)
-      setCharacters(JSON.stringify(res.characters, null, 2))
-      setScenes(JSON.stringify(res.scenes, null, 2))
-      setDisableChange(true)
+      setCharacters(JSON.stringify(res.characters || [], null, 2))
+      setScenes(JSON.stringify(res.scenes || [], null, 2))
+      setDisableChange(!res.init)
+      setInit(res.init)
+      setVersion(res.version)
+    }).catch((err)=>{
+      console.error('Error fetching script init result:', err.message)
+      setDisableChange(false)
+      setInit(false)
     })
   },
     [projectId, stageId]
@@ -79,27 +126,25 @@ export default function ScriptConfiguration() {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    try {
-      instance.post('/api/v2/script/generateScript', {
-        generation_type: generationType,
-        content: generationType ==='subject'? subject : script,
-        project_id: projectId,
-        stage_id: stageId
-      }).then((res)=>{
-        console.log('res: '+JSON.stringify(res))
-        setSubjectWordCount(countWords(subject))
-        setScriptWordCount(countWords(script))
-        setCharacters(JSON.stringify(res.characters, null, 2));
-        setScenes(JSON.stringify(res.scenes, null, 2));
-        setCharacterChanged(true)
-        setSceneChanged(true)
-        })
-
-    } catch (error) {
-      console.error('Generation error:', error);
-    } finally {
-      setIsGenerating(false);
-    }
+    
+    instance.post('/api/v2/script/generateScript', {
+      generation_type: generationType,
+      content: generationType ==='subject'? subject : script,
+      project_id: projectId,
+      stage_id: stageId
+    }).then((res)=>{
+      console.log('res: '+JSON.stringify(res))
+      setSubjectWordCount(countWords(subject))
+      setScriptWordCount(countWords(script))
+      setCharacters(JSON.stringify(res.characters || [], null, 2));
+      setScenes(JSON.stringify(res.scenes || [], null, 2));
+      setCharacterChanged(true)
+      setSceneChanged(true)
+      setIsGenerating(false)
+      }).catch((err)=>{
+        console.error('Error generating script:', err.message)
+        setIsGenerating(false)
+      })
   };
 
   const saveCharacterAndScenes = async ()=> {
@@ -110,6 +155,9 @@ export default function ScriptConfiguration() {
       characters: charactersValid ? '' : 'Invalid JSON format',
       scenes: scenesValid ? '' : 'Invalid JSON format'
     })
+    setSavingScript(true)
+    setSavingScene(true)
+    setSavingCharacter(true)
 
     if (!charactersValid || !scenesValid) return
 
@@ -121,9 +169,11 @@ export default function ScriptConfiguration() {
     }).then((res)=>{
       console.log('res: '+JSON.stringify(res))
       setCharacterChanged(false)
+      setSavingCharacter(false)
     }).catch(err =>{
       console.error('Error creating characters:', err.message)
       setErrors(prevErrors => ({...prevErrors, characters: err.message}))
+      setSavingCharacter(false)
     }
     )
   
@@ -134,12 +184,26 @@ export default function ScriptConfiguration() {
     }).then((res)=>{
       console.log('Scenes creation response: '+JSON.stringify(res))
       setSceneChanged(false)
+      setSavingScene(false)
     }).catch((error)=>{
       console.error('Error creating scenes:', error);
       setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
+      setSavingScene(false)
     });
 
-    
+    instance.post('/api/v2/script/saveScript', {
+      project_id: projectId,
+      stage_id: stageId,
+      version: version,
+      characters: JSON.parse(characters),
+      scenes: JSON.parse(scenes)
+    }).then((res)=>{
+      console.log('Version update response: '+JSON.stringify(res))
+      setSavingScript(false)
+    }).catch((error)=>{
+      console.error('Error updating version:', error);
+      setSavingScript(false)
+    });
   }
 
 
@@ -158,10 +222,63 @@ export default function ScriptConfiguration() {
         title={
             "Projects"  }
       ></Header>
-    <div className="container mx-auto p-6 max-w-5xl">
+    <div className="container mx-auto p-6 max-w-7xl">
       <h1 className="text-3xl font-bold mb-8">Script Generation</h1>
 
-      <div className="space-y-6">
+      <div className="flex gap-8">
+        {/* Project Meta Information Sidebar */}
+        <div className="w-80 flex-shrink-0">
+          <div className="bg-gray-50 rounded-lg p-6 border">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Project Information</h2>
+            <div className="space-y-4">
+              {projectMetaInfo.name && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 block mb-1">Project Name</label>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{projectMetaInfo.name}</div>
+                </div>
+              )}
+              {projectMetaInfo.audience && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 block mb-1">Target Audience</label>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{projectMetaInfo.audience}</div>
+                </div>
+              )}
+              {projectMetaInfo.theme && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 block mb-1">主题 </label>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{themeMap[projectMetaInfo.theme as keyof typeof themeMap]}</div>
+                </div>
+              )}
+              {projectMetaInfo.style && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 block mb-1">风格</label>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{styleMap[projectMetaInfo.style as keyof typeof styleMap]}</div>
+                </div>
+              )}
+              {projectMetaInfo.aspect && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 block mb-1">Aspect Ratio</label>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{projectMetaInfo.aspect}</div>
+                </div>
+              )}
+              {projectMetaInfo.purpose && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600 block mb-1">Purpose</label>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border text-sm">{projectMetaInfo.purpose}</div>
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Narration</label>
+                <div className="text-gray-800 bg-white px-3 py-2 rounded border">
+                  {projectMetaInfo.narration ? 'Enabled' : 'Disabled'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 space-y-6">
         <Select
           value={generationType}
           onValueChange={(value: 'subject' | 'script') => setGenerationType(value)}
@@ -171,7 +288,7 @@ export default function ScriptConfiguration() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="subject">Generate from Subject</SelectItem>
-            <SelectItem value="script">Generate from Script</SelectItem>
+            {/* <SelectItem value="script">Generate from Script</SelectItem> */}
           </SelectContent>
         </Select>
 
@@ -213,11 +330,20 @@ export default function ScriptConfiguration() {
             )}
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || (generationType === 'subject' ? !subject : !script) || disableChange}
-              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+              disabled={isGenerating || disableChange}
+              className={`bg-green-600 hover:bg-green-700 w-full sm:w-auto ${isGenerating ? 'cursor-not-allowed opacity-50' : ''}`}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
-              Generate
+              {isGenerating ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"/>
+                  Generating
+                </div>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Generate
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -267,6 +393,7 @@ export default function ScriptConfiguration() {
           <Button
             onClick={saveCharacterAndScenes}
             className="bg-green-600 hover:bg-green-700"
+            disabled={!init}
           >
             保存
           </Button>
@@ -277,6 +404,7 @@ export default function ScriptConfiguration() {
           >
             下一步
           </Button>
+        </div>
         </div>
       </div>
     </div>

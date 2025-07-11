@@ -179,12 +179,18 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">其它信息:</label>
+            <label className="text-sm font-medium mb-2 block">其它信息: (最多50字)</label>
             <Textarea 
-              placeholder="想要的效果" 
+              placeholder="简要描述下你想这个视频的用途，比如：产品介绍、品牌宣传、活动推广等，最多50字" 
               className="h-24"
               value={formData.purpose}
-              onChange={(e) => setFormData(prev => ({ ...prev, purpose: e.target.value }))}
+              onChange={(e) => {
+                const text = e.target.value;
+                if (text.length <= 70) {
+                  setFormData(prev => ({ ...prev, purpose: text }));
+                }
+              }}
+              maxLength={100}
             />
           </div>
         </div>

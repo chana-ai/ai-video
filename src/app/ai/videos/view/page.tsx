@@ -69,7 +69,7 @@ export default function VideoDetail(){
 
         instance.get(`/video/get?id=${videoId}`)
         .then(response => {
-          setVideo(response.data);
+          setVideo(response.data || response);
         })
         .catch(error => {
           console.error('Error fetching video data:', error);

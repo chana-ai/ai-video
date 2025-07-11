@@ -88,19 +88,19 @@ export default function Login() {
     }
 
 
-    try {
-      instance.post('/user/sendVerifyCode', {
-        phoneNumber: getFullPhone(),
-        captcha: captcha,
-        sessionId: sessionId
-      });
+  
+    instance.post('/user/send-sms-code', {
+      phoneNumber: getFullPhone(),
+      verifyCode: captcha,
+      sessionId: sessionId
+    }).then(res => {
       setCountdown(60);
       setErrorMessage('');
-    } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || '发送失败');
+    }).catch(err => {
+      setErrorMessage(err.message || '发送失败');
       loadCaptcha(); // Refresh captcha on error
-    }
-  };
+    });
+  }
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +118,7 @@ export default function Login() {
         password: password
       });
 
-      const { phoneNumber: rPhone, userId: rUserId, token: rToken } = res.data;
+      const { phoneNumber: rPhone, userId: rUserId, token: rToken } = res;
       setCredentials(rToken);
       setUserId(rUserId);
       setLoginPhone(rPhone);
@@ -145,7 +145,7 @@ export default function Login() {
         phoneNumber: getFullPhone(),
         code: smsCode
       }).then(res => {
-        const { phoneNumber: rPhone, userId: rUserId, token: rToken } = res.data;
+        const { phoneNumber: rPhone, userId: rUserId, token: rToken } = res.data || res;
         setCredentials(rToken);
         setUserId(rUserId);
         setLoginPhone(rPhone);
