@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState , useEffect} from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -9,15 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { X } from 'lucide-react'
-import type { ProjectFormData } from '@/app/ai/projects/types'
+import { ProjectFormData, themeMap, styleMap } from '@/app/ai/projects/types'
 import instance from '@/lib/axios'
 
 export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter()
   const [formData, setFormData] = useState<ProjectFormData>({
     name: '',
-    aspect: '1:1',
-    theme: 'animation',
+    aspect: '16:9',
+    theme: 'advertise',
     style: 'cinimation',
     audiences: 'KIDS',
     narration: true,
@@ -25,7 +25,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   })
   
   const [errorMessage, setErrorMessage] = useState("");
-
+  const [backgroundInfo, setBackgroundInfo] = useState("");
   const aspectRatios = [
     { id: '1:1', label: '1:1', style: 'w-12 h-12' },
     { id: '1:2', label: '1:2', style: 'w-10 h-[80px]' },
@@ -51,6 +51,10 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     //router.push(`/ai/projects/script-configuration?projectId=1`)
   }
 
+  useEffect(() => {
+    setBackgroundInfo(themeMap['advertise'].description)
+  }, [])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
@@ -72,7 +76,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="text-sm font-medium mb-2 block">屏幕比例</label>
             <RadioGroup 
               defaultValue="1:1" 
@@ -108,21 +112,25 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
                 </div>
               ))}
             </RadioGroup>
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Theme</label>
               <Select 
                 value={formData.theme}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, theme: value }))}
+                onValueChange={(value) => {
+                  setFormData(prev => ({ ...prev, theme: value }))
+                  setBackgroundInfo(themeMap[value as keyof typeof themeMap].description)
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="广告" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="advertise">广告</SelectItem>
-                  <SelectItem value="promotion">推广</SelectItem>
+                  {Object.entries(themeMap).map(([key, value]) => (
+                    <SelectItem key={key} value={key}>{value.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -179,9 +187,9 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">其它信息: (最多50字)</label>
+            <label className="text-sm font-medium mb-2 block">背景信息: (最多50字)</label>
             <Textarea 
-              placeholder="简要描述下你想这个视频的用途，比如：产品介绍、品牌宣传、活动推广等，最多50字" 
+              placeholder={backgroundInfo} 
               className="h-24"
               value={formData.purpose}
               onChange={(e) => {

@@ -51,9 +51,8 @@ export function SceneSettings({
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   
   const [isLoading, setIsLoading] = useState(false);
-  // const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
   const [isVideoPromptChanged, setIsVideoPromptChanged] = useState(false)
-  const [videoPromptCN, setVideoPromptCN] = useState(scene?.video_prompt_cn || "")
+  const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
 
   // const promptRef = useRef<HTMLTextAreaElement>(null)
   const generateVideoRef = useRef<HTMLButtonElement>(null)
@@ -63,15 +62,10 @@ export function SceneSettings({
   const [clipErrorMessage, setClipErrorMessage] = useState(false)
 
   useEffect(() => {
-    console.log("scene in scene-settings is  ",  scene?.video_prompt_cn || '' , " ----------")
-    setVideoPromptCN(scene?.video_prompt_cn || '')
+    setVideoPrompt(scene?.video_prompt || '')
     setDescription(scene?.description || '')
-    // setVideoPromptCN(scene?.video_prompt_cn)
     setVideoSetting(scene?.video_setting)
     setPrompt(scene?.prompt || '')
-
-    // console.log(`scene. prompt ${videoPrompt} and ${videoPromptCN} while the original ${scene.video_prompt}`)
-
   },
     [scene]
   )
@@ -116,7 +110,7 @@ export function SceneSettings({
       stage_id: scene?.stage_id,
       project_id: scene?.project_id
     }).then((res) => {
-      onUpdate("video_prompt_cn", res.video_prompt_cn)
+      onUpdate("video_prompt", res.video_prompt)
       setIsLoading(false);
     }).catch( error => {
       console.error(`Error generating initial image: ${error.message}`);
@@ -131,10 +125,10 @@ export function SceneSettings({
         project_id: scene?.project_id,
         stage_id: scene?.stage_id,
         regenerate_prompt: regenerate_prompt,
-        video_prompt_cn: videoPromptCN
+        video_prompt: videoPrompt
     }
     instance.post('/api/v2/scene/createClip', data).then((res) => {
-        onUpdate("video_prompt_cn", videoPromptCN)
+        onUpdate("video_prompt", videoPrompt)
         setIsGeneratingVideo(false)
     }).catch( error => {
         setIsGeneratingVideo(false)
@@ -157,14 +151,14 @@ export function SceneSettings({
       scene_id: scene?.id,
       stage_id: scene?.stage_id,
       project_id: scene?.project_id,
-      video_prompt_cn: videoPromptCN
+      video_prompt: videoPrompt
     }
 
     instance.post('/api/v2/scene/savePrompts',
         data
     ).then((res) => {
       console.log("save prompts success")
-      onUpdate("video_prompt_cn", videoPromptCN)
+      onUpdate("video_prompt", videoPrompt)
       setIsVideoPromptChanged(false)
     }).catch( error => {
         console.error(`Error generating initial image: ${error.message}`);
@@ -310,12 +304,12 @@ export function SceneSettings({
               </div>
               <div className="relative">
                 <Textarea
-                  value={videoPromptCN}
+                  value={videoPrompt}
                   placeholder={`Ente here...`}
                   className="min-h-[200px] resize-none "
                   disabled={isLoading}
                   onChange={(e) => {
-                    setVideoPromptCN(e.target.value)
+                    setVideoPrompt(e.target.value)
                     setIsVideoPromptChanged(true)
                   }}
                 />
@@ -339,7 +333,7 @@ export function SceneSettings({
               >
                 仅保存
               </Button>
-              <Button  disabled={ isVideoTaskInProgress || isGeneratingVideo ||scene?.image_url ==null || videoPromptCN == null || videoPromptCN == "" } 
+              <Button  disabled={ isVideoTaskInProgress || isGeneratingVideo ||scene?.image_url ==null || videoPrompt == null || videoPrompt == "" } 
               onClick={() => {
                   handleGenerateVideo()
                 }}>

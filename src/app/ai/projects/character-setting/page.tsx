@@ -64,29 +64,25 @@ export default function CharacterSettings() {
       setPromptChanged(true)
     }
   };
-  const handlePromptSave = (newValue: string) => {
+  const handlePromptSave = async (newValue: string) => {
     if (newValue.length <= 120) {
       setPrompt(newValue);
       setPromptChanged(true);
+      await instance.post(`/api/v2/character/update`, {
+        id: selectedCharacter?.id,
+        project_id: projectId,
+        stage_id: stageId,
+        description: description,
+        prompt: prompt,
+      }).then(() => {
+        //  setErrors('Successfully')
+         setPromptChanged(false)
+      }).catch(err => {
+        console.error("Failed to save character:", err);
+        setErrors(err.message)
+        setPromptChanged(true)
+      })
     }
-  }
-
-  const saveCharacter = async () => {
-
-    await instance.post(`/api/v2/character/update`, {
-      id: selectedCharacter?.id,
-      project_id: projectId,
-      stage_id: stageId,
-      description: description,
-      prompt: prompt,
-    }).then(() => {
-      //  setErrors('Successfully')
-       setPromptChanged(false)
-    }).catch(err => {
-      console.error("Failed to save character:", err);
-      setErrors(err.message)
-      setPromptChanged(true)
-    })
   }
 
   const handleGenerate = async () => {
@@ -231,13 +227,13 @@ export default function CharacterSettings() {
                 >
                   生成
                 </Button>
-                <Button 
+                {/* <Button 
                   className="bg-green-600 hover:bg-green-700"
                   onClick={saveCharacter}
                   disabled={!promptChanged}
                 >
                   保存
-                </Button>
+                </Button> */}
               </div>
             </div>
 

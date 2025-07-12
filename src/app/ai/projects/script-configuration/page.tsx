@@ -7,23 +7,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RefreshCw } from 'lucide-react'
 import { Input } from "@/components/ui/input"
-import type { ScriptGenerationData, ProjectMetaInfo } from '../types'
+import type { ScriptGenerationData, ProjectMetaInfo, themeMap, styleMap } from '../types'
 import Header from "../../header";
 import instance from "@/lib/axios";
 import { set } from 'date-fns'
 
-const themeMap = {
-  advertise: "广告",
-  promotion: "推广"
-}
+// const themeMap = {
+//   advertise: "广告",
+//   promotion: "推广"
+// }
 
-const styleMap = {
-  cinimation: "影视",
-  disney: "迪士尼",
-  pixar: "皮克斯",
-  dreamworks: "梦工厂",
-  other: "其他"
-}
+// const styleMap = {
+//   cinimation: "影视",
+//   disney: "迪士尼",
+//   pixar: "皮克斯",
+//   dreamworks: "梦工厂",
+//   other: "其他"
+// }
 
 export default function ScriptConfiguration() {
   const router = useRouter()
@@ -47,9 +47,9 @@ export default function ScriptConfiguration() {
   const [init, setInit] = useState(false)
   const [version, setVersion] = useState("")
 
-  const [savingScene, setSavingScene] = useState(false)
-  const [savingCharacter, setSavingCharacter] = useState(false)
-  const [savingScript, setSavingScript] = useState(false)
+  // const [savingScene, setSavingScene] = useState(false)
+  // const [savingCharacter, setSavingCharacter] = useState(false)
+  // const [savingScript, setSavingScript] = useState(false)
 
   console.log('projectId: '+projectId + ' stageId: '+stageId)
   
@@ -155,54 +155,54 @@ export default function ScriptConfiguration() {
       characters: charactersValid ? '' : 'Invalid JSON format',
       scenes: scenesValid ? '' : 'Invalid JSON format'
     })
-    setSavingScript(true)
-    setSavingScene(true)
-    setSavingCharacter(true)
-
+   
     if (!charactersValid || !scenesValid) return
 
     
-    instance.post('/api/v2/character/create_batch', {
-      characters: JSON.parse(characters),
-      project_id: projectId,
-      stage_id: stageId
-    }).then((res)=>{
-      console.log('res: '+JSON.stringify(res))
-      setCharacterChanged(false)
-      setSavingCharacter(false)
-    }).catch(err =>{
-      console.error('Error creating characters:', err.message)
-      setErrors(prevErrors => ({...prevErrors, characters: err.message}))
-      setSavingCharacter(false)
-    }
-    )
+    // instance.post('/api/v2/character/create_batch', {
+    //   characters: JSON.parse(characters),
+    //   project_id: projectId,
+    //   stage_id: stageId
+    // }).then((res)=>{
+    //   console.log('res: '+JSON.stringify(res))
+    //   setCharacterChanged(false)
+    //   setSavingCharacter(true)
+    // }).catch(err =>{
+    //   console.error('Error creating characters:', err.message)
+    //   setErrors(prevErrors => ({...prevErrors, characters: err.message}))
+    //   setSavingCharacter(false)
+    // }
+    // )
   
-    instance.post('/api/v2/scene/create_batch', {
-        scenes: JSON.parse(scenes),
-        project_id: projectId,
-        stage_id: stageId
-    }).then((res)=>{
-      console.log('Scenes creation response: '+JSON.stringify(res))
-      setSceneChanged(false)
-      setSavingScene(false)
-    }).catch((error)=>{
-      console.error('Error creating scenes:', error);
-      setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
-      setSavingScene(false)
-    });
+    // instance.post('/api/v2/scene/create_batch', {
+    //     scenes: JSON.parse(scenes),
+    //     project_id: projectId,
+    //     stage_id: stageId
+    // }).then((res)=>{
+    //   console.log('Scenes creation response: '+JSON.stringify(res))
+    //   setSceneChanged(false)
+    //   setSavingScene(true)
+    // }).catch((error)=>{
+    //   console.error('Error creating scenes:', error);
+    //   setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
+    //   setSavingScene(false)
+    // });
 
     instance.post('/api/v2/script/saveScript', {
       project_id: projectId,
       stage_id: stageId,
       version: version,
       characters: JSON.parse(characters),
-      scenes: JSON.parse(scenes)
+      scenes: JSON.parse(scenes),
+      script_changed: character_changed || scene_changed
+      
     }).then((res)=>{
       console.log('Version update response: '+JSON.stringify(res))
-      setSavingScript(false)
+      setInit(false)
+      setCharacterChanged(false)
+      setSceneChanged(false)
     }).catch((error)=>{
       console.error('Error updating version:', error);
-      setSavingScript(false)
     });
   }
 
