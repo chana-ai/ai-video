@@ -7,23 +7,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RefreshCw } from 'lucide-react'
 import { Input } from "@/components/ui/input"
-import type { ScriptGenerationData, ProjectMetaInfo, themeMap, styleMap } from '../types'
+import type { ScriptGenerationData, ProjectMetaInfo } from '../types'
 import Header from "../../header";
 import instance from "@/lib/axios";
 import { set } from 'date-fns'
-
-// const themeMap = {
-//   advertise: "广告",
-//   promotion: "推广"
-// }
-
-// const styleMap = {
-//   cinimation: "影视",
-//   disney: "迪士尼",
-//   pixar: "皮克斯",
-//   dreamworks: "梦工厂",
-//   other: "其他"
-// }
+import { themeMap, styleMap } from '../types'
 
 export default function ScriptConfiguration() {
   const router = useRouter()
@@ -246,13 +234,13 @@ export default function ScriptConfiguration() {
               {projectMetaInfo.theme && (
                 <div>
                   <label className="text-sm font-medium text-gray-600 block mb-1">主题 </label>
-                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{themeMap[projectMetaInfo.theme as keyof typeof themeMap]}</div>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{themeMap[projectMetaInfo.theme as keyof typeof themeMap]?.name || projectMetaInfo.theme}</div>
                 </div>
               )}
               {projectMetaInfo.style && (
                 <div>
                   <label className="text-sm font-medium text-gray-600 block mb-1">风格</label>
-                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{styleMap[projectMetaInfo.style as keyof typeof styleMap]}</div>
+                  <div className="text-gray-800 bg-white px-3 py-2 rounded border">{styleMap[projectMetaInfo.style as keyof typeof styleMap] || projectMetaInfo.style}</div>
                 </div>
               )}
               {projectMetaInfo.aspect && (
