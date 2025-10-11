@@ -13,7 +13,6 @@ import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
 import ExportUrlPanel from "./components/export_url_panel"
 import { VoiceSettings, CombinedVideo, Task } from "./types"
-import { VideoDisplayPanel } from "./components/video-display-panel"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 
 export default function ScenePage() {

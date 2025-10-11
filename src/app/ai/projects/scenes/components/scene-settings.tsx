@@ -70,10 +70,8 @@ export function SceneSettings({
     [scene]
   )
 
-  const hasImage = Boolean(scene?.image_url)
-
   const handleUploadClick = () => {
-    if (scene.image_url) {
+    if (scene?.image_url) {
       setIsConfirmDialogOpen(true)
     } else {
       setIsUploadDialogOpen(true)
@@ -89,11 +87,11 @@ export function SceneSettings({
   const handleGenerateImage = async () => {
     setIsGeneratingImage(true)
     instance.post('/api/v2/scene/generateSceneImage', {
-      scene_id: scene.id,
-      project_id: scene.project_id,
-      stage_id: scene.stage_id,
+      scene_id: scene?.id,
+      project_id: scene?.project_id,
+      stage_id: scene?.stage_id,
     }).then((res) => {
-      console.log(`Scene ${scene.id} updated successfully.`);
+      console.log(`Scene ${scene?.id} updated successfully.`);
       onUpdate("image_url", res.image_url);
       setIsGeneratingImage(false)
     }).catch( error => {
@@ -444,18 +442,3 @@ export function SceneSettings({
     </div>
   )
 }
-
-// /* You can add this to your CSS file or in a <style jsx> block */
-// .spinner {
-//   border: 4px solid #f3f3f3;
-//   border-top: 4px solid #3498db;
-//   border-radius: 50%;
-//   width: 24px;
-//   height: 24px;
-//   animation: spin 1s linear infinite;
-// }
-// @keyframes spin {
-//   0% { transform: rotate(0deg); }
-//   100% { transform: rotate(360deg); }
-// }
-

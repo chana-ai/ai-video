@@ -145,8 +145,11 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
                   <SelectValue placeholder="disney pixar" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cinimation">cinimation</SelectItem>
-                  <SelectItem value="disney pixar">disney pixar</SelectItem>
+                  <SelectItem value="cinematic">cinematic</SelectItem>
+                  <SelectItem value="animation_ghibli">吉卜力</SelectItem>
+                  {/* <SelectItem value="disney pixar">迪士尼皮克斯</SelectItem>
+                  <SelectItem value="dreamworks">梦工厂</SelectItem>
+                  <SelectItem value="other">其他</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>

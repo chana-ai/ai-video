@@ -303,17 +303,18 @@ export default function CreateVideo() {
             />
           </div>
           <div className="text-right text-xs text-gray-400 w-full max-w-3xl pr-4">{script.length}/800</div>
-        </div>
-
-        {/* Settings section with fold/unfold */}
-        <div className="flex items-center gap-2 mb-2 mt-6 cursor-pointer select-none w-full max-w-3xl mx-auto" onClick={() => setShowSettings((v) => !v)}>
-          <span className="text-blank-500"><svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path fill="currentColor" fillRule="evenodd" d="M11.2 2.27c.5-.36 1.1-.36 1.6 0l1.43 1.04a1.25 1.25 0 001.45.04l1.6-.98a1.25 1.25 0 011.7.45l.8 1.39a1.25 1.25 0 00.98.62l1.7.13c.6.05 1.1.5 1.18 1.1l.22 1.6a1.25 1.25 0 00.6.93l1.4.8c.54.3.74.98.45 1.52l-.98 1.6a1.25 1.25 0 00.04 1.45l1.04 1.43c.36.5.36 1.1 0 1.6l-1.04 1.43a1.25 1.25 0 00-.04 1.45l.98 1.6a1.25 1.25 0 01-.45 1.7l-1.39.8a1.25 1.25 0 00-.62.98l-.13 1.7a1.25 1.25 0 01-1.1 1.18l-1.6.22a1.25 1.25 0 00-.93.6l-.8 1.4a1.25 1.25 0 01-1.52.45l-1.6-.98a1.25 1.25 0 00-1.45.04l-1.43 1.04a1.25 1.25 0 01-1.6 0l-1.43-1.04a1.25 1.25 0 00-1.45-.04l-1.6.98a1.25 1.25 0 01-1.7-.45l-.8-1.39a1.25 1.25 0 00-.98-.62l-1.7-.13a1.25 1.25 0 01-1.18-1.1l-.22-1.6a1.25 1.25 0 00-.6-.93l-1.4-.8a1.25 1.25 0 01-.45-1.52l.98-1.6a1.25 1.25 0 00-.04-1.45L2.27 13.2a1.25 1.25 0 010-1.6l1.04-1.43a1.25 1.25 0 00.04-1.45l-.98-1.6a1.25 1.25 0 01.45-1.7l1.39-.8a1.25 1.25 0 00.62-.98l.13-1.7A1.25 1.25 0 016.6 3.3l1.6-.22a1.25 1.25 0 00.93-.6l.8-1.4a1.25 1.25 0 011.52-.45l1.6.98c.4.25.9.25 1.3 0z" clipRule="evenodd"/></svg></span>
+          <div className="flex items-center gap-2 mb-2 mt-6 cursor-pointer select-none w-full max-w-3xl mx-auto" onClick={() => setShowSettings((v) => !v)}>
+          <span className="text-blank-500"></span>
           <span className="text-blank-500 font-semibold text-lg">设置</span>
-          <span className="ml-2 text-gray-400">{showSettings ? '▲' : '▼'}</span>
+          <span className="ml-2 text-gray-400">{showSettings ?  '▲' : '▼'}</span>
         </div>
         {showSettings && (
           advancedSetting()
         )}
+        </div>
+
+        {/* Settings section with fold/unfold */}
+       
 
         {/* Generate button and cost indicator */}
         <div className="flex w-full max-w-3xl mx-auto mt-4 justify-end">

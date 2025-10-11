@@ -51,7 +51,7 @@ export const themeMap = {
 }
 
 export const styleMap = {
-  cinimation: "影视",
+  cinematic: "影视",
   disney: "迪士尼",
   pixar: "皮克斯",
   dreamworks: "梦工厂",

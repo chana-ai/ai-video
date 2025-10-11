@@ -16,7 +16,7 @@ import { themeMap, styleMap } from '../types'
 export default function ScriptConfiguration() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const projectId = searchParams.get('project_id')
+  const projectId = searchParams.get('project_id') 
   const stageId = searchParams.get('stage_id')
   
   const [generationType, setGenerationType] = useState<'subject' | 'script'>('subject')
@@ -32,8 +32,8 @@ export default function ScriptConfiguration() {
   const [scriptWordCount, setScriptWordCount] = useState(0)
   const [disableChange, setDisableChange] = useState(false)
   const [projectMetaInfo, setProjectMetaInfo] = useState<ProjectMetaInfo>({})
-  const [init, setInit] = useState(false)
-  const [version, setVersion] = useState("")
+  const [allowSave, setAllowSave] = useState(false)
+  const [docId, setDocId] = useState("")
 
   // const [savingScene, setSavingScene] = useState(false)
   // const [savingCharacter, setSavingCharacter] = useState(false)
@@ -79,7 +79,7 @@ export default function ScriptConfiguration() {
         setCharacters('')
         setScenes('')
         setDisableChange(false)
-        setInit(false)
+        setAllowSave(true)
         return 
       }
       
@@ -87,12 +87,12 @@ export default function ScriptConfiguration() {
       setCharacters(JSON.stringify(res.characters || [], null, 2))
       setScenes(JSON.stringify(res.scenes || [], null, 2))
       setDisableChange(!res.init)
-      setInit(res.init)
-      setVersion(res.version)
+      setAllowSave(res.init)
+      setDocId(res.doc_id)
     }).catch((err)=>{
       console.error('Error fetching script init result:', err.message)
       setDisableChange(false)
-      setInit(false)
+      setAllowSave(false)
     })
   },
     [projectId, stageId]
@@ -104,6 +104,7 @@ export default function ScriptConfiguration() {
   }
 
   const validateJSON = (json: string): boolean => {
+    if (json === '' || json === null || json === undefined) return false
     try {
       JSON.parse(json)
       return true
@@ -114,7 +115,10 @@ export default function ScriptConfiguration() {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    
+    setErrors({
+      characters: '',
+      scenes: ''
+    })  
     instance.post('/api/v2/script/generateScript', {
       generation_type: generationType,
       content: generationType ==='subject'? subject : script,
@@ -146,51 +150,25 @@ export default function ScriptConfiguration() {
    
     if (!charactersValid || !scenesValid) return
 
-    
-    // instance.post('/api/v2/character/create_batch', {
-    //   characters: JSON.parse(characters),
-    //   project_id: projectId,
-    //   stage_id: stageId
-    // }).then((res)=>{
-    //   console.log('res: '+JSON.stringify(res))
-    //   setCharacterChanged(false)
-    //   setSavingCharacter(true)
-    // }).catch(err =>{
-    //   console.error('Error creating characters:', err.message)
-    //   setErrors(prevErrors => ({...prevErrors, characters: err.message}))
-    //   setSavingCharacter(false)
-    // }
-    // )
-  
-    // instance.post('/api/v2/scene/create_batch', {
-    //     scenes: JSON.parse(scenes),
-    //     project_id: projectId,
-    //     stage_id: stageId
-    // }).then((res)=>{
-    //   console.log('Scenes creation response: '+JSON.stringify(res))
-    //   setSceneChanged(false)
-    //   setSavingScene(true)
-    // }).catch((error)=>{
-    //   console.error('Error creating scenes:', error);
-    //   setErrors(prevErrors => ({...prevErrors, scenes: error.message}));
-    //   setSavingScene(false)
-    // });
-
     instance.post('/api/v2/script/saveScript', {
       project_id: projectId,
       stage_id: stageId,
-      version: version,
+      doc_id: docId,
       characters: JSON.parse(characters),
       scenes: JSON.parse(scenes),
       script_changed: character_changed || scene_changed
       
     }).then((res)=>{
       console.log('Version update response: '+JSON.stringify(res))
-      setInit(false)
+      setAllowSave(false)
       setCharacterChanged(false)
       setSceneChanged(false)
     }).catch((error)=>{
       console.error('Error updating version:', error);
+      setErrors({
+        characters: error.characters,
+        scenes: error.scenes
+      })
     });
   }
 
@@ -318,7 +296,7 @@ export default function ScriptConfiguration() {
             )}
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || disableChange}
+              disabled={isGenerating || disableChange || !allowSave}
               className={`bg-green-600 hover:bg-green-700 w-full sm:w-auto ${isGenerating ? 'cursor-not-allowed opacity-50' : ''}`}
             >
               {isGenerating ? (
@@ -381,13 +359,13 @@ export default function ScriptConfiguration() {
           <Button
             onClick={saveCharacterAndScenes}
             className="bg-green-600 hover:bg-green-700"
-            disabled={!init}
+            disabled={!allowSave}
           >
             保存
           </Button>
           <Button
             onClick={handleNext}
-            disabled={!characters || !scenes}
+            disabled={!characters || !scenes || allowSave}
             className="bg-green-600 hover:bg-green-700"
           >
             下一步
