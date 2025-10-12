@@ -12,7 +12,7 @@ import instance from "@/lib/axios";
 import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
 import ExportUrlPanel from "./components/export_url_panel"
-import { VoiceSettings, CombinedVideo, Task } from "./types"
+import { VoiceSettings, CombinedVideo } from "./types"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 
 export default function ScenePage() {
@@ -33,7 +33,6 @@ export default function ScenePage() {
 
 
   const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
-  const [taskList, setTaskList] = useState<Task[]>([])
 
   
 
@@ -53,18 +52,18 @@ export default function ScenePage() {
         setSelectedScene(remote_scenes[0])
       }
       
-      let localTaskList: Task[] = []
-      for (const scene of remote_scenes) {
-        //初始化 task 全部用 INIT。
-          localTaskList.push({
-            scene_id: Number(scene.id), 
-            task_id: 0, 
-            video_url: scene.video_url || "", 
-            status: "INIT"
-          })
-      }
-      setTaskList(localTaskList)
-      console.log('Task List: '+JSON.stringify(taskList))
+      // let localTaskList: Task[] = []
+      // for (const scene of remote_scenes) {
+      //   //初始化 task 全部用 INIT。
+      //     localTaskList.push({
+      //       scene_id: Number(scene.id), 
+      //       task_id: 0, 
+      //       video_url: scene.video_url || "", 
+      //       status: "INIT"
+      //     })
+      // }
+      // setTaskList(localTaskList)
+      // console.log('Task List: '+JSON.stringify(taskList))
     })
 
     instance.get(`/api/v2/project/detail?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
@@ -79,32 +78,32 @@ export default function ScenePage() {
       setVoiceMenu(res?.data || {})
     })
   
-    instance.get(`/api/v2/task/running_video_scene_ids?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      let tasks: Task[] = []
-      for(const task_id of res?.data || []){
-        tasks.push({
-          scene_id: Number(task_id), 
-          task_id: 0, 
-          video_url: "", 
-          status: 'PROCESSING'
-        })
-      }
-      setTaskList(tasks)
-    })
+    // instance.get(`/api/v2/task/running_video_scene_ids?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+    //   let tasks: Task[] = []
+    //   for(const task_id of res?.data || []){
+    //     tasks.push({
+    //       scene_id: Number(task_id), 
+    //       task_id: 0, 
+    //       video_url: "", 
+    //       status: 'PROCESSING'
+    //     })
+    //   }
+    //   setTaskList(tasks)
+    // })
 
     checkCombiningTaskStatus()
 
   }, [projectId, stageId])
   
 
-  useEffect(() => {
-    console.log('Task List: '+JSON.stringify(taskList))
-    const timmer = setInterval(checkTaskStatus, 120000);
-    return () => {
-      // 组件卸载时 清除定时器
-      clearInterval(timmer);
-    }
-  }, [taskList])
+  // useEffect(() => {
+  //   console.log('Task List: '+JSON.stringify(taskList))
+  //   const timmer = setInterval(checkTaskStatus, 120000);
+  //   return () => {
+  //     // 组件卸载时 清除定时器
+  //     clearInterval(timmer);
+  //   }
+  // }, [taskList])
 
 
   useEffect(() => {
@@ -141,58 +140,58 @@ export default function ScenePage() {
     })
   }
 
-  const checkTaskStatus = async () => {
+  // const checkTaskStatus = async () => {
  
-    if(taskList.length == 0){
-      return
-    }
-    instance.get(`/api/v2/task/scene_status?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      console.log('Scene Status: '+JSON.stringify(res))
-      let remote_id_task_status: { [key: string]: any } = {}   
-      for(const scene_task of res){
-        remote_id_task_status[scene_task.scene_id] = scene_task
-      }
+  //   if(taskList.length == 0){
+  //     return
+  //   }
+  //   instance.get(`/api/v2/task/scene_status?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+  //     console.log('Scene Status: '+JSON.stringify(res))
+  //     let remote_id_task_status: { [key: string]: any } = {}   
+  //     for(const scene_task of res){
+  //       remote_id_task_status[scene_task.scene_id] = scene_task
+  //     }
 
-      let local_id_task_map: { [key: string]: Task } = {}
-      for(const task of taskList){
-        local_id_task_map[task.scene_id] = task
-      }
+  //     let local_id_task_map: { [key: string]: Task } = {}
+  //     for(const task of taskList){
+  //       local_id_task_map[task.scene_id] = task
+  //     }
 
-      let updateScenes = []
-      let scene_updated = false
-      let task_updated = false
-      for(const scene of scenes){
-        const task = remote_id_task_status[scene.id]
-        const local_task = local_id_task_map[scene.id]
-        if(!task || !local_task){
-          updateScenes.push(scene)
-          continue
-        }
+  //     let updateScenes = []
+  //     let scene_updated = false
+  //     let task_updated = false
+  //     for(const scene of scenes){
+  //       const task = remote_id_task_status[scene.id]
+  //       const local_task = local_id_task_map[scene.id]
+  //       if(!task || !local_task){
+  //         updateScenes.push(scene)
+  //         continue
+  //       }
 
-        if(task.status == 'COMPLETED' && local_task.status != 'COMPLETED'){
-          // 当远程的任务状态是 COMPLETE， 并且和本地的状态不一致，是新更新的。 
-          updateScenes.push({ ...scene, video_url: task.video_url })
-          scene_updated = true
-        }else{
-          updateScenes.push(scene)
-        }
-        if(task.status != local_task.status){
-          // 更新为远程的 status
-          local_id_task_map[scene.id] = task
-          task_updated = true
-        }
-      }
+  //       if(task.status == 'COMPLETED' && local_task.status != 'COMPLETED'){
+  //         // 当远程的任务状态是 COMPLETE， 并且和本地的状态不一致，是新更新的。 
+  //         updateScenes.push({ ...scene, video_url: task.video_url })
+  //         scene_updated = true
+  //       }else{
+  //         updateScenes.push(scene)
+  //       }
+  //       if(task.status != local_task.status){
+  //         // 更新为远程的 status
+  //         local_id_task_map[scene.id] = task
+  //         task_updated = true
+  //       }
+  //     }
 
-      if(task_updated){
-        setTaskList(Object.values(local_id_task_map))
-      }
+  //     if(task_updated){
+  //       setTaskList(Object.values(local_id_task_map))
+  //     }
 
-      // 如果本地有更新，则更新本地
-      if (scene_updated){
-        setScenes(updateScenes)
-      }
-    })
-  }
+  //     // 如果本地有更新，则更新本地
+  //     if (scene_updated){
+  //       setScenes(updateScenes)
+  //     }
+  //   })
+  // }
 
 
   const buildSceneOrder = (scenes: Scene[]): Scene[] => {
@@ -226,15 +225,6 @@ export default function ScenePage() {
       console.error('Failed to save scene:', error)
       // Optionally show error message to user
     }
-  }
-
-  const calculateIsVideoTaskInProgress = () => {
-    for(const task of taskList){
-      if(selectedScene && task.scene_id.toString() == selectedScene.id){
-        return task.status == 'PROCESSING' || task.status == 'INIT' || task.status == 'PENDING'
-      }
-    }
-    return false
   }
 
   const handleGlobalSave = async () => {
@@ -526,7 +516,6 @@ export default function ScenePage() {
                 scene.id === selectedScene.id ? { ...scene, [key]: value} : scene
               ))
             }}
-            isVideoTaskInProgress={calculateIsVideoTaskInProgress()}
           />
         </div>
 
@@ -579,4 +568,3 @@ export default function ScenePage() {
     </>
   )
 }
-

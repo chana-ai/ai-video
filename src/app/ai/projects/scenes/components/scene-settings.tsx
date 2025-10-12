@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,11 +25,11 @@ import { VoiceSettingsPanel } from "./voice-settings-panel"
 
 import instance from "@/lib/axios";
 
+const POLL_INTERVAL_MS = 15000
 
 export function SceneSettings({
   scene,
   onUpdate,
-  isVideoTaskInProgress,
 }: Omit<SceneSettingsProps, "onVideoPreviewToggle" | "isVideoPreviewOpen">) {
 
   // if (!scene) return null
@@ -61,6 +61,96 @@ export function SceneSettings({
   const [generatingImageError, setGeneratingImageError] = useState(false)
   const [clipErrorMessage, setClipErrorMessage] = useState(false)
 
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const hasPendingGenerationRef = useRef(false)
+
+  const sceneIdentifiers = useMemo(() => {
+    if (!scene?.id || !scene?.project_id || !scene?.stage_id) {
+      return null
+    }
+
+    return {
+      sceneId: scene.id,
+      projectId: scene.project_id,
+      stageId: scene.stage_id,
+    }
+  }, [scene?.id, scene?.project_id, scene?.stage_id])
+
+  const clearPollTimer = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+  }, [])
+
+  const fetchSceneStatus = useCallback(async (): Promise<boolean> => {
+    if (!sceneIdentifiers) {
+      setIsGeneratingVideo(false)
+      clearPollTimer()
+      return false
+    }
+
+    try {
+      const { projectId, stageId, sceneId } = sceneIdentifiers
+      const response = await instance.get(
+        `/api/v2/task/scene_status?project_id=${projectId}&stage_id=${stageId}&scene_id=${sceneId}`
+      )
+
+      const records = Array.isArray(response) ? response : response ? [response] : []
+      const matchedScene = records.find(
+        (entry: any) => `${entry.scene_id ?? entry.sceneId}` === `${sceneId}`
+      )
+
+      if (!matchedScene) {
+        if (!hasPendingGenerationRef.current) {
+          setIsGeneratingVideo(false)
+          clearPollTimer()
+        }
+        return hasPendingGenerationRef.current
+      }
+
+      const status = `${matchedScene.status ?? ""}`.toUpperCase()
+      const remoteVideoUrl = matchedScene.video_url ?? matchedScene.videoUrl
+      const isProcessing = ["PROCESSING", "PENDING", "INIT"].includes(status)
+
+      if (isProcessing) {
+        hasPendingGenerationRef.current = true
+        setIsGeneratingVideo(true)
+        return true
+      }
+
+      hasPendingGenerationRef.current = false
+
+      if (["COMPLETE"].includes(status) && remoteVideoUrl) {
+        if(remoteVideoUrl != scene?.video_url){
+          onUpdate("video_url", remoteVideoUrl)
+        }
+        
+        setIsGeneratingVideo(false)
+        clearPollTimer()
+        return false
+      }
+      setIsGeneratingVideo(false)
+      clearPollTimer()
+      return false
+    } catch (error) {
+      console.error("Failed to fetch scene status", error)
+      return hasPendingGenerationRef.current
+    }
+  }, [clearPollTimer, onUpdate, sceneIdentifiers])
+
+  const startPolling = useCallback(() => {
+    if (!sceneIdentifiers) {
+      return
+    }
+
+    if (!pollTimerRef.current) {
+      pollTimerRef.current = setInterval(() => {
+        fetchSceneStatus()
+      }, POLL_INTERVAL_MS)
+    }
+  }, [fetchSceneStatus, sceneIdentifiers])
+
   useEffect(() => {
     setVideoPrompt(scene?.video_prompt || '')
     setDescription(scene?.description || '')
@@ -69,6 +159,35 @@ export function SceneSettings({
   },
     [scene]
   )
+
+  useEffect(() => {
+    hasPendingGenerationRef.current = false
+    clearPollTimer()
+    setIsGeneratingVideo(false)
+
+    if (!sceneIdentifiers) {
+      return
+    }
+
+    let isActive = true
+
+    const initialize = async () => {
+      const inProgress = await fetchSceneStatus()
+      if (!isActive) {
+        return
+      }
+      if (inProgress) {
+        startPolling()
+      }
+    }
+
+    initialize()
+
+    return () => {
+      isActive = false
+      clearPollTimer()
+    }
+  }, [sceneIdentifiers])
 
   const handleUploadClick = () => {
     if (scene?.image_url) {
@@ -116,30 +235,58 @@ export function SceneSettings({
     });
   }
 
-  const handleGenerateVideo = async (regenerate_prompt: boolean = false) => {
-    setIsGeneratingVideo(true)
-    let data = {
-        scene_id: scene?.id,
-        project_id: scene?.project_id,
-        stage_id: scene?.stage_id,
-        regenerate_prompt: regenerate_prompt,
-        video_prompt: videoPrompt
-    }
-    instance.post('/api/v2/scene/createClip', data).then((res) => {
-        onUpdate("video_prompt", videoPrompt)
+  const handleGenerateVideo = useCallback(
+    async (regenerate_prompt: boolean = false) => {
+      if (!scene?.id || !scene?.project_id || !scene?.stage_id) {
+        return
+      }
+
+      setClipErrorMessage(false)
+      setIsGeneratingVideo(true)
+      hasPendingGenerationRef.current = true
+
+      const payload = {
+        scene_id: scene.id,
+        project_id: scene.project_id,
+        stage_id: scene.stage_id,
+        regenerate_prompt,
+        video_prompt: videoPrompt,
+      }
+
+      try {
+        await instance.post("/api/v2/scene/createClip", payload)
+        if (isVideoPromptChanged) {
+          onUpdate("video_prompt", videoPrompt)
+          setIsVideoPromptChanged(false)
+        }
+        await fetchSceneStatus()
+        startPolling()
+      } catch (error: any) {
+        hasPendingGenerationRef.current = false
         setIsGeneratingVideo(false)
-    }).catch( error => {
-        setIsGeneratingVideo(false)
-        console.error(`Error generating initial image: ${error.message}`);
-        let response = error.response.data
-        if(response.code == 533){
+        clearPollTimer()
+        console.error(`Error generating initial image: ${error?.message ?? error}`)
+        const response = error?.response?.data
+        if (response?.code === 533) {
           setClipErrorMessage(response.message)
         } else {
           setClipErrorMessage("系统开了小差，联系下管理员，或者稍后再试")
         }
-    });
+      }
+    },
+    [
+      clearPollTimer,
+      fetchSceneStatus,
+      isVideoPromptChanged,
+      onUpdate,
+      scene?.id,
+      scene?.project_id,
+      scene?.stage_id,
+      startPolling,
+      videoPrompt,
+    ]
+  )
 
-  }
 
   const handleSavePromptes = () =>{
     if(isVideoPromptChanged == false){
@@ -166,6 +313,7 @@ export function SceneSettings({
     });
   }
 
+ 
   return (
     <div className="h-[calc(100vh-8rem)] max-w-[1200px] mx-auto relative">
       <PanelGroup direction="horizontal">
@@ -331,7 +479,13 @@ export function SceneSettings({
               >
                 仅保存
               </Button>
-              <Button  disabled={ isVideoTaskInProgress || isGeneratingVideo ||scene?.image_url ==null || videoPrompt == null || videoPrompt == "" } 
+              <Button
+              disabled={
+                isGeneratingVideo ||
+                scene?.image_url == null ||
+                videoPrompt == null ||
+                videoPrompt === ""
+              }
               onClick={() => {
                   handleGenerateVideo()
                 }}>
@@ -342,9 +496,8 @@ export function SceneSettings({
 
           <div className="relative">
           <VideoDisplayPanel
-            videoUrl={scene?.video_url}
-            isGenerating={isGeneratingVideo}
-            isVideoTaskInProgress={isVideoTaskInProgress}
+            scene={scene}
+            isGeneratingVideo={isGeneratingVideo}
           />
           </div>
         </Panel>
