@@ -32,8 +32,6 @@ export function SceneSettings({
   onUpdate,
 }: Omit<SceneSettingsProps, "onVideoPreviewToggle" | "isVideoPreviewOpen">) {
 
-  // if (!scene) return null
-
   const [isEditing, setIsEditing] = useState(false)
   const [isPromptEditOpen, setIsPromptEditOpen] = useState(false)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
@@ -54,7 +52,6 @@ export function SceneSettings({
   const [isVideoPromptChanged, setIsVideoPromptChanged] = useState(false)
   const [videoPrompt, setVideoPrompt] = useState(scene?.video_prompt || "")
 
-  // const promptRef = useRef<HTMLTextAreaElement>(null)
   const generateVideoRef = useRef<HTMLButtonElement>(null)
 
   //Following are error messages
