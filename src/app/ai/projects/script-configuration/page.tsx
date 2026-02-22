@@ -202,7 +202,7 @@ export default function ScriptConfiguration() {
       return
     }
 
-    router.push(`/ai/projects/character-setting?project_id=${projectId}&&stage_id=${stageId}`)
+    router.push(`/ai/projects/value-assets?project_id=${projectId}&&stage_id=${stageId}`)
   }
 
   return (

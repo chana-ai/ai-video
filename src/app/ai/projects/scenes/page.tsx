@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, use } from "react"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, RefreshCw, Mic, Combine} from "lucide-react"
+import { ChevronUp, ChevronDown, RefreshCw, Mic, Combine } from "lucide-react"
 import { SceneCard } from "./components/scene-card"
 import { SceneSettings } from "./components/scene-settings"
 import type { Scene } from "./types"
@@ -34,7 +34,7 @@ export default function ScenePage() {
 
   const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
 
-  
+
 
   // 合并后的是 预览视频
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)  //控制显示显示 面板
@@ -44,14 +44,14 @@ export default function ScenePage() {
 
 
   useEffect(() => {
-    instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
+    instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`).then((res) => {
       let remote_scenes = buildSceneOrder(res?.scenes || [])
       setScenes(remote_scenes)
-      if(remote_scenes.length > 0){
+      if (remote_scenes.length > 0) {
         // 如果 scenes 不为空，则设置第一个为 selectedScene
         setSelectedScene(remote_scenes[0])
       }
-      
+
       // let localTaskList: Task[] = []
       // for (const scene of remote_scenes) {
       //   //初始化 task 全部用 INIT。
@@ -66,10 +66,10 @@ export default function ScenePage() {
       // console.log('Task List: '+JSON.stringify(taskList))
     })
 
-    instance.get(`/api/v2/project/detail?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      console.log('Project Info: '+JSON.stringify(res))
+    instance.get(`/api/v2/project/detail?project_id=${projectId}&stage_id=${stageId}`).then((res) => {
+      console.log('Project Info: ' + JSON.stringify(res))
       setVoiceSettings(res?.config?.voice_setting)
-      setVoiceUrl(res?.voice_url) 
+      setVoiceUrl(res?.voice_url)
     })
     instance.post("/api/v2/voice/list_voices", {
       project_id: projectId,
@@ -77,7 +77,7 @@ export default function ScenePage() {
     }).then((res) => {
       setVoiceMenu(res?.data || {})
     })
-  
+
     // instance.get(`/api/v2/task/running_video_scene_ids?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
     //   let tasks: Task[] = []
     //   for(const task_id of res?.data || []){
@@ -94,7 +94,7 @@ export default function ScenePage() {
     checkCombiningTaskStatus()
 
   }, [projectId, stageId])
-  
+
 
   // useEffect(() => {
   //   console.log('Task List: '+JSON.stringify(taskList))
@@ -107,41 +107,41 @@ export default function ScenePage() {
 
 
   useEffect(() => {
-    if(isCombiningTaskRunning){
+    if (isCombiningTaskRunning) {
       const timmer = setInterval(checkCombiningTaskStatus, 150000);
       return () => {
         clearInterval(timmer);
       }
     }
     //每次发生变化的时候， 重新检查下是否有最新的video_url了，并全部获取出来
-    instance.get(`/api/v2/project/get_project_combine_videos?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      console.log('Project Combining Clip Stats: '+JSON.stringify(res))
+    instance.get(`/api/v2/project/get_project_combine_videos?project_id=${projectId}&stage_id=${stageId}`).then((res) => {
+      console.log('Project Combining Clip Stats: ' + JSON.stringify(res))
       //TODO: 服务器返回是 list 的格式， 需要取最后一个的video_url. 以后再改为全部的不同版本
       //{"id": video.id,
       // "name": video.name,
       // "url": video.get_oss_url,
       // "reference_id": video.reference_id,
       // "version": video.version}
-      if(res.videos.length > 0){
+      if (res.videos.length > 0) {
         setCombinedVideos(res.videos)
       }
     })
-    
+
   }, [isCombiningTaskRunning])
 
   const checkCombiningTaskStatus = async () => {
-    instance.get(`/api/v2/project/get_project_combing_clip_stats?project_id=${projectId}&stage_id=${stageId}`).then((res)=>{
-      console.log('Project Combining Clip Stats: '+JSON.stringify(res))
-      if(res.status == 'PROCESSING' || res.status == 'PENDING' || res.status == 'INIT'){
+    instance.get(`/api/v2/project/get_project_combing_clip_stats?project_id=${projectId}&stage_id=${stageId}`).then((res) => {
+      console.log('Project Combining Clip Stats: ' + JSON.stringify(res))
+      if (res.status == 'PROCESSING' || res.status == 'PENDING' || res.status == 'INIT') {
         setIsCombiningTaskRunning(true)
-      }else{
+      } else {
         setIsCombiningTaskRunning(false)
       }
     })
   }
 
   // const checkTaskStatus = async () => {
- 
+
   //   if(taskList.length == 0){
   //     return
   //   }
@@ -236,31 +236,31 @@ export default function ScenePage() {
   }
 
   const handleCombineVideo = async () => {
-    
+
     //1. 调用合并视频的API, 之后循坏检查合并状态
     let clips_ready = true
-    for(const scene of scenes){
-      if(scene.video_url == null){
+    for (const scene of scenes) {
+      if (scene.video_url == null) {
         clips_ready = false
         break
       }
     }
-    if(!clips_ready){
+    if (!clips_ready) {
       alert("请确保所有clip都已经生成")
       return
     }
     // 2. 合并完成之后，调用导出视频的API
-    
+
     instance.post('/api/v2/project/combine_project_scene_clips', {
       project_id: projectId,
       stage_id: stageId,
-    }).then((res)=>{
-      console.log('Combine Video: '+JSON.stringify(res))
+    }).then((res) => {
+      console.log('Combine Video: ' + JSON.stringify(res))
       setIsCombiningTaskRunning(true)
-    }).catch((error)=>{
-      console.error('Combine Video Error: '+JSON.stringify(error))
+    }).catch((error) => {
+      console.error('Combine Video Error: ' + JSON.stringify(error))
       setIsCombiningTaskRunning(false)
-      if (error.code == "ERR_NETWORK" ){
+      if (error.code == "ERR_NETWORK") {
         setCombineErrorMessage("网络连接临时错误")
         return
       }
@@ -276,7 +276,7 @@ export default function ScenePage() {
       project_id: projectId,
       stage_id: stageId,
       scene_id: scene.id
-    }).then((res)=>{
+    }).then((res) => {
       const newScene: Scene = {
         id: res.id,
         title: res.title,
@@ -298,7 +298,7 @@ export default function ScenePage() {
       }
 
       const next_scene = scenes.find((s) => s.seq_id === scene.next_seq_id)
-      if (next_scene){
+      if (next_scene) {
         next_scene.pre_seq_id = newScene.seq_id
       }
       scene.next_seq_id = newScene.seq_id
@@ -308,8 +308,8 @@ export default function ScenePage() {
       const newScenes = [...scenes]
       newScenes.splice(index + 1, 0, newScene)
       setScenes(newScenes)
-    }).catch((error)=>{
-      console.error('Add Scene Error: '+JSON.stringify(error))
+    }).catch((error) => {
+      console.error('Add Scene Error: ' + JSON.stringify(error))
     })
   }
 
@@ -317,50 +317,50 @@ export default function ScenePage() {
     console.log(`delete scene ${scene.id}`)
     instance.post('/api/v2/scene/delete', {
       project_id: projectId,
-        stage_id: stageId,
-        scene_id: scene.id
-      }).then((res)=>{
-        console.log(`delete scene ${scene.id} success`)
+      stage_id: stageId,
+      scene_id: scene.id
+    }).then((res) => {
+      console.log(`delete scene ${scene.id} success`)
       // Find pre and next scenes
       const pre_scene = scenes.find((s) => s.seq_id === scene.pre_seq_id)
       const next_scene = scenes.find((s) => s.seq_id === scene.next_seq_id)
 
-      if (pre_scene){
+      if (pre_scene) {
         pre_scene.next_seq_id = scene.next_seq_id
       }
-      if (next_scene){
+      if (next_scene) {
         next_scene.pre_seq_id = scene.pre_seq_id
       }
       // Create new scenes array excluding deleted scene
       const newScenes = scenes.filter((s) => s.id !== scene.id)
       setScenes(newScenes)
-      }).catch((error)=>{
-        console.error('Delete Scene Error: '+JSON.stringify(error))
-      })
+    }).catch((error) => {
+      console.error('Delete Scene Error: ' + JSON.stringify(error))
+    })
   }
 
   return (
     <>
-    <Header
-         title={
-             "Projects"  }
-       ></Header>
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
-     
+      <Header
+        title={
+          "Projects"}
+      ></Header>
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        {/* Header */}
 
-      {/* Main Content */}
-      <div className="flex-grow flex overflow-hidden">
-        <div className="w-100 p-4 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            
+
+        {/* Main Content */}
+        <div className="flex-grow flex overflow-hidden">
+          <div className="w-100 p-4 overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+
               <div className="flex items-center gap-4">
                 {/* <Mic className="h-4 w-4 text-gray-400" onClick={ () =>  {
                     scenes.length > 0 && setSubtitle(scenes.map(scene => scene.description).join("."))
                     setIsVoiceSettingsOpen(true)
                 }}
                   /> */}
-                
+
                 {/* <Button
                 // className="bg-purple-600 hover:bg-purple-700 mt-2 sm:mt-0"
                 className="bg-green-600 hover:bg-green-700"
@@ -372,199 +372,188 @@ export default function ScenePage() {
               </Button> */}
               </div>
 
-              
-            <div className="flex gap-2">
-            <Mic className="h-4 w-4 text-gray-400" onClick={ () =>  {
-                    scenes.length > 0 && setSubtitle(scenes.map(scene => scene.description).join("."))
-                    setIsVoiceSettingsOpen(true)
+
+              <div className="flex gap-2">
+                <Mic className="h-4 w-4 text-gray-400" onClick={() => {
+                  scenes.length > 0 && setSubtitle(scenes.map(scene => scene.description).join("."))
+                  setIsVoiceSettingsOpen(true)
                 }} />
-             
-             {/* <Button variant="outline" onClick={handleGlobalSave} disabled={isSaving || !scenes.some((s) => s.isModified)}>
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    合并中...
-                  </>
-                ) : (
-                  "合并"
-                )}
-              </Button> 
-            </div> */}
-              <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowExportUrlPanel(true)}>导出</Button>
 
-              <Button variant="outline" onClick={handleCombineVideo} disabled={isCombiningTaskRunning}>
-                {isCombiningTaskRunning ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    合并中...
-                  </>
-                ) : (
-                  "合并"
-                )}
-              </Button> 
-              <Button variant="outline" onClick={() => setIsPreviewingVideo(true)} disabled={combinedVideos.length === 0}>
-                预览
-              </Button> 
-            </div>
-            <div style={{ color: 'red' }}>{combine_error_message} </div>                
-          </div>
-          
-          <h2 className="text-xl font-bold">Scenes</h2>
-          <div className="relative">
-            {showScrollButtons && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute -top-12 right-0 z-10"
-                  onClick={() => handleScroll("up")}
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute -bottom-12 right-0 z-10"
-                  onClick={() => handleScroll("down")}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="scenes">
-                  {(provided) => (
-                    <div
-                      ref={(el) => {
-                        provided.innerRef(el)
-                        if (scenesContainerRef) {
-                          scenesContainerRef.current = el
-                        }
-                      }}
-                      {...provided.droppableProps}
-                      className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2"
-                    >
-                      {scenes.map((scene, index) => (
-                        <Draggable 
-                          key={scene.id.toString()} 
-                          draggableId={scene.id.toString()} 
-                          index={index}
-                        >
-                          {(provided) => (
-                            <div 
-                              ref={provided.innerRef} 
-                              {...provided.draggableProps} 
-                              {...provided.dragHandleProps}
-                            >
-                              <SceneCard
-                                scene={scene}
-                                isSelected={scene.id === selectedScene?.id}
-                                onSelect={() => handleSceneSelect(scene)}
-                                onSave={(id) => console.log("save", id)}
-                                onAdd={(scene) => {
-                                  handleSceneAdd(scene)
-                                }}
-                                onDelete={(scene) => {
-                                  handleSceneDelete(scene)
-                                }}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
+                <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowExportUrlPanel(true)}>导出</Button>
+
+                <Button variant="outline" onClick={handleCombineVideo} disabled={isCombiningTaskRunning}>
+                  {isCombiningTaskRunning ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      合并中...
+                    </>
+                  ) : (
+                    "合并"
                   )}
-                </Droppable>
-              </DragDropContext>
+                </Button>
+                <Button variant="outline" onClick={() => setIsPreviewingVideo(true)} disabled={combinedVideos.length === 0}>
+                  预览
+                </Button>
+              </div>
+              <div style={{ color: 'red' }}>{combine_error_message} </div>
+            </div>
+
+            <h2 className="text-xl font-bold">Scenes</h2>
+            <div className="relative">
+              {showScrollButtons && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute -top-12 right-0 z-10"
+                    onClick={() => handleScroll("up")}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute -bottom-12 right-0 z-10"
+                    onClick={() => handleScroll("down")}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="scenes">
+                    {(provided) => (
+                      <div
+                        ref={(el) => {
+                          provided.innerRef(el)
+                          if (scenesContainerRef) {
+                            scenesContainerRef.current = el
+                          }
+                        }}
+                        {...provided.droppableProps}
+                        className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2"
+                      >
+                        {scenes.map((scene, index) => (
+                          <Draggable
+                            key={scene.id.toString()}
+                            draggableId={scene.id.toString()}
+                            index={index}
+                          >
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                              >
+                                <SceneCard
+                                  scene={scene}
+                                  isSelected={scene.id === selectedScene?.id}
+                                  onSelect={() => handleSceneSelect(scene)}
+                                  onSave={(id) => console.log("save", id)}
+                                  onAdd={(scene) => {
+                                    handleSceneAdd(scene)
+                                  }}
+                                  onDelete={(scene) => {
+                                    handleSceneDelete(scene)
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Scene Settings */}
-        <div className="flex-grow p-4 overflow-y-auto">
-          <SceneSettings
-            scene={selectedScene}
-            onUpdate={(key: string, value: any) => {        
+          {/* Scene Settings */}
+          <div className="flex-grow p-4 overflow-y-auto">
+            <SceneSettings
+              scene={selectedScene}
+              onUpdate={(key: string, value: any) => {
 
-              if (["title", "description", "image_prompt", "video_setting"].includes(key)) {
-                let data: any = {
-                  id: selectedScene.id,
+                if (["title", "description", "image_prompt", "video_setting"].includes(key)) {
+                  let data: any = {
+                    id: selectedScene.id,
+                    project_id: projectId,
+                    stage_id: stageId,
+                  }
+                  data[key] = value
+
+                  // 这几个需要用户将当前UI上的更爱上传到服务器端并生效的（自动更改）
+                  instance.post('/api/v2/scene/update', data).then(() => {
+                    console.log(`Scene ${selectedScene.id} updated successfully.`);
+                    setSelectedScene({ ...selectedScene, [key]: value })
+                  }).catch((error) => {
+                    console.error(`Error updating scene ${selectedScene.id}: ${error}`);
+                  });
+                } else {
+                  // 这几个需要用户将当前UI上的数值进行更改，不需要上传到服务器端，因为本身这些值是服务器生成并返回的 
+                  // video_prompt_cn, image_url, video_url, 
+                  setSelectedScene({ ...selectedScene, [key]: value })
+                }
+
+                if (key == "image_prompt") {
+                  key = "prompt"   // 服务器返回的是  prompt, 这里需要转化一下。
+                }
+                setScenes(scenes.map((scene) =>
+                  scene.id === selectedScene.id ? { ...scene, [key]: value } : scene
+                ))
+              }}
+            />
+          </div>
+
+          {/* Voice Settings Panel - Only renders when isVoiceSettingsOpen is true */}
+          {isVoiceSettingsOpen && projectId && stageId && (
+            <VoiceSettingsPanel
+              open={isVoiceSettingsOpen}
+              onOpenChange={setIsVoiceSettingsOpen}
+              settings={voiceSettings}
+              voice_menu={voiceMenu}
+              project_id={projectId}
+              stage_id={stageId}
+              subtitle={subtitle}
+              voice_url={voice_url}
+              onGenerate={(voice_path: string) => {
+                setVoiceUrl(voice_path)
+              }}
+              onSave={(settings: VoiceSettings) => {
+                instance.post('/api/v2/voice/update_voice_config', {
                   project_id: projectId,
                   stage_id: stageId,
-                }
-                data[key] = value
-                
-                // 这几个需要用户将当前UI上的更爱上传到服务器端并生效的（自动更改）
-                instance.post('/api/v2/scene/update', data).then(() => {
-                  console.log(`Scene ${selectedScene.id} updated successfully.`);
-                  setSelectedScene({ ...selectedScene, [key]: value})
-                }).catch((error) => {
-                  console.error(`Error updating scene ${selectedScene.id}: ${error}`);
-                });
-              }else{
-                // 这几个需要用户将当前UI上的数值进行更改，不需要上传到服务器端，因为本身这些值是服务器生成并返回的 
-                // video_prompt_cn, image_url, video_url, 
-                setSelectedScene({ ...selectedScene, [key]: value})
-              }
+                  voice_name: settings.voice_name,
+                }).then(() => {
+                  setVoiceSettings(settings)
+                })
+              }}
+            />
+          )}
 
-              if(key == "image_prompt"){
-                key = "prompt"   // 服务器返回的是  prompt, 这里需要转化一下。
-              }
-              setScenes(scenes.map((scene) => 
-                scene.id === selectedScene.id ? { ...scene, [key]: value} : scene
-              ))
-            }}
-          />
+          {showExportUrlPanel && projectId && stageId && (
+            <ExportUrlPanel
+              open={showExportUrlPanel}
+              project_id={projectId}
+              stage_id={stageId}
+              onClose={() => setShowExportUrlPanel(false)}
+            />
+          )}
+
+
+          {isPreviewingVideo && combinedVideos.length > 0 && (
+            <MultiVideoDisplayPanel
+              combinedVideos={combinedVideos}
+              isGenerating={isCombiningTaskRunning}
+              onClose={() => setIsPreviewingVideo(false)}
+            />
+          )}
+
         </div>
-
-      {/* Voice Settings Panel - Only renders when isVoiceSettingsOpen is true */}
-      {isVoiceSettingsOpen  && projectId &&stageId && (
-        <VoiceSettingsPanel
-          open={isVoiceSettingsOpen}
-          onOpenChange={setIsVoiceSettingsOpen}
-          settings={voiceSettings}
-          voice_menu={voiceMenu}
-          project_id={projectId}
-          stage_id = {stageId}
-          subtitle={subtitle}
-          voice_url={voice_url}
-          onGenerate={ (voice_path: string)=>{
-              setVoiceUrl(voice_path)
-          }}
-          onSave={(settings: VoiceSettings) => {
-            instance.post('/api/v2/voice/update_voice_config', { 
-              project_id: projectId,
-                stage_id: stageId,
-                voice_name: settings.voice_name,
-            }).then(() => {
-                setVoiceSettings(settings)
-            })
-          }}
-        />
-      )}
-
-      {showExportUrlPanel && projectId && stageId && (
-        <ExportUrlPanel
-          open={showExportUrlPanel}
-          project_id={projectId}
-          stage_id={stageId}  
-          onClose={() => setShowExportUrlPanel(false)}
-        />
-      )}  
-
-
-      {isPreviewingVideo && combinedVideos.length > 0 && (
-        <MultiVideoDisplayPanel
-          combinedVideos={combinedVideos}
-          isGenerating={isCombiningTaskRunning}
-          onClose={() => setIsPreviewingVideo(false)}
-        />
-      )}
-
       </div>
-    </div>
     </>
   )
 }
