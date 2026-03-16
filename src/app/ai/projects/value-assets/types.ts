@@ -1,15 +1,30 @@
 export interface ImageInfo {
     id: number;
     url: string;
+    oss_path?: string;
     is_selected: boolean;
 }
 
+export type AssetType = 'character' | 'resource';
+
+export interface SelectedAsset {
+    type: AssetType;
+    id: number;
+    name: string;
+    description: string;
+    prompt: string;
+    images: ImageInfo[];
+    voiceConfig?: VoiceConfig;
+}
+
 export interface VoiceConfig {
-    gender: '男' | '女' | '中性';
-    voiceCharacteristic: '温柔' | '沙哑' | '清脆' | '浑厚' | '甜美' | '稚嫩';
-    voiceDescription: string;
+    voice: string;
+    voice_name: string;
+    desc: string;
+    gender: string;
     ttsEngine: string;
-    voiceModel: string;
+    emotion?: string;
+    extraDesc?: string;
 }
 
 export interface Character {
@@ -25,9 +40,17 @@ export interface Character {
     images: ImageInfo[];
     version: number;
     voiceConfig?: VoiceConfig;
+    config?: string | Record<string, any>;
 }
 
 export interface ResourceAsset {
+    id: number;
+    name: string;
+    description: string;
+    images: ImageInfo[];
+}
+
+export interface SceneImage {
     id: number;
     name: string;
     description: string;

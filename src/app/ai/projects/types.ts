@@ -1,20 +1,20 @@
 export interface ProjectFormData {
-    name: string;
-    aspect: string;
-    theme: string;
-    style: string;
-    audiences: string;
-    narration: boolean;
-    purpose: string;
-  }
-  
+  name: string;
+  aspect: string;
+  theme: string;
+  style: string;
+  audiences: string;
+  narration: boolean;
+  purpose: string;
+}
+
 export interface ScriptGenerationData {
   type: 'subject' | 'script';
   content: string;
-  characters: string;
+  assets: string;
   scenes: string;
 }
-  
+
 export interface ProjectMetaInfo {
   name?: string;
   audience?: string;

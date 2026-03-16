@@ -1,6 +1,6 @@
 import axios from "axios";
-import config  from '@/app/settings/config';
-import {getCredentials, getUserId, clearCache} from '@/lib/localcache';
+import config from '@/app/settings/config';
+import { getCredentials, getUserId, clearCache } from '@/lib/localcache';
 import { configConsumerProps } from "antd/es/config-provider";
 
 export const instance = axios.create({
@@ -8,24 +8,27 @@ export const instance = axios.create({
     timeout: 80000,
 });
 
-console.log(`Axios instance created with baseURL: ${instance.defaults.baseURL} and the config.host:  ${config.host}` );
+console.log(`Axios instance created with baseURL: ${instance.defaults.baseURL} and the config.host:  ${config.host}`);
 // 请求拦截处理 请求拦截 在请求拦截中可以补充请求相关的配置
 // interceptors axios的拦截器对象
-instance.interceptors.request.use( httpRequestConfig => {
-    const  token  =  getCredentials();
-    if(token !== ""){
-        console.log("token "+token)
+instance.interceptors.request.use(httpRequestConfig => {
+    const token = getCredentials();
+    if (token !== "") {
+        console.log("token " + token)
         httpRequestConfig.headers['satoken'] = token
-        if(httpRequestConfig.method === 'post'){
+        if (httpRequestConfig.method === 'post') {
             httpRequestConfig.headers['userId'] = getUserId()
-        } else if(httpRequestConfig.method === 'get'){
-            if(!httpRequestConfig.params){
+            if (httpRequestConfig.data && typeof httpRequestConfig.data === 'object' && !(httpRequestConfig.data instanceof FormData)) {
+                httpRequestConfig.data['user_id'] = getUserId()
+            }
+        } else if (httpRequestConfig.method === 'get') {
+            if (!httpRequestConfig.params) {
                 httpRequestConfig.params = {}
             }
             httpRequestConfig.params['user_id'] = getUserId()
         }
     }
-    
+
     return httpRequestConfig;
 }, err => {
     // 请求发生错误时的相关处理 抛出错误
@@ -36,12 +39,12 @@ instance.interceptors.request.use( httpRequestConfig => {
 // 添加响应拦截器
 instance.interceptors.response.use(function (response) {
     //Here HttpCode: 200
-    if(!response.data.code) {
+    if (!response.data.code) {
         console.log("Response without code attribute:", response.data);
         return response.data;
     }
 
-    if(response.data.code != 0 && response.data.code !=200){
+    if (response.data.code != 0 && response.data.code != 200) {
         //Monitor non-200 code response in the body, including system runtime error. 
         /**  
          * switch(response.data.code){
@@ -51,22 +54,22 @@ instance.interceptors.response.use(function (response) {
          * }
          */
         console.log("Some business exception: " + JSON.stringify(response.data));
-        if(response.data.code === '401') {
+        if (response.data.code === '401') {
             clearCache();
             window.location.href = "/auth/login";
         }
-        return Promise.reject({'message': response.data.message});
+        return Promise.reject({ 'message': response.data.message });
     }
 
-   
 
-	return response.data.data;   //for data: { code , data: {a,b}}
-  }, function (error) {
-	// This error refers to network error (e.g., Readtimeout exceptio, connectionTimeout..)       
+
+    return response.data.data;   //for data: { code , data: {a,b}}
+}, function (error) {
+    // This error refers to network error (e.g., Readtimeout exceptio, connectionTimeout..)       
     if (error.message.includes("RR_NETWORK")) {
         localStorage.clear();
-    }                                                                                                                                                                                                                                                                                                                                                                                                                
-	return Promise.reject(error);
-  });
+    }
+    return Promise.reject(error);
+});
 
-  export default instance;
+export default instance;

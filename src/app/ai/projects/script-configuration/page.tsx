@@ -22,13 +22,13 @@ export default function ScriptConfiguration() {
   const [generationType, setGenerationType] = useState<'subject' | 'script'>('subject')
   const [subject, setSubject] = useState('')
   const [script, setScript] = useState('')
-  const [characters, setCharacters] = useState('')
+  const [assets, setAssets] = useState('')
   const [scenes, setScenes] = useState('')
-  const [character_changed, setCharacterChanged] = useState(false)
+  const [asset_changed, setAssetChanged] = useState(false)
   const [scene_changed, setSceneChanged] = useState(false)
-  const [errors, setErrors] = useState({ characters: '', scenes: '' })
+  const [errors, setErrors] = useState({ assets: '', scenes: '' })
   const [isGenerating, setIsGenerating] = useState(false)
-  const [expandedCharacters, setExpandedCharacters] = useState<number[]>([])
+  const [expandedAssets, setExpandedAssets] = useState<number[]>([])
   const [expandedScenes, setExpandedScenes] = useState<number[]>([])
   const [subjectWordCount, setSubjectWordCount] = useState(0)
   const [scriptWordCount, setScriptWordCount] = useState(0)
@@ -38,7 +38,7 @@ export default function ScriptConfiguration() {
   const [docId, setDocId] = useState("")
 
   // const [savingScene, setSavingScene] = useState(false)
-  // const [savingCharacter, setSavingCharacter] = useState(false)
+  // const [savingAsset, setSavingAsset] = useState(false)
   // const [savingScript, setSavingScript] = useState(false)
 
   console.log('projectId: ' + projectId + ' stageId: ' + stageId)
@@ -50,7 +50,7 @@ export default function ScriptConfiguration() {
     }
 
     // Fetch project details
-    instance.get(`/api/v2/project/get_raw_project?project_id=${projectId}`).then((res) => {
+    instance.get(`/api/v2/project/get_raw_project?project_id=${projectId}`).then((res: any) => {
       console.log('Project details: ' + JSON.stringify(res))
       if (res) {
         setProjectMetaInfo({
@@ -78,7 +78,7 @@ export default function ScriptConfiguration() {
       if (!res || Object.keys(res).length === 0) {
         setSubject('')
         setScript('')
-        setCharacters('')
+        setAssets('')
         setScenes('')
         setDisableChange(false)
         setAllowSave(true)
@@ -86,7 +86,7 @@ export default function ScriptConfiguration() {
       }
 
       setSubject(res.title)
-      setCharacters(JSON.stringify(res.characters || [], null, 2))
+      setAssets(JSON.stringify(res.assets || [], null, 2))
       setScenes(JSON.stringify(res.scenes || [], null, 2))
       setDisableChange(!res.init)
       setAllowSave(res.init)
@@ -124,8 +124,8 @@ export default function ScriptConfiguration() {
     }
   }
 
-  const toggleCharacter = (index: number) => {
-    setExpandedCharacters(prev =>
+  const toggleAsset = (index: number) => {
+    setExpandedAssets(prev =>
       prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
     )
   }
@@ -139,7 +139,7 @@ export default function ScriptConfiguration() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setErrors({
-      characters: '',
+      assets: '',
       scenes: ''
     })
     instance.post('/api/v2/script/generateScript', {
@@ -151,9 +151,9 @@ export default function ScriptConfiguration() {
       console.log('res: ' + JSON.stringify(res))
       setSubjectWordCount(countWords(subject))
       setScriptWordCount(countWords(script))
-      setCharacters(JSON.stringify(res.characters || [], null, 2));
+      setAssets(JSON.stringify(res.assets || [], null, 2));
       setScenes(JSON.stringify(res.scenes || [], null, 2));
-      setCharacterChanged(true)
+      setAssetChanged(true)
       setSceneChanged(true)
       setIsGenerating(false)
     }).catch((err) => {
@@ -162,34 +162,34 @@ export default function ScriptConfiguration() {
     })
   };
 
-  const saveCharacterAndScenes = async () => {
-    const charactersValid = validateJSON(characters)
+  const saveAssets = async () => {
+    const assetsValid = validateJSON(assets)
     const scenesValid = validateJSON(scenes)
 
     setErrors({
-      characters: charactersValid ? '' : 'Invalid JSON format',
+      assets: assetsValid ? '' : 'Invalid JSON format',
       scenes: scenesValid ? '' : 'Invalid JSON format'
     })
 
-    if (!charactersValid || !scenesValid) return
+    if (!assetsValid || !scenesValid) return
 
     instance.post('/api/v2/script/saveScript', {
       project_id: projectId,
       stage_id: stageId,
       doc_id: docId,
-      characters: JSON.parse(characters),
+      assets: JSON.parse(assets),
       scenes: JSON.parse(scenes),
-      script_changed: character_changed || scene_changed
+      script_changed: asset_changed || scene_changed
 
     }).then((res) => {
       console.log('Version update response: ' + JSON.stringify(res))
       setAllowSave(false)
-      setCharacterChanged(false)
+      setAssetChanged(false)
       setSceneChanged(false)
     }).catch((error) => {
       console.error('Error updating version:', error);
       setErrors({
-        characters: error.characters,
+        assets: error.assets,
         scenes: error.scenes
       })
     });
@@ -197,8 +197,8 @@ export default function ScriptConfiguration() {
 
 
   const handleNext = () => {
-    if (character_changed || scene_changed) {
-      alert('Please save your character and scene changes before proceeding.');
+    if (asset_changed || scene_changed) {
+      alert('Please save your asset and scene changes before proceeding.');
       return
     }
 
@@ -339,7 +339,7 @@ export default function ScriptConfiguration() {
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="text-xl font-semibold mb-2 block">Characters</label>
+                <label className="text-xl font-semibold mb-2 block">Assets</label>
                 {isGenerating ? (
                   <div className="h-80 border rounded-lg p-4 bg-gray-50/50 flex flex-col gap-3 overflow-hidden">
                     {[1, 2, 3, 4, 5].map(i => (
@@ -351,41 +351,44 @@ export default function ScriptConfiguration() {
                   </div>
                 ) : (
                   <div className="h-80 border rounded-lg overflow-y-auto bg-gray-50/30 p-2 space-y-2">
-                    {parseJSON(characters).map((char: any, index: number) => (
+                    {parseJSON(assets).map((asset: any, index: number) => (
                       <div key={index} className="bg-white border rounded-md shadow-sm overflow-hidden transition-all duration-200">
                         <div
                           className="p-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
-                          onClick={() => toggleCharacter(index)}
+                          onClick={() => toggleAsset(index)}
                         >
                           <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-blue-500" />
                             <span className="font-medium text-sm text-gray-700">
-                              {char.character_name || char.name || `Character ${index + 1}`}
+                              {asset.character_name || asset.name || `Asset ${index + 1}`}
+                            </span>
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${(asset.type === 0 || asset.type === null || asset.type === undefined) ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {(asset.type === 0 || asset.type === null || asset.type === undefined) ? 'Character' : 'TOOL'}
                             </span>
                           </div>
-                          {expandedCharacters.includes(index) ? (
+                          {expandedAssets.includes(index) ? (
                             <ChevronDown className="w-4 h-4 text-gray-400" />
                           ) : (
                             <ChevronRight className="w-4 h-4 text-gray-400" />
                           )}
                         </div>
-                        {expandedCharacters.includes(index) && (
+                        {expandedAssets.includes(index) && (
                           <div className="p-3 border-t bg-blue-50/10 transition-all duration-300 animate-in fade-in slide-in-from-top-1">
                             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
-                              {char.description || char.desc || "No description provided."}
+                              {asset.description || asset.desc || "No description provided."}
                             </p>
                           </div>
                         )}
                       </div>
                     ))}
-                    {!characters && <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
+                    {!assets && <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
                       <User className="w-12 h-12 opacity-20" />
-                      <p className="text-sm italic">No characters generated yet</p>
+                      <p className="text-sm italic">No assets generated yet</p>
                     </div>}
                   </div>
                 )}
-                {errors.characters && (
-                  <p className="text-red-500 mt-2 text-sm">{errors.characters}</p>
+                {errors.assets && (
+                  <p className="text-red-500 mt-2 text-sm">{errors.assets}</p>
                 )}
               </div>
 
@@ -488,7 +491,7 @@ export default function ScriptConfiguration() {
                 Cancel
               </Button>
               <Button
-                onClick={saveCharacterAndScenes}
+                onClick={saveAssets}
                 className="bg-green-600 hover:bg-green-700"
                 disabled={!allowSave}
               >
@@ -496,7 +499,7 @@ export default function ScriptConfiguration() {
               </Button>
               <Button
                 onClick={handleNext}
-                disabled={!characters || !scenes || allowSave}
+                disabled={!assets || !scenes || allowSave}
                 className="bg-green-600 hover:bg-green-700"
               >
                 下一步
