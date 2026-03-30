@@ -1,6 +1,6 @@
 'use client'
 
-import { useState , useEffect} from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     narration: true,
     purpose: ''
   })
-  
+
   const [errorMessage, setErrorMessage] = useState("");
   const [backgroundInfo, setBackgroundInfo] = useState("");
   const aspectRatios = [
@@ -36,13 +36,13 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   ]
 
   const handleSubmit = () => {
-    console.log(' formData: '+JSON.stringify(formData))
+    console.log(' formData: ' + JSON.stringify(formData))
     if (!formData.name || !formData.purpose) {
       setErrorMessage("Name and purpose must not be empty.");
       return;
     }
     instance.post('/api/v2/project/create', formData).then(res => {
-      console.log('res: '+JSON.stringify(res))  // {project_id， stage_id}
+      console.log('res: ' + JSON.stringify(res))  // {project_id， stage_id}
 
       router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
     }).catch(error => {
@@ -66,58 +66,21 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             </Button> */}
           </div>
         </DialogHeader>
-        
+
         <div className="space-y-6 py-4">
           <div>
             <label className="text-sm font-medium mb-2 block">名字</label>
-            <Input 
+            <Input
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             />
           </div>
 
-          {/* <div>
-            <label className="text-sm font-medium mb-2 block">屏幕比例</label>
-            <RadioGroup 
-              defaultValue="1:1" 
-              className="flex justify-center gap-4 mt-2"
-              value={formData.aspect}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, aspect: value }))}
-            >
-              {aspectRatios.map((ratio) => (
-                <div key={ratio.id} className="text-center">
-                  <label
-                    className={`
-                      block cursor-pointer transition-all duration-200
-                      ${formData.aspect === ratio.id ? 'text-primary' : 'text-gray-600'}
-                    `}
-                  >
-                    <div 
-                      className={`
-                        mb-2 mx-auto border-2 rounded-sm transition-all duration-200
-                        ${formData.aspect === ratio.id 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-dashed border-gray-400'
-                        }
-                        ${ratio.style}
-                      `}
-                    />
-                    <div className="text-sm">{ratio.label}</div>
-                    <RadioGroupItem 
-                      value={ratio.id} 
-                      className="sr-only"
-                      aria-label={`Aspect ratio ${ratio.label}`}
-                    />
-                  </label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div> */}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Theme</label>
-              <Select 
+              <Select
                 value={formData.theme}
                 onValueChange={(value) => {
                   setFormData(prev => ({ ...prev, theme: value }))
@@ -170,7 +133,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
               </Select>
             </div>
 
-           
+
 
             <div>
               <label className="text-sm font-medium mb-2 block">Narration</label>
@@ -191,8 +154,8 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
 
           <div>
             <label className="text-sm font-medium mb-2 block">背景信息: (最多50字)</label>
-            <Textarea 
-              placeholder={backgroundInfo} 
+            <Textarea
+              placeholder={backgroundInfo}
               className="h-24"
               value={formData.purpose}
               onChange={(e) => {
@@ -205,7 +168,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             />
           </div>
         </div>
-          <div><label style={{ color: 'red' }}>{errorMessage}</label></div>
+        <div><label style={{ color: 'red' }}>{errorMessage}</label></div>
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
@@ -213,7 +176,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
           <Button className="bg-green-600 hover:bg-green-700" onClick={handleSubmit}>
             下一步
           </Button>
-          
+
         </div>
       </DialogContent>
     </Dialog>

@@ -42,6 +42,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
         onVoiceConfigChange({ ...voiceConfig, ...updates })
     }
 
+    console.log(`[Audio] Generating: ${isGeneratingAudio}, Voice: ${JSON.stringify(voiceConfig)}`)
     return (
         <div className="space-y-4">
             {/* Gender Selection */}
@@ -148,19 +149,13 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                 </Select>
             </div>
 
-            {/* Preview Audio Section */
-
-                console.log(`[Audio] Generating: ${isGeneratingAudio}, Voice: ${JSON.stringify(voiceConfig)}`)
-
-
-            }
 
             <div className="border-t pt-4 mt-6">
                 <Label className="text-sm font-medium mb-3 block">试听效果</Label>
                 <div className="space-y-3">
 
                     <Button
-                        className="w-full bg-indigo-600 hover:bg-indigo-700"
+                        className="w-full bg-blue-600 hover:bg-blue-700 h-11 font-bold text-sm shadow-md transition-all active:scale-[0.98]"
                         onClick={onAudioPreview}
                         disabled={isGeneratingAudio || !voiceConfig.voice}
                     >
@@ -190,10 +185,9 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                 </div>
             </div>
 
-            {/* Save Button */}
-            <div className="flex justify-end pt-4 mt-4 border-t">
+            <div className="flex justify-end pt-6 mt-6 border-t font-bold">
                 <Button
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className="bg-blue-600 hover:bg-blue-700 px-8 h-12 shadow-lg transition-all active:scale-[0.95]"
                     onClick={onSaveVoiceConfig}
                     disabled={!voiceConfig.voice}
                 >

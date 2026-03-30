@@ -11,31 +11,31 @@ import { VideoDisplayPanel } from "./video-display-panel"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import instance from "@/lib/axios"
 
-// ── Types for assets ────────────────────────────────────────────────────────
+import { Asset, ImageInfo, ResourceAsset } from "../../value-assets/types"
 
-interface ImageInfo { id: number; url: string }
-interface Character { id: number; name: string; images: ImageInfo[]; selected_image_id?: number }
 
 export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsProps) {
   const [title, setTitle] = useState(scene.title)
-  const [description, setDescription] = useState(scene.description)
-  const [prompt, setPrompt] = useState(scene.prompt)
+  const [description, setDescription] = useState(scene.description ?? '')
+  const [prompt, setPrompt] = useState(scene.prompt ?? '')
 
-  const [allCharacters, setAllCharacters] = useState<Character[]>([])
-  const [charToPickImageFor, setCharToPickImageFor] = useState<Character | null>(null)
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [charToPickImageFor, setCharToPickImageFor] = useState<Asset | null>(null)
 
   // ── Sync with external scene prop ──────────────────────────────────────────
   useEffect(() => {
     setTitle(scene.title)
-    setDescription(scene.description)
-    setPrompt(scene.prompt)
+    setDescription(scene.description ?? '')
+    setPrompt(scene.prompt ?? '')
   }, [scene])
 
   // ── Data fetch ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!scene.project_id || !scene.stage_id) return
     instance.get(`/api/v2/asset/list?project_id=${scene.project_id}&stage_id=${scene.stage_id}`)
-      .then((res: any) => setAllCharacters(res.characters || []))
+      .then((res: any) => {
+        setAssets(res.assets || [])
+      })
   }, [scene.project_id, scene.stage_id])
 
   const handleUpdateField = (key: string, value: any) => onUpdate(key, value)
@@ -54,8 +54,6 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
           <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Scene Name</Label>
           <Input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => handleUpdateField("title", title)}
             className="text-xl font-bold border-none px-0 focus-visible:ring-0 placeholder:text-gray-200"
             placeholder="Scene Title..."
           />
@@ -65,64 +63,31 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            onBlur={() => handleUpdateField("description", description)}
             className="min-h-[72px] text-sm bg-gray-50/50 border-gray-100 resize-none focus:bg-white transition-colors p-3 rounded-lg border-none focus-visible:ring-1 focus-visible:ring-gray-200"
             placeholder="Brief description of the context..."
           />
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm"
+            onClick={() => {
+              handleUpdateField("description", description)
+            }}
+          >
+            Confirm Update
+          </Button>
         </div>
       </section>
 
       {/* ── PART 1: CHARACTERS (2-Row Table) ── */}
       <section className="space-y-4">
         <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5" /> Character Reference Map
+          <Users className="w-3.5 h-3.5" /> Asset Reference Map
         </Label>
 
-        <div className="border border-gray-100 rounded-xl overflow-x-auto bg-gray-50/30">
-          <table className="min-w-full border-collapse">
-            <tbody>
-              {/* Row 1: Names */}
-              <tr className="bg-white border-b border-gray-50">
-                {allCharacters.map(char => {
-                  const isAssigned = scene.character_ids?.includes(char.id)
-                  return (
-                    <td key={char.id} className={`p-2 transition-opacity min-w-[100px] ${isAssigned ? 'opacity-100' : 'opacity-40'}`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-gray-400 font-mono">#{char.id}</span>
-                        <span className="text-xs font-bold text-gray-700 truncate max-w-[80px]">{char.name}</span>
-                      </div>
-                    </td>
-                  )
-                })}
-                {allCharacters.length === 0 && <td className="p-4 text-xs text-gray-400 italic">No characters</td>}
-              </tr>
-              {/* Row 2: Thumbnails */}
-              <tr className="bg-white">
-                {allCharacters.map(char => {
-                  const isAssigned = scene.character_ids?.includes(char.id)
-                  const selectedImgId = scene.char_image_map?.[char.id]
-                  const selectedImg = char.images.find(img => img.id === selectedImgId)
 
-                  return (
-                    <td key={char.id} className={`p-2 transition-opacity ${isAssigned ? 'opacity-100' : 'opacity-40'}`}>
-                      <div
-                        className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center cursor-pointer hover:border-purple-300 hover:bg-white transition-all overflow-hidden group/img"
-                        onClick={() => setCharToPickImageFor(char)}
-                      >
-                        {selectedImg ? (
-                          <img src={selectedImg.url} className="w-full h-full object-cover" alt={char.name} />
-                        ) : (
-                          <Plus className="w-3 h-3 text-gray-300 group-hover/img:text-purple-400" />
-                        )}
-                      </div>
-                    </td>
-                  )
-                })}
-                {allCharacters.length === 0 && <td />}
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </section>
 
       {/* ── Visual Context & Action ── */}
@@ -133,7 +98,6 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              onBlur={() => handleUpdateField("prompt", prompt)}
               className="flex-1 min-h-[140px] resize-none text-[13px] bg-gray-50/50 focus:bg-white transition-all font-mono leading-relaxed p-4 rounded-2xl border-none focus-visible:ring-1 focus-visible:ring-gray-100"
               placeholder="Describe the overall visual mood and lighting..."
             />
@@ -150,16 +114,6 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
           </div>
 
         </div>
-
-        {/* <div className="flex items-center justify-between p-4 bg-purple-50 rounded-2xl border border-purple-100/50">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-bold text-purple-900">Storyboard Synthesis</h3>
-            <p className="text-[11px] text-purple-600/70">Generate initial frames using assigned actors</p>
-          </div>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-10 px-6 rounded-xl shadow-lg shadow-purple-200 transition-all active:scale-95">
-            Synthesize Storyboards
-          </Button>
-        </div> */}
 
         {/* ── Scene Video Player ── */}
         <div className="space-y-3">

@@ -65,19 +65,17 @@ export function StoryboardSettings({
 }: StoryboardSettingsProps) {
 
   // ── General UI state ──
-  const [isEditingDescription, setIsEditingDescription] = useState(false)
-  const [isPromptEditOpen, setIsPromptEditOpen] = useState(false)
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
-  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false)
 
-  // ── Storyboard data ──
-  const [description, setDescription] = useState(storyboard?.description || "")
-  const [prompt, setPrompt] = useState<string>(storyboard?.prompt || "")
+  // ── Storyboard data (Uncontrolled with Refs) ──
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+  const [isDescriptionDirty, setIsDescriptionDirty] = useState(false)
+  const [isPromptDirty, setIsPromptDirty] = useState(false)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [generatingImageError, setGeneratingImageError] = useState<string | false>(false)
 
-  // ── Video prompt ──
+  // ── Video prompt meta ──
   const [isLoading, setIsLoading] = useState(false)
   const [isVideoPromptChanged, setIsVideoPromptChanged] = useState(false)
   const [videoPrompt, setVideoPrompt] = useState(storyboard?.video_prompt || "")
@@ -108,11 +106,14 @@ export function StoryboardSettings({
   const speechTypeLabel = narrationLabel(narration)
   const isDialogue = narration === 3
 
-  // Sync when storyboard changes
+  // Sync when storyboard prop changes
   useEffect(() => {
+    if (descriptionRef.current) descriptionRef.current.value = storyboard?.description || ''
+    if (promptRef.current) promptRef.current.value = storyboard?.prompt || ''
     setVideoPrompt(storyboard?.video_prompt || '')
-    setDescription(storyboard?.description || '')
-    setPrompt(storyboard?.prompt || '')
+    setIsDescriptionDirty(false)
+    setIsPromptDirty(false)
+    setIsVideoPromptChanged(false)
     setAudioPreviewUrl(null)
 
     const parsed = parseDialog(storyboard?.dialog, narration)
@@ -130,7 +131,7 @@ export function StoryboardSettings({
   // Fetch characters
   useEffect(() => {
     if (!storyboard?.project_id || !storyboard?.stage_id) return
-    instance.get(`/api/v2/resource/list?project_id=${storyboard.project_id}&stage_id=${storyboard.stage_id}`)
+    instance.get(`/api/v2/asset/list?project_id=${storyboard.project_id}&stage_id=${storyboard.stage_id}`)
       .then((res: any) => setCharacters(res.characters || []))
       .catch((err) => console.error("Failed to fetch characters:", err))
   }, [storyboard?.project_id, storyboard?.stage_id])
@@ -247,36 +248,70 @@ export function StoryboardSettings({
         <Panel defaultSize={55} minSize={30}>
           <div className="h-full bg-gray-50 p-4 rounded-lg space-y-4 overflow-y-auto">
             <h2 className="text-base font-semibold text-gray-700 tracking-wide">Storyboard Elements</h2>
-            <section className="bg-white rounded-lg border p-4 space-y-3">
-              <div>
-                {isEditingDescription ? (
-                  <Textarea
-                    value={description}
-                    placeholder="Enter storyboard description"
-                    className="min-h-[72px] resize-none text-sm"
-                    autoFocus
-                    onChange={(e) => setDescription(e.target.value)}
-                    onBlur={() => { onUpdate("description", description); setIsEditingDescription(false) }}
-                  />
-                ) : (
-                  <p
-                    className="text-sm cursor-pointer px-3 py-2 rounded-md border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-colors truncate text-gray-700"
-                    title={description || undefined}
-                    onClick={() => setIsEditingDescription(true)}
-                  >
-                    {description || <span className="text-gray-400 italic">Click to edit description…</span>}
-                  </p>
-                )}
+            <section className="bg-white rounded-lg border p-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Title</Label>
+                <div className="text-sm font-semibold truncate px-1">{storyboard?.title}</div>
               </div>
-              <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Image Prompt</Label>
-                <Textarea
-                  value={prompt}
-                  placeholder="Enter image generation prompt…"
-                  className="min-h-[80px] resize-none text-sm"
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onBlur={() => { if (prompt) onUpdate("image_prompt", prompt) }}
-                />
+
+              <div className="space-y-1.5 relative group">
+                <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</Label>
+                <div className="relative">
+                  <Textarea
+                    ref={descriptionRef}
+                    defaultValue={storyboard?.description || ''}
+                    placeholder="Brief description of the storyboard context..."
+                    className="min-h-[72px] text-sm bg-gray-50/50 border-gray-100 resize-none focus:bg-white transition-colors p-3 rounded-lg border-none focus-visible:ring-1 focus-visible:ring-gray-200"
+                    onChange={(e) => setIsDescriptionDirty(e.target.value !== (storyboard?.description || ''))}
+                    onBlur={(e) => {
+                      if (!e.relatedTarget?.closest('.confirm-btn')) {
+                        setTimeout(() => {
+                          if (descriptionRef.current) descriptionRef.current.value = storyboard?.description || ''
+                          setIsDescriptionDirty(false)
+                        }, 150)
+                      }
+                    }}
+                  />
+                  {isDescriptionDirty && (
+                    <Button
+                      size="icon"
+                      className="confirm-btn absolute right-2 bottom-2 h-7 w-7 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all scale-110"
+                      onClick={() => onUpdate("description", descriptionRef.current?.value)}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1.5 relative group">
+                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">Image Prompt</Label>
+                <div className="relative">
+                  <Textarea
+                    ref={promptRef}
+                    defaultValue={storyboard?.prompt || ''}
+                    placeholder="Enter image generation prompt…"
+                    className="min-h-[80px] text-sm bg-gray-50/50 border-gray-100 resize-none focus:bg-white transition-colors p-3 rounded-lg border-none focus-visible:ring-1 focus-visible:ring-gray-200"
+                    onChange={(e) => setIsPromptDirty(e.target.value !== (storyboard?.prompt || ''))}
+                    onBlur={(e) => {
+                      if (!e.relatedTarget?.closest('.confirm-btn')) {
+                        setTimeout(() => {
+                          if (promptRef.current) promptRef.current.value = storyboard?.prompt || ''
+                          setIsPromptDirty(false)
+                        }, 150)
+                      }
+                    }}
+                  />
+                  {isPromptDirty && (
+                    <Button
+                      size="icon"
+                      className="confirm-btn absolute right-2 bottom-2 h-7 w-7 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all scale-110"
+                      onClick={() => onUpdate("image_prompt", promptRef.current?.value)}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -425,7 +460,14 @@ export function StoryboardSettings({
             </div>
             <Textarea value={videoPrompt} className="min-h-[200px] text-sm" onChange={(e) => { setVideoPrompt(e.target.value); setIsVideoPromptChanged(true) }} />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" disabled={!isVideoPromptChanged} onClick={handleSavePromptes}>Save Only</Button>
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm"
+                disabled={!isVideoPromptChanged}
+                onClick={handleSavePromptes}
+              >
+                Confirm Update
+              </Button>
               <Button size="sm" disabled={isGeneratingVideo || !storyboard?.image_url || !videoPrompt} onClick={() => handleGenerateVideo()}>
                 {isGeneratingVideo && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />} 生成视频
               </Button>
@@ -435,7 +477,6 @@ export function StoryboardSettings({
         </Panel>
       </PanelGroup>
 
-      <PromptEditPanel open={isPromptEditOpen} onClose={() => setIsPromptEditOpen(false)} value={prompt || ''} onChange={setPrompt} onSave={() => { if (!prompt) return; onUpdate("image_prompt", prompt) }} />
     </div>
   )
 }

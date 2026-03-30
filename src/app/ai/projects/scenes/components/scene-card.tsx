@@ -4,30 +4,36 @@ import { useState, useRef, useEffect } from "react"
 import { Plus, Trash2, Clock, MonitorPlay, ChevronDown, ChevronRight, Film, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { SceneCardProps, StoryboardCardProps, SceneStatus } from "../types"
+import type { SceneCardProps, StoryboardCardProps } from "../types"
 
 // ─── shared helpers ────────────────────────────────────────────────────────────
 
-function getStatusBadge(status: SceneStatus) {
-  const styles: Record<SceneStatus, string> = {
+function getStatusBadge(status: string) {
+  const styles: Record<string, string> = {
+    INIT: "bg-gray-100 text-gray-600",
     init: "bg-gray-100 text-gray-600",
     image_generating: "bg-blue-100 text-blue-600",
     video_generating: "bg-purple-100 text-purple-600",
     voice_generating: "bg-orange-100 text-orange-600",
     complete: "bg-green-100 text-green-600",
+    COMPLETE: "bg-green-100 text-green-600",
     fail: "bg-red-100 text-red-600",
+    FAIL: "bg-red-100 text-red-600",
   }
-  const labels: Record<SceneStatus, string> = {
+  const labels: Record<string, string> = {
+    INIT: "Initial",
     init: "Initial",
     image_generating: "Generating Image",
     video_generating: "Generating Video",
     voice_generating: "Generating Voice",
     complete: "Complete",
+    COMPLETE: "Complete",
     fail: "Failed",
+    FAIL: "Failed",
   }
   return (
-    <Badge variant="secondary" className={styles[status]}>
-      {labels[status]}
+    <Badge variant="secondary" className={styles[status] ?? "bg-gray-100 text-gray-600"}>
+      {labels[status] ?? status}
     </Badge>
   )
 }
@@ -37,9 +43,10 @@ function getStatusBadge(status: SceneStatus) {
 interface AddMenuProps {
   onAddScene: () => void
   onAddStoryboard: () => void
+  onGenerateStoryboard: () => void
 }
 
-function AddMenu({ onAddScene, onAddStoryboard }: AddMenuProps) {
+function AddMenu({ onAddScene, onAddStoryboard, onGenerateStoryboard }: AddMenuProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -84,6 +91,13 @@ function AddMenu({ onAddScene, onAddStoryboard }: AddMenuProps) {
             <Layers className="h-4 w-4 text-blue-500" />
             New Storyboard
           </button>
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            onClick={() => { setOpen(false); onGenerateStoryboard() }}
+          >
+            <Layers className="h-4 w-4 text-blue-500" />
+            AI Storyboards
+          </button>
         </div>
       )}
     </div>
@@ -101,6 +115,7 @@ export function SceneCard({
   onSave,
   onAddScene,
   onAddStoryboard,
+  onGenerateStoryboards,
   onDelete,
 }: SceneCardProps) {
   return (
@@ -146,6 +161,7 @@ export function SceneCard({
           <AddMenu
             onAddScene={() => onAddScene(scene)}
             onAddStoryboard={() => onAddStoryboard(scene)}
+            onGenerateStoryboard={() => onGenerateStoryboards(scene)}
           />
 
           {/* Delete */}

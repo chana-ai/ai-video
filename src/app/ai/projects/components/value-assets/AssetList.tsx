@@ -2,13 +2,13 @@
 
 import React from 'react'
 import { User, Package, Plus } from 'lucide-react'
-import { Character, ResourceAsset, AssetType, SelectedAsset } from '../../value-assets/types'
+import { Asset, ResourceAsset, AssetType, SelectedAsset } from '../../value-assets/types'
 
 interface AssetListProps {
-    characters: Character[]
+    characters: Asset[]
     resourceAssets: ResourceAsset[]
     selectedAsset: SelectedAsset | null
-    onSelectAsset: (type: AssetType, asset: Character | ResourceAsset) => void
+    onSelectAsset: (type: AssetType, asset: Asset | ResourceAsset) => void
     onAddResource: () => void
 }
 

@@ -1,5 +1,3 @@
-export type SceneStatus = "init" | "image_generating" | "video_generating" | "voice_generating" | "complete" | "fail"
-
 export type CameraMovement =
   | "frame"
   | "left"
@@ -24,23 +22,57 @@ export interface DialogLine {
   content: string
 }
 
+/**
+ * A single scene or storyboard node returned by the backend.
+ *
+ * - `storyboard === false` → this is a top-level scene
+ * - `storyboard === true`  → this is a storyboard; `parent_id` points to its parent scene's id
+ *
+ * The API returns a flat list. After fetching, items are grouped by `parent_id`
+ * and the tree is built client-side via the `children` field.
+ */
 export interface Scene {
-  id: string
+  /** Numeric scene / storyboard ID from the backend */
+  id: number
   title: string
-  description: string
-  prompt: string
-  video_prompt: string
-  video_prompt_cn: string
-  update_time: string
-  status: SceneStatus
-  task_id?: number
-  task_status?: string
-
-  project_id: number
-  stage_id: number
   seq_id: number
   pre_seq_id: number
   next_seq_id: number
+  project_id: number
+  stage_id: number
+
+  /** MongoDB document ID for the scene document */
+  doc_id?: string
+
+  /** Raw backend status string, e.g. "INIT" */
+  status: string
+
+  /** Individual generation status flags */
+  image_status: boolean
+  clip_status: boolean
+  voice_status: boolean
+
+  /**
+   * When true this node is a storyboard (child of a scene).
+   * When false this node is a top-level scene.
+   */
+  storyboard: boolean
+
+  /** 
+   * For storyboard nodes: the numeric ID of the parent scene.
+   * Null for top-level scenes.
+   */
+  parent_id: number | null
+
+  del: boolean
+  create_time: string
+  update_time: string
+
+  // ── Fields populated from the scene document (doc_id) ─────────────────────
+  description?: string
+  prompt?: string
+  video_prompt?: string
+  video_prompt_cn?: string
 
   video_setting?: VideoSettings
   voice_setting?: VoiceSettings
@@ -48,13 +80,11 @@ export interface Scene {
   image_url?: string
   video_url?: string
 
-  /** Speech/dialog content for the scene.
+  /** Speech/dialog content.
    *  - narration=1 or 2 → plain string
    *  - narration=3     → array of DialogLine
    */
   dialog?: string | DialogLine[]
-
-  isModified?: boolean
 
   /** Associated assets */
   character_ids?: number[]
@@ -63,51 +93,34 @@ export interface Scene {
   scene_image_id?: number
   resource_id?: number
 
-  /** Storyboards that belong to this scene */
-  storyboards?: Storyboard[]
-}
+  /** Config returned from /api/v2/scene/detail */
+  config?: Record<string, any>
 
-export interface Storyboard {
-  id: string
-  title: string
-  description: string
-  prompt: string
-  video_prompt: string
-  video_prompt_cn: string
-  update_time: string
-  status: SceneStatus
-  task_id?: number
-  task_status?: string
+  /** Extra arbitrary data returned from /api/v2/scene/details */
+  extra_data?: Record<string, any>
 
-  /** The parent scene id */
-  scene_id: string
+  /** Document version returned from /api/v2/scene/details */
+  version?: string
 
-  project_id: number
-  stage_id: number
-  seq_id: number
-  pre_seq_id: number
-  next_seq_id: number
+  // ── UI-only fields ─────────────────────────────────────────────────────────
 
-  video_setting?: VideoSettings
-  voice_setting?: VoiceSettings
-  voice_url?: string
-  image_url?: string
-  video_url?: string
-
-  dialog?: string | DialogLine[]
-
+  /** Front-end dirty flag */
   isModified?: boolean
 
-  /** Storyboards that belong to this scene */
-  storyboards?: Storyboard[]
+  /**
+   * Storyboard children IDs, grouped client-side from the flat API list.
+   * Only present on top-level scenes (storyboard === false).
+   */
+  children?: number[]
 }
 
 export type NodeType = 'scene' | 'storyboard'
 
-/** A flat list item in the sidebar can be either a Scene or a Storyboard */
+/** A flat list item in the sidebar is either a top-level scene or a storyboard,
+ *  both represented by the unified `Scene` type. */
 export type SceneNode =
   | { nodeType: 'scene'; data: Scene }
-  | { nodeType: 'storyboard'; data: Storyboard }
+  | { nodeType: 'storyboard'; data: Scene }
 
 export interface VoiceSettings {
   voice_name: string
@@ -155,19 +168,20 @@ export interface SceneCardProps {
   isSelected: boolean
   isExpanded: boolean
   storyboardCount: number
-  onSelect: (id: string) => void
-  onSave: (id: string) => void
+  onSelect: (id: number) => void
+  onSave: (id: number) => void
   onAddScene: (scene: Scene) => void
   onAddStoryboard: (scene: Scene) => void
+  onGenerateStoryboards: (scene: Scene) => void
   onDelete: (scene: Scene) => void
 }
 
 export interface StoryboardCardProps {
-  storyboard: Storyboard
+  storyboard: Scene
   isSelected: boolean
-  onSelect: (id: string) => void
-  onAddStoryboard: (storyboard: Storyboard) => void
-  onDelete: (storyboard: Storyboard) => void
+  onSelect: (id: number) => void
+  onAddStoryboard: (storyboard: Scene) => void
+  onDelete: (storyboard: Scene) => void
 }
 
 export interface SceneSettingsProps {
@@ -177,7 +191,7 @@ export interface SceneSettingsProps {
 }
 
 export interface StoryboardSettingsProps {
-  storyboard: Storyboard
+  storyboard: Scene
   projectDetail: ProjectDetail | null
   onUpdate: (key: string, value: any) => void
 }

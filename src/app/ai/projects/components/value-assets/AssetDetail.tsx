@@ -3,7 +3,7 @@
 import React from 'react'
 import { ImageIcon, Volume2, Package } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SelectedAsset, VoiceConfig } from '../../value-assets/types'
+import { SelectedAsset, VoiceConfig, Batch } from '../../value-assets/types'
 import { ImageConfigTab } from './ImageConfigTab'
 import { AudioConfigTab } from './AudioConfigTab'
 
@@ -16,14 +16,20 @@ interface AssetDetailProps {
     selectedRowIndex: number | null
     errors: string
     uploadingImage: boolean
+    history: Batch[]
+    currentBatch: Batch | null
+    selectedImageIds: Set<number>
     onPromptChange: (value: string) => void
-    onGenerateImages: () => void
+    onGenerateImages: (options?: any) => void
     onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
     onAudioPreview: () => void
     onRowSelect: (index: number | null) => void
-    onNextClick: () => void
     onSaveVoiceConfig: () => void
     onVoiceConfigChange: (config: VoiceConfig) => void
+    onRestoreBatch: (batch: Batch) => void
+    onSetSelectedImageIds: (ids: Set<number>) => void
+    onRefresh?: () => void
+    onSaveBatch?: () => void
 }
 
 export const AssetDetail: React.FC<AssetDetailProps> = ({
@@ -35,18 +41,24 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
     selectedRowIndex,
     errors,
     uploadingImage,
+    history,
+    currentBatch,
+    selectedImageIds,
     onPromptChange,
     onGenerateImages,
     onImageUpload,
     onAudioPreview,
     onRowSelect,
-    onNextClick,
     onSaveVoiceConfig,
-    onVoiceConfigChange
+    onVoiceConfigChange,
+    onRestoreBatch,
+    onSetSelectedImageIds,
+    onRefresh,
+    onSaveBatch
 }) => {
     if (!selectedAsset) {
         return (
-            <div className="bg-white rounded-lg p-12 border shadow-sm">
+            <div className="bg-white rounded-lg p-12 border shadow-sm h-full">
                 <div className="text-center text-gray-400">
                     <Package className="w-16 h-16 mx-auto mb-4 opacity-20" />
                     <p>请从左侧选择一个角色或资源素材</p>
@@ -56,10 +68,10 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
     }
 
     return (
-        <div className="bg-white rounded-lg border shadow-sm">
+        <div className="bg-white rounded-lg border shadow-sm h-full flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b">
-                <h3 className="text-lg font-semibold mb-2">
+            <div className="p-4 border-b flex-shrink-0">
+                <h3 className="text-lg font-semibold mb-1">
                     {selectedAsset.name}
                 </h3>
                 <p className="text-sm text-gray-600">
@@ -69,9 +81,9 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
 
             {/* Tabs for Characters, Single view for Resources */}
             {selectedAsset.type === 'character' ? (
-                <Tabs defaultValue="image" className="w-full">
-                    <div className="px-6 pt-4">
-                        <TabsList className="grid w-full grid-cols-2">
+                <Tabs defaultValue="image" className="w-full flex-1 flex flex-col min-h-0">
+                    <div className="px-6 pt-4 flex-shrink-0">
+                        <TabsList className="grid w-80 grid-cols-2">
                             <TabsTrigger value="image" className="flex items-center gap-2">
                                 <ImageIcon className="w-4 h-4" />
                                 图片设置
@@ -83,22 +95,25 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
                         </TabsList>
                     </div>
 
-                    <TabsContent value="image" className="p-6">
+                    <TabsContent value="image" className="p-4 flex-1 min-h-0">
                         <ImageConfigTab
                             selectedAsset={selectedAsset}
                             isGenerating={isGenerating}
-                            selectedRowIndex={selectedRowIndex}
                             errors={errors}
-                            uploadingImage={uploadingImage}
+                            history={history}
+                            currentBatch={currentBatch}
+                            selectedImageIds={selectedImageIds}
                             onPromptChange={onPromptChange}
                             onGenerateImages={onGenerateImages}
+                            onRestoreBatch={onRestoreBatch}
+                            onSetSelectedImageIds={onSetSelectedImageIds}
+                            onRefresh={onRefresh}
+                            onSaveBatch={onSaveBatch}
                             onImageUpload={onImageUpload}
-                            onRowSelect={onRowSelect}
-                            onNextClick={onNextClick}
                         />
                     </TabsContent>
 
-                    <TabsContent value="audio" className="p-6">
+                    <TabsContent value="audio" className="p-4 flex-1 min-h-0 overflow-y-auto">
                         <AudioConfigTab
                             selectedAsset={selectedAsset}
                             voiceModels={voiceModels}
@@ -112,18 +127,21 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
                 </Tabs>
             ) : (
                 /* Resource Assets - Single View */
-                <div className="p-6">
+                <div className="p-4 flex-1 min-h-0">
                     <ImageConfigTab
                         selectedAsset={selectedAsset}
                         isGenerating={isGenerating}
-                        selectedRowIndex={selectedRowIndex}
                         errors={errors}
-                        uploadingImage={uploadingImage}
+                        history={history}
+                        currentBatch={currentBatch}
+                        selectedImageIds={selectedImageIds}
                         onPromptChange={onPromptChange}
                         onGenerateImages={onGenerateImages}
+                        onRestoreBatch={onRestoreBatch}
+                        onSetSelectedImageIds={onSetSelectedImageIds}
+                        onRefresh={onRefresh}
+                        onSaveBatch={onSaveBatch}
                         onImageUpload={onImageUpload}
-                        onRowSelect={onRowSelect}
-                        onNextClick={onNextClick}
                     />
                 </div>
             )}

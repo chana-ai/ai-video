@@ -7,7 +7,7 @@ import { User, Package } from 'lucide-react'
 import Header from "../../header"
 import { instance } from '@/lib/axios'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Character, ImageInfo, ResourceAsset, VoiceConfig, AssetType, SelectedAsset } from './types'
+import { Asset, ImageInfo, ResourceAsset, VoiceConfig, AssetType, SelectedAsset, Batch } from './types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AssetList } from '../components/value-assets/AssetList'
 import { AssetDetail } from '../components/value-assets/AssetDetail'
@@ -18,7 +18,7 @@ export default function ValueAssets() {
     const stageId = searchParams.get('stage_id')
     const router = useRouter()
 
-    const [characters, setCharacters] = useState<Character[]>([])
+    const [characters, setCharacters] = useState<Asset[]>([])
     const [resourceAssets, setResourceAssets] = useState<ResourceAsset[]>([])
     const [selectedAsset, setSelectedAsset] = useState<SelectedAsset | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
@@ -31,6 +31,20 @@ export default function ValueAssets() {
     const [audioPreviewUrl, setAudioPreviewUrl] = useState('')
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
+    const [history, setHistory] = useState<Batch[]>([])
+    const [currentBatch, setCurrentBatch] = useState<Batch | null>(null)
+    const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set())
+
+    // Save history to localStorage (can be used as a local cache/fallback)
+    useEffect(() => {
+        if (!selectedAsset) return;
+        const key = `history_${selectedAsset.type}_${selectedAsset.id}`;
+        const cacheData = {
+            timestamp: Date.now(),
+            data: history
+        };
+        localStorage.setItem(key, JSON.stringify(cacheData));
+    }, [history, selectedAsset?.id, selectedAsset?.type]);
 
     // Fetch characters on mount
     useEffect(() => {
@@ -42,7 +56,7 @@ export default function ValueAssets() {
 
                 setCharacters(assets.filter((assets: any) => assets.type === 0));
                 if (assets.length > 0) {
-                    selectAsset('character', assets[0]);
+                    selectAsset('character', assets[0], true);
                 }
                 setResourceAssets(assets.filter((assets: any) => assets.type === 1));
             })
@@ -59,10 +73,20 @@ export default function ValueAssets() {
             });
     }, [projectId, stageId]);
 
-    const selectAsset = (type: AssetType, asset: Character | ResourceAsset) => {
+    const selectAsset = async (type: AssetType, asset: Asset | ResourceAsset, forceRefresh: boolean = false) => {
+        const scenario = type === 'character' ? 'CHARACTER' : 'RESOURCE';
+        const referenceId = asset.id;
+        const cacheKey = `history_${type}_${referenceId}`;
+
+        // Reset state before fetching new asset data
+        setHistory([]);
+        setCurrentBatch(null);
+        setPromptChanged(false);
+        setSelectedRowIndex(null);
+
+        // Update selected asset basic info
         if (type === 'character') {
-            const char = asset as Character;
-            // Load voice config if available, otherwise use defaults
+            const char = asset as Asset;
             let config: any = {};
             if (char.config) {
                 try {
@@ -71,7 +95,11 @@ export default function ValueAssets() {
                     console.error("Failed to parse asset config:", e);
                 }
             }
-
+            const initialSelected = new Set<number>();
+            if (config.front) initialSelected.add(config.front);
+            if (config.side) initialSelected.add(config.side);
+            if (config.back) initialSelected.add(config.back);
+            setSelectedImageIds(initialSelected);
 
             setSelectedAsset({
                 type: 'character',
@@ -83,8 +111,9 @@ export default function ValueAssets() {
                 voiceConfig: config
             });
             setAudioPreviewUrl(config.voice_path);
-        } else if (type === 'resource') {
+        } else {
             const resource = asset as ResourceAsset;
+            setSelectedImageIds(new Set());
             setSelectedAsset({
                 type: 'resource',
                 id: resource.id,
@@ -94,8 +123,72 @@ export default function ValueAssets() {
                 images: resource.images || []
             });
         }
-        setSelectedRowIndex(null);
-        setPromptChanged(false);
+
+        // Check cache first (2-hour TTL) unless forceRefresh is true
+        if (forceRefresh) {
+            localStorage.removeItem(cacheKey);
+        }
+
+        const stored = localStorage.getItem(cacheKey);
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                const { timestamp, data } = parsed;
+                console.log(`[Cache] Found for ${cacheKey}:`, { timestamp, dataLen: data?.length, raw: stored });
+
+                if (timestamp && data && Date.now() - timestamp < 2 * 60 * 60 * 1000) {
+                    if (data.length > 0) {
+                        setCurrentBatch(data[0]);
+                        setHistory(data);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse cached history:", e);
+            }
+        }
+
+        // Fetch history from backend
+        try {
+            const res: any = await instance.post('/api/v2/asset/list_asset_by_resource', {
+                project_id: Number(projectId),
+                scenarios: [scenario],
+                reference_id: referenceId
+            });
+
+            const historyList = res[scenario] || []; // Expected format: [[resource1, resource2], [...]]
+            if (historyList.length > 0) {
+                // Map nested response to Batches
+                const batches: Batch[] = historyList.map((group: any[]) => {
+                    const first = group[0] || {};
+                    return {
+                        id: first.version || Date.now(), // Version as int ID
+                        timestamp: new Date(first.create_time).getTime(),
+                        images: group.map(r => ({
+                            id: r.id,
+                            url: r.signed_url || r.uri || r.image_url || r.url,
+                            oss_path: r.oss_path,
+                            is_selected: false
+                        })),
+                        version: first.version,
+                        isStarred: false
+                    };
+                });
+
+                if (batches.length > 0) {
+                    setCurrentBatch(batches[0]);
+                    setHistory(batches);
+
+                    // Update cache
+                    localStorage.setItem(cacheKey, JSON.stringify({
+                        timestamp: Date.now(),
+                        data: batches
+                    }));
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch asset history:", err);
+        }
     };
 
     const handlePromptChange = (value: string) => {
@@ -129,80 +222,91 @@ export default function ValueAssets() {
 
 
 
-    const handleGenerate = async () => {
+    const handleGenerate = async (options?: any) => {
         if (!selectedAsset) return;
-
-        // Max 4 rows (12 images)
-        if (selectedAsset.images.length >= 12) {
-            setErrors('已达到最大图片限制 (4行)');
-            return;
-        }
 
         setIsGenerating(true);
         setErrors('');
 
-        let initImageUrl = '';
-        if (selectedRowIndex !== null) {
-            // Check if first column of selected row has image
-            const firstImgInRow = selectedAsset.images[selectedRowIndex * 3];
-            if (firstImgInRow) {
-                initImageUrl = firstImgInRow.oss_path || firstImgInRow.url;
-            }
-        }
-
-        if (selectedAsset.type === 'character') {
-            await instance.post(`/api/v2/asset/generate_images`, {
+        try {
+            const requestBody: any = {
                 asset_id: selectedAsset.id,
-                project_id: projectId,
-                stage_id: stageId,
+                project_id: Number(projectId),
+                stage_id: Number(stageId),
                 description: selectedAsset.description,
                 prompt: selectedAsset.prompt,
-                ...(initImageUrl && { init_image_url: initImageUrl })
-            }).then((res: any) => {
-                const generatedImages = res.images; // Expecting 1, 2 or 3 images
+                num: options?.num || 3
+            };
 
-                setSelectedAsset(prev => {
-                    if (!prev) return null;
-                    let updatedImages = [...prev.images];
+            if (options?.sideBack) {
+                requestBody.ref_image_id = options.refImageId;
+                requestBody.init_image_url = options.refImageUrl;
+            }
 
-                    if (generatedImages.length === 1) {
-                        // Place into first empty slot of current targeted row
-                        if (selectedRowIndex !== null) {
-                            // Target selected row
-                            const startIdx = selectedRowIndex * 3;
-                            for (let i = 0; i < 3; i++) {
-                                if (!updatedImages[startIdx + i]) {
-                                    updatedImages[startIdx + i] = generatedImages[0];
-                                    break;
-                                }
-                            }
-                        } else {
-                            // Target "new" row
-                            updatedImages.push(generatedImages[0]);
-                        }
-                    } else if (selectedRowIndex !== null) {
-                        // Insert images starting from col 2 of the selected row
-                        const startIdx = selectedRowIndex * 3 + 1;
-                        if (generatedImages.length >= 1) updatedImages[startIdx] = generatedImages[0];
-                        if (generatedImages.length >= 2) updatedImages[startIdx + 1] = generatedImages[1];
-                    } else {
-                        // No row selected: Append all images (usually 3)
-                        updatedImages.push(...generatedImages);
-                    }
+            const res: any = await instance.post(`/api/v2/asset/generate_images`, requestBody);
 
-                    // Filter out nulls if any were created by indexing, and cap at 12
-                    return { ...prev, images: updatedImages.filter(Boolean).slice(0, 12) };
-                });
+            const generatedImages = res.images || [];
+            const mappedImages: ImageInfo[] = generatedImages.map((img: any) => ({
+                id: img.id,
+                url: img.signed_url || img.uri || img.url,
+                oss_path: img.oss_path,
+                is_selected: false
+            }));
 
-                setIsGenerating(false);
-            }).catch(err => {
-                console.error("Failed to generate images:", err);
-                setErrors(err.message);
-                setIsGenerating(false);
-            });
-        } else {
-            // Handle resource asset generation if needed
+            // If sideBack is true, append to current batch; otherwise create new batch
+            if (options?.sideBack && currentBatch) {
+                const updatedBatch = {
+                    ...currentBatch,
+                    images: [...currentBatch.images, ...mappedImages]
+                        .filter((img, index, self) => index === self.findIndex(t => t.id === img.id))
+                        .slice(0, 8)
+                };
+                setCurrentBatch(updatedBatch);
+                // Sync with history
+                setHistory(prev => prev.map(b => b.id === updatedBatch.id ? updatedBatch : b));
+            } else {
+                const newBatch: Batch = {
+                    id: Date.now(),
+                    timestamp: Date.now(),
+                    images: mappedImages,
+                    version: res.version ? res.version : 0,
+                    isStarred: false
+                };
+                setCurrentBatch(newBatch);
+                setHistory(prev => [newBatch, ...prev].slice(0, 20));
+            }
+
+            // Invalidate cache on generation
+            const cacheKey = `history_${selectedAsset.type}_${selectedAsset.id}`;
+            localStorage.removeItem(cacheKey);
+
+            setSelectedImageIds(new Set()); // Reset selection for new batch context
             setIsGenerating(false);
+
+        } catch (err: any) {
+            console.error("Failed to generate images:", err);
+            setErrors(err.message || '生成失败');
+            setIsGenerating(false);
+        }
+    };
+
+    const handleSaveBatch = async () => {
+        if (!selectedAsset || !currentBatch || selectedImageIds.size !== 3) return;
+
+        try {
+            const ids = Array.from(selectedImageIds);
+            await instance.post('/api/v2/asset/save_selected_images', {
+                project_id: Number(projectId),
+                stage_id: Number(stageId),
+                asset_id: selectedAsset.id,
+                front_image_id: ids[0],
+                side_image_id: ids[1],
+                back_image_id: ids[2]
+            });
+
+        } catch (err: any) {
+            console.error('Failed to save batch:', err);
+            alert(`保存失败: ${err.message || '未知错误'}`);
         }
     };
 
@@ -216,27 +320,48 @@ export default function ValueAssets() {
         formData.append('file', file);
         formData.append('project_id', projectId || '');
         formData.append('stage_id', stageId || '');
+        formData.append('reference_id', selectedAsset.id.toString());
+        formData.append('scenario', selectedAsset.type === 'character' ? 'CHARACTER' : 'RESOURCE');
 
-        if (selectedAsset.type === 'character') {
-            formData.append('character_id', selectedAsset.id.toString());
-        } else {
-            formData.append('resource_id', selectedAsset.id.toString());
+        try {
+            const res: any = await instance.post('/api/v2/image/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            const newImg: ImageInfo = {
+                id: res.id,
+                url: res.signed_url || res.uri,
+                oss_path: res.oss_path,
+                is_selected: false
+            };
+
+            // Add new image to current batch
+            if (currentBatch) {
+                const updatedBatch = {
+                    ...currentBatch,
+                    images: [...currentBatch.images, newImg]
+                        .filter((img, index, self) => index === self.findIndex(t => t.id === img.id))
+                        .slice(0, 8)
+                };
+                setCurrentBatch(updatedBatch);
+                // Sync with history
+                setHistory(prev => prev.map(b => b.id === updatedBatch.id ? updatedBatch : b));
+            } else {
+                const newBatch: Batch = {
+                    id: Date.now(),
+                    timestamp: Date.now(),
+                    images: [newImg]
+                };
+                setCurrentBatch(newBatch);
+                setHistory(prev => [newBatch, ...prev].slice(0, 20));
+            }
+            setUploadingImage(false);
+        } catch (err: any) {
+            console.error("Failed to upload image:", err);
+            setErrors(err.message || '上传失败');
+            setUploadingImage(false);
+            alert(`上传失败: ${err.message || '未知错误'}`);
         }
-
-        // TODO: Implement upload API endpoint
-        // await instance.post('/api/v2/image/upload', formData, {
-        //   headers: { 'Content-Type': 'multipart/form-data' }
-        // }).then((res) => {
-        //   setSelectedAsset(prev => prev ? { ...prev, images: [...prev.images, res.image] } : null);
-        //   setUploadingImage(false);
-        // }).catch(err => {
-        //   console.error("Failed to upload image:", err);
-        //   setErrors(err.message);
-        //   setUploadingImage(false);
-        // });
-
-        setUploadingImage(false);
-        alert('Image upload API not yet implemented');
     };
 
     const handleNextClick = () => {
@@ -320,7 +445,7 @@ export default function ValueAssets() {
         <>
             <Header title="Value Assets" />
             <div className="min-h-screen bg-gray-50 p-6">
-                <div className="max-w-7xl mx-auto">
+                <div className="max-w-[1600px] mx-auto">
                     <h1 className="text-3xl font-bold mb-6">角色与资源设置</h1>
 
                     <div className="flex gap-6">
@@ -332,7 +457,7 @@ export default function ValueAssets() {
                             onAddResource={() => setIsResourceDialogOpen(true)}
                         />
 
-                        <div className="flex-1">
+                        <div className="flex-1 flex flex-col min-h-0">
                             <AssetDetail
                                 selectedAsset={selectedAsset}
                                 voiceModels={voiceModels}
@@ -342,15 +467,37 @@ export default function ValueAssets() {
                                 selectedRowIndex={selectedRowIndex}
                                 errors={errors}
                                 uploadingImage={uploadingImage}
+                                history={history}
+                                currentBatch={currentBatch}
+                                selectedImageIds={selectedImageIds}
                                 onPromptChange={handlePromptChange}
                                 onGenerateImages={handleGenerate}
                                 onImageUpload={handleImageUpload}
                                 onAudioPreview={handleAudioPreview}
                                 onRowSelect={setSelectedRowIndex}
-                                onNextClick={handleNextClick}
                                 onSaveVoiceConfig={handleSaveVoiceConfig}
                                 onVoiceConfigChange={handleVoiceConfigChange}
+                                onSetSelectedImageIds={setSelectedImageIds}
+                                onSaveBatch={handleSaveBatch}
+                                onRefresh={() => {
+                                    if (selectedAsset) {
+                                        selectAsset(selectedAsset.type, selectedAsset as any, true);
+                                    }
+                                }}
+                                onRestoreBatch={(batch) => {
+                                    setCurrentBatch(batch);
+                                    setSelectedImageIds(new Set()); // Reset selection when restoring
+                                }}
                             />
+
+                            <div className="mt-6 flex justify-end">
+                                <Button
+                                    className="bg-blue-600 hover:bg-blue-700 px-8 py-2 text-lg h-auto"
+                                    onClick={handleNextClick}
+                                >
+                                    下一步
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

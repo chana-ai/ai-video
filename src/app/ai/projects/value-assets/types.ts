@@ -7,6 +7,14 @@ export interface ImageInfo {
 
 export type AssetType = 'character' | 'resource';
 
+export interface Batch {
+    id: number;
+    timestamp: number;
+    images: ImageInfo[];
+    isStarred?: boolean;
+    version?: number;
+}
+
 export interface SelectedAsset {
     type: AssetType;
     id: number;
@@ -15,6 +23,7 @@ export interface SelectedAsset {
     prompt: string;
     images: ImageInfo[];
     voiceConfig?: VoiceConfig;
+    history?: Batch[]; // Local history for the session
 }
 
 export interface VoiceConfig {
@@ -27,7 +36,7 @@ export interface VoiceConfig {
     extraDesc?: string;
 }
 
-export interface Character {
+export interface Asset {
     id: number;
     name: string;
     project_id: number;
