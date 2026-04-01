@@ -304,6 +304,18 @@ export default function ValueAssets() {
                 back_image_id: ids[2]
             });
 
+            // Cache selected images to local storage
+            // const selectedImages = currentBatch.images
+            //     .filter(img => ids.includes(img.id))
+            //     .map(img => ({ id: img.id, url: img.url }));
+
+            // const cacheKey = 'selected_images_cache';
+            // const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+            // cache[selectedAsset.id] = selectedImages;
+            // localStorage.setItem(cacheKey, JSON.stringify(cache));
+
+            // alert('批次保存成功！');
+
         } catch (err: any) {
             console.error('Failed to save batch:', err);
             alert(`保存失败: ${err.message || '未知错误'}`);

@@ -14,7 +14,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Users, Check, Upload, Play, Pause, Loader2, Mic } from "lucide-react"
+import { Users, Check, Upload, Play, Pause, Loader2, Mic, Image as ImageIcon } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { VideoDisplayPanel } from "./video-display-panel"
 import { PromptEditPanel } from "./prompt-edit-panel"
@@ -99,6 +100,7 @@ export function StoryboardSettings({
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
   const imageUploadRef = useRef<HTMLInputElement>(null)
   const refCharsDialogRef = useRef<HTMLDivElement>(null)
 
@@ -247,51 +249,124 @@ export function StoryboardSettings({
       <PanelGroup direction="horizontal">
         <Panel defaultSize={55} minSize={30}>
           <div className="h-full bg-gray-50 p-4 rounded-lg space-y-4 overflow-y-auto">
-            <h2 className="text-base font-semibold text-gray-700 tracking-wide">Storyboard Elements</h2>
-            <section className="bg-white rounded-lg border p-4 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Title</Label>
-                <div className="text-sm font-semibold truncate px-1">{storyboard?.title}</div>
+            <section className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between px-1">
+                <div className="text-sm font-bold text-gray-800 tracking-tight">{storyboard?.title}</div>
               </div>
 
-              <div className="space-y-1.5 relative group">
-                <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Description</Label>
-                <div className="relative">
-                  <Textarea
-                    ref={descriptionRef}
-                    defaultValue={storyboard?.description || ''}
-                    placeholder="Brief description of the storyboard context..."
-                    className="min-h-[72px] text-sm bg-gray-50/50 border-gray-100 resize-none focus:bg-white transition-colors p-3 rounded-lg border-none focus-visible:ring-1 focus-visible:ring-gray-200"
-                    onChange={(e) => setIsDescriptionDirty(e.target.value !== (storyboard?.description || ''))}
-                    onBlur={(e) => {
-                      if (!e.relatedTarget?.closest('.confirm-btn')) {
-                        setTimeout(() => {
-                          if (descriptionRef.current) descriptionRef.current.value = storyboard?.description || ''
-                          setIsDescriptionDirty(false)
-                        }, 150)
-                      }
-                    }}
-                  />
-                  {isDescriptionDirty && (
-                    <Button
-                      size="icon"
-                      className="confirm-btn absolute right-2 bottom-2 h-7 w-7 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all scale-110"
-                      onClick={() => onUpdate("description", descriptionRef.current?.value)}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  )}
+              <div className="px-2">
+                <div className="text-sm text-gray-500 leading-relaxed min-h-[40px]">
+                  {storyboard?.description || <span className="text-gray-300 italic">No story context description available.</span>}
                 </div>
               </div>
+            </section>
 
-              <div className="space-y-1.5 relative group">
-                <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">Image Prompt</Label>
+            {/* ── Visual Ref (Controls at Bottom) ── */}
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Visual Reference</h3>
+
+              <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border-2 border-gray-100 shadow-inner group/preview mb-4">
+                {storyboard?.image_url ? (
+                  <>
+                    <img
+                      src={storyboard.image_url}
+                      alt="Storyboard preview"
+                      className="w-full h-full object-cover transition-all duration-500 hover:scale-[5.0] cursor-zoom-in"
+                      onClick={() => setZoomImageUrl(storyboard.image_url || null)}
+                    />
+                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/preview:opacity-100 transition-opacity pointer-events-none" />
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+                    <ImageIcon className="h-8 w-8 text-gray-200" />
+                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">No Storyboard Image Yet</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Controls Bar Below Image */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="relative" ref={refCharsDialogRef}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-5 flex items-center gap-2 text-sm font-bold rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 shadow-sm transition-all"
+                      onClick={handleOpenRefChars}
+                    >
+                      <Users className="h-4 w-4" />
+                      Characters
+                      {selectedCharIds.size > 0 && !selectedCharIds.has('NONE') && (
+                        <span className="ml-1 bg-purple-600 text-white rounded-full text-[10px] w-4.5 h-4.5 flex items-center justify-center">
+                          {selectedCharIds.size}
+                        </span>
+                      )}
+                    </Button>
+                    {isRefCharsOpen && (
+                      <div className="absolute left-0 bottom-full mb-2 z-[200] w-64 bg-white border border-gray-100 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Select Reference Characters</p>
+                        <div className="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar">
+                          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
+                            <div
+                              className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${pendingCharIds.has('NONE') ? 'bg-purple-600 border-purple-600' : 'border-gray-200'}`}
+                              onClick={() => togglePendingChar('NONE')}
+                            >
+                              {pendingCharIds.has('NONE') && <Check className="w-2.5 h-2.5 text-white" />}
+                            </div>
+                            <span className="text-xs font-medium text-gray-500">No Character Reference</span>
+                          </label>
+                          {characters.map((char) => (
+                            <label key={char.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
+                              <div
+                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${pendingCharIds.has(char.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-200'}`}
+                                onClick={() => togglePendingChar(char.id)}
+                              >
+                                {pendingCharIds.has(char.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                              </div>
+                              <span className="text-xs font-semibold text-gray-700 truncate">{char.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <Button size="sm" className="w-full mt-4 h-10 text-sm bg-purple-600 hover:bg-purple-700 rounded-xl font-bold shadow-sm" onClick={handleConfirmRefChars}>
+                          Confirm Characters
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-5 flex items-center gap-2 text-sm font-bold rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 shadow-sm transition-all"
+                    onClick={() => imageUploadRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />Upload
+                  </Button>
+                </div>
+                <Button
+                  size="sm"
+                  className="h-10 px-6 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-purple-100 flex items-center gap-2 transition-all border-none"
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                >
+                  {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                  Generate Image
+                </Button>
+              </div>
+              <input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            </section>
+
+            {/* ── Image Prompt (Moved Down) ── */}
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
+              <div className="space-y-2 relative group">
+                <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <ImageIcon className="h-3.5 w-3.5" /> Image Generation Prompt
+                </Label>
                 <div className="relative">
                   <Textarea
                     ref={promptRef}
                     defaultValue={storyboard?.prompt || ''}
                     placeholder="Enter image generation prompt…"
-                    className="min-h-[80px] text-sm bg-gray-50/50 border-gray-100 resize-none focus:bg-white transition-colors p-3 rounded-lg border-none focus-visible:ring-1 focus-visible:ring-gray-200"
+                    className="min-h-[100px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-all p-4 rounded-xl focus-visible:ring-1 focus-visible:ring-gray-100 leading-relaxed font-mono"
                     onChange={(e) => setIsPromptDirty(e.target.value !== (storyboard?.prompt || ''))}
                     onBlur={(e) => {
                       if (!e.relatedTarget?.closest('.confirm-btn')) {
@@ -305,7 +380,7 @@ export function StoryboardSettings({
                   {isPromptDirty && (
                     <Button
                       size="icon"
-                      className="confirm-btn absolute right-2 bottom-2 h-7 w-7 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all scale-110"
+                      className="confirm-btn absolute right-3 bottom-3 h-8 w-8 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg transition-all scale-110"
                       onClick={() => onUpdate("image_prompt", promptRef.current?.value)}
                     >
                       <Check className="h-4 w-4" />
@@ -315,73 +390,9 @@ export function StoryboardSettings({
               </div>
             </section>
 
-            <section className="bg-white rounded-lg border p-4 space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-400">Visual Ref</h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative" ref={refCharsDialogRef}>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-xs" onClick={handleOpenRefChars}>
-                    <Users className="h-3.5 w-3.5" />
-                    Ref Characters
-                    {selectedCharIds.size > 0 && !selectedCharIds.has('NONE') && (
-                      <span className="ml-0.5 bg-purple-600 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                        {selectedCharIds.size}
-                      </span>
-                    )}
-                  </Button>
-                  {isRefCharsOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 z-50 w-60 bg-white border rounded-lg shadow-xl p-3">
-                      <p className="text-xs font-semibold text-gray-600 mb-2">Select Reference Characters</p>
-                      <div className="space-y-1 max-h-52 overflow-y-auto">
-                        <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1.5">
-                          <div
-                            className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${pendingCharIds.has('NONE') ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}
-                            onClick={() => togglePendingChar('NONE')}
-                          >
-                            {pendingCharIds.has('NONE') && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                          <span className="text-xs text-gray-500">None</span>
-                        </label>
-                        {characters.map((char) => (
-                          <label key={char.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded px-2 py-1.5">
-                            <div
-                              className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${pendingCharIds.has(char.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-300'}`}
-                              onClick={() => togglePendingChar(char.id)}
-                            >
-                              {pendingCharIds.has(char.id) && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <span className="text-xs truncate">{char.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <Button size="sm" className="w-full mt-2 h-7 text-xs bg-purple-600 hover:bg-purple-700" onClick={handleConfirmRefChars}>
-                        Confirm
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-xs" onClick={() => imageUploadRef.current?.click()}>
-                  <Upload className="h-3.5 w-3.5" />Upload
-                </Button>
-                <input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-xs flex items-center gap-1.5" onClick={handleGenerateImage} disabled={isGeneratingImage}>
-                  {isGeneratingImage && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Generate Image
-                </Button>
-              </div>
-              {storyboard?.image_url ? (
-                <div className="w-full rounded-md overflow-hidden border bg-gray-50">
-                  <img src={storyboard.image_url} alt="Storyboard preview" className="w-full h-auto max-h-[480px] object-contain block" />
-                </div>
-              ) : (
-                <div className="w-full h-20 bg-gray-100 rounded-md border flex items-center justify-center">
-                  <span className="text-xs text-gray-400">No image yet</span>
-                </div>
-              )}
-            </section>
-
-            <section className="bg-white rounded-lg border p-4 space-y-4">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                <Mic className="h-3.5 w-3.5" /> Speech
+            <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 shadow-sm">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                <Mic className="h-4 w-4" /> Audio & Speech Settings
               </h3>
               <div>
                 <Label className="text-xs text-gray-500 mb-1 block">Script <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100">{speechTypeLabel}</span></Label>
@@ -445,38 +456,84 @@ export function StoryboardSettings({
         <PanelResizeHandle className="w-2 bg-gray-200 hover:bg-gray-300" />
 
         <Panel defaultSize={45} minSize={20}>
-          <div className="h-full p-4 space-y-4 overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Select value={videoModel} onValueChange={(v: string) => setVideoModel(v as VideoModel)}>
-                  <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MINMAX">MINMAX</SelectItem>
-                    <SelectItem value="WAN">WAN</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button disabled={isLoading} size="sm" className="bg-purple-600 text-xs" onClick={handleGenerateVideoPrompt}>Generate Video Prompt</Button>
+          <div className="h-full p-6 space-y-6 overflow-y-auto no-scrollbar">
+            {/* ── Video Prompt Controls (Moved to Top) ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Select value={videoModel} onValueChange={(v: string) => setVideoModel(v as VideoModel)}>
+                    <SelectTrigger className="w-32 h-10 rounded-xl border-gray-100 bg-gray-50/50 focus:ring-purple-200">
+                      <SelectValue placeholder="Model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MINMAX" className="text-xs font-semibold">MINMAX-3.0</SelectItem>
+                      <SelectItem value="WAN" className="text-xs font-semibold">WAN-2.1-PRO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    disabled={isLoading}
+                    variant="outline"
+                    className="h-10 text-sm font-bold border-purple-200 text-purple-600 hover:bg-purple-50 rounded-xl px-5 transition-all"
+                    onClick={handleGenerateVideoPrompt}
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : 'Optimize Video Prompt'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 block">Direct Script / Prompt</Label>
+                <Textarea
+                  value={videoPrompt}
+                  className="min-h-[220px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-all p-5 rounded-2xl focus-visible:ring-1 focus-visible:ring-gray-100 leading-relaxed font-mono"
+                  onChange={(e) => { setVideoPrompt(e.target.value); setIsVideoPromptChanged(true) }}
+                  placeholder="Describe movement, cinematography, and effects..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-10 text-sm font-bold border-gray-200 rounded-xl px-6 hover:bg-gray-50 transition-all font-sans"
+                  disabled={!isVideoPromptChanged}
+                  onClick={handleSavePromptes}
+                >
+                  Save Changes
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-10 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl px-8 shadow-lg shadow-purple-100 transition-all disabled:opacity-50 font-sans"
+                  disabled={isGeneratingVideo || !storyboard?.image_url || !videoPrompt}
+                  onClick={() => handleGenerateVideo()}
+                >
+                  {isGeneratingVideo ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <Play className="h-5 w-5 mr-3 fill-current" />}
+                  Generate Movie Clip
+                </Button>
               </div>
             </div>
-            <Textarea value={videoPrompt} className="min-h-[200px] text-sm" onChange={(e) => { setVideoPrompt(e.target.value); setIsVideoPromptChanged(true) }} />
-            <div className="flex justify-end gap-2">
-              <Button
-                size="sm"
-                className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm"
-                disabled={!isVideoPromptChanged}
-                onClick={handleSavePromptes}
-              >
-                Confirm Update
-              </Button>
-              <Button size="sm" disabled={isGeneratingVideo || !storyboard?.image_url || !videoPrompt} onClick={() => handleGenerateVideo()}>
-                {isGeneratingVideo && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />} 生成视频
-              </Button>
+
+            {/* ── Visual Result ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Generated Sequence</h3>
+              <VideoDisplayPanel scene={storyboard as any} isGeneratingVideo={isGeneratingVideo} />
             </div>
-            <VideoDisplayPanel scene={storyboard as any} isGeneratingVideo={isGeneratingVideo} />
           </div>
         </Panel>
       </PanelGroup>
 
+      {/* ── Zoom Dialog ── */}
+      <Dialog open={!!zoomImageUrl} onOpenChange={(open: boolean) => !open && setZoomImageUrl(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden border-none bg-transparent shadow-none flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center p-8 shrink-0" onClick={() => setZoomImageUrl(null)}>
+            <img
+              src={zoomImageUrl || ''}
+              alt="Zoomed View"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border-4 border-white/20 backdrop-blur-md animate-in zoom-in-95 duration-500"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Users, ImageIcon, Play, Plus } from "lucide-react"
+import { Users, ImageIcon, Play, Plus, Loader2 } from "lucide-react"
 import type { Scene, SceneSettingsProps } from "../types"
 import { VideoDisplayPanel } from "./video-display-panel"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -21,6 +21,8 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
 
   const [assets, setAssets] = useState<Asset[]>([])
   const [charToPickImageFor, setCharToPickImageFor] = useState<Asset | null>(null)
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
 
   // ── Sync with external scene prop ──────────────────────────────────────────
   useEffect(() => {
@@ -32,7 +34,8 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
   // ── Data fetch ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!scene.project_id || !scene.stage_id) return
-    instance.get(`/api/v2/asset/list?project_id=${scene.project_id}&stage_id=${scene.stage_id}`)
+    // TODO: Optimized it using the cache.
+    instance.get(`/api/v2/asset/list?project_id=${scene.project_id}&stage_id=${scene.stage_id}&with_image=True`)
       .then((res: any) => {
         setAssets(res.assets || [])
       })
@@ -44,6 +47,23 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
     const nextMap = { ...(scene.char_image_map || {}), [charId]: imageId }
     onUpdate("char_image_map", nextMap)
     setCharToPickImageFor(null)
+  }
+
+  const handleGenerateSceneImage = async () => {
+    if (!scene.id || !scene.project_id || !scene.stage_id) return
+    setIsGeneratingImage(true)
+    instance.post('/api/v2/scene/generateSceneImage', {
+      scene_id: scene.id,
+      project_id: scene.project_id,
+      stage_id: scene.stage_id,
+    }).then((res: any) => {
+      onUpdate("image_url", res.image_url)
+      setIsGeneratingImage(false)
+    }).catch((error: any) => {
+      console.error("Failed to generate scene image:", error)
+      setIsGeneratingImage(false)
+      alert(`生成失败: ${error.message || '未知错误'}`)
+    })
   }
 
   return (
@@ -81,36 +101,101 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
         </div>
       </section>
 
-      {/* ── PART 1: CHARACTERS (2-Row Table) ── */}
-      <section className="space-y-4">
-        <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5" /> Asset Reference Map
-        </Label>
+      {/* ── PART 1: Assets & Base Reference (Split View) ── */}
+      <div className="grid grid-cols-2 gap-8 min-h-[220px]">
+        {/* Left Col: Asset Reference Map */}
+        <section className="space-y-4">
+          <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5" /> Asset Reference Map
+          </Label>
 
+          <div className="border rounded-xl overflow-hidden divide-y divide-gray-100 bg-gray-50/30 max-h-[300px] overflow-y-auto">
+            {assets.map((asset) => (
+              <div key={asset.id} className="grid grid-cols-12 gap-2 items-center p-2.5 hover:bg-gray-50 transition-colors">
+                <div className="col-span-1 text-[10px] font-mono text-gray-300">#{asset.id}</div>
+                <div className="col-span-3 text-[11px] font-bold text-gray-500 truncate">{asset.name}</div>
+                <div className="col-span-8 flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {asset?.images?.map((img) => (
+                    <div key={img.id} className="relative group/thumb flex-shrink-0">
+                      <div
+                        className="w-8 h-8 rounded-md overflow-hidden border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:scale-[5.0] hover:z-[100] active:scale-95 group-hover/thumb:shadow-xl group-hover/thumb:border-purple-400 origin-center cursor-zoom-in"
+                        onClick={() => setZoomImageUrl(img.url)}
+                      >
+                        <img src={img.url} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[8px] px-1.5 py-0.5 rounded-sm opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none z-[110] whitespace-nowrap">
+                        ID: {img.id}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {assets.length === 0 && (
+              <div className="p-8 text-center text-xs text-gray-400 italic">No assets assigned</div>
+            )}
+          </div>
+        </section>
 
-      </section>
+        {/* Right Col: Base Reference Image Stack */}
+        <section className="space-y-4">
+          <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5" /> Base Reference Images
+          </Label>
+
+          <div className="relative h-[180px] w-full flex items-center justify-center group/stack">
+            {/* The Stacked Images */}
+            {[0, 1, 2].map((idx) => {
+              // Try to get 3 different images or fallback to the same/empty
+              const url = scene.image_url; // For now assuming one URL, could be extended to an array
+              if (!url) return idx === 0 && (
+                <div key="empty" className="w-48 h-32 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 italic text-xs">
+                  No image yet
+                </div>
+              );
+
+              return (
+                <div
+                  key={idx}
+                  className={`absolute w-44 h-28 rounded-xl overflow-hidden shadow-md border-2 border-white transition-all duration-500 cursor-zoom-in 
+                    ${idx === 0 ? 'z-30 translate-x-0 translate-y-0 rotate-0 group-hover/stack:-translate-x-20 group-hover/stack:rotate-[-5deg]' : ''}
+                    ${idx === 1 ? 'z-20 translate-x-3 translate-y-2 rotate-3 group-hover/stack:translate-x-0 group-hover/stack:rotate-0' : ''}
+                    ${idx === 2 ? 'z-10 translate-x-6 translate-y-4 rotate-6 group-hover/stack:translate-x-20 group-hover/stack:rotate-[5deg]' : ''}
+                    hover:!z-[200] hover:scale-[5.0] hover:shadow-2xl hover:border-purple-300
+                  `}
+                  onClick={() => setZoomImageUrl(url)}
+                >
+                  <img src={url} alt={`Ref ${idx}`} className="w-full h-full object-cover" />
+                  {idx > 0 && <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] group-hover/stack:bg-transparent transition-all" />}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
 
       {/* ── Visual Context & Action ── */}
       <section className="pt-4 border-t border-gray-100 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="flex flex-col space-y-1.5">
-            <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Global Scene Prompt</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Global Scene Prompt</Label>
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm"
+                onClick={handleGenerateSceneImage}
+                disabled={isGeneratingImage || !prompt}
+              >
+                {isGeneratingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                Generate Scene Image
+              </Button>
+            </div>
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               className="flex-1 min-h-[140px] resize-none text-[13px] bg-gray-50/50 focus:bg-white transition-all font-mono leading-relaxed p-4 rounded-2xl border-none focus-visible:ring-1 focus-visible:ring-gray-100"
               placeholder="Describe the overall visual mood and lighting..."
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Base Reference Image</Label>
-            <div className="aspect-video rounded-2xl overflow-hidden bg-gray-50 border-2 border-gray-100 relative group flex items-center justify-center">
-              {scene.image_url ? (
-                <img src={scene.image_url} alt="Scene Context" className="w-full h-full object-cover" />
-              ) : (
-                <ImageIcon className="w-12 h-12 text-gray-100" />
-              )}
-            </div>
           </div>
 
         </div>
@@ -135,6 +220,18 @@ export function SceneSettings({ scene, projectDetail, onUpdate }: SceneSettingsP
       </section>
 
       {/* ── Dialogs ── */}
+      <Dialog open={!!zoomImageUrl} onOpenChange={(o) => !o && setZoomImageUrl(null)}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden border-none bg-transparent shadow-none">
+          <div className="relative w-full h-full flex items-center justify-center p-4" onClick={() => setZoomImageUrl(null)}>
+            <img
+              src={zoomImageUrl || ''}
+              alt="Zoomed View"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border-4 border-white/20 backdrop-blur-md animate-in zoom-in-95 duration-300"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!charToPickImageFor} onOpenChange={(o) => !o && setCharToPickImageFor(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
