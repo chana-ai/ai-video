@@ -24,10 +24,15 @@ import { VoiceSettingsPanel } from "./voice-settings-panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import instance from "@/lib/axios"
+import { PromptChatbox } from "./PromptChatbox"
 
 type VideoModel = 'MINMAX' | 'WAN'
 
-interface Character { id: number; name: string }
+interface Character {
+  id: number;
+  name: string;
+  images?: { id: number; url: string }[]
+}
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -71,10 +76,7 @@ export function StoryboardSettings({
   // ── Storyboard data (Uncontrolled with Refs) ──
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
-  const [isDescriptionDirty, setIsDescriptionDirty] = useState(false)
-  const [isPromptDirty, setIsPromptDirty] = useState(false)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
-  const [generatingImageError, setGeneratingImageError] = useState<string | false>(false)
 
   // ── Video prompt meta ──
   const [isLoading, setIsLoading] = useState(false)
@@ -113,8 +115,6 @@ export function StoryboardSettings({
     if (descriptionRef.current) descriptionRef.current.value = storyboard?.description || ''
     if (promptRef.current) promptRef.current.value = storyboard?.prompt || ''
     setVideoPrompt(storyboard?.video_prompt || '')
-    setIsDescriptionDirty(false)
-    setIsPromptDirty(false)
     setIsVideoPromptChanged(false)
     setAudioPreviewUrl(null)
 
@@ -134,7 +134,17 @@ export function StoryboardSettings({
   useEffect(() => {
     if (!storyboard?.project_id || !storyboard?.stage_id) return
     instance.get(`/api/v2/asset/list?project_id=${storyboard.project_id}&stage_id=${storyboard.stage_id}`)
-      .then((res: any) => setCharacters(res.characters || []))
+      .then((res: any) => {
+        const mapped = (res.characters || []).map((char: any) => ({
+          ...char,
+          images: [
+            char.front_image_url && { id: char.id, url: char.front_image_url },
+            char.side_image_url && { id: char.id, url: char.side_image_url }, // Fallback to asset ID for now
+            char.back_image_url && { id: char.id, url: char.back_image_url }
+          ].filter(Boolean)
+        }))
+        setCharacters(mapped)
+      })
       .catch((err) => console.error("Failed to fetch characters:", err))
   }, [storyboard?.project_id, storyboard?.stage_id])
 
@@ -151,18 +161,26 @@ export function StoryboardSettings({
 
   // ── Handlers ─────────────────────────────────────────────
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = async (prompt?: string, resolvedAssets?: Record<string, number>) => {
     setIsGeneratingImage(true)
     instance.post('/api/v2/scene/generateSceneImage', {
-      scene_id: storyboard?.id, project_id: storyboard?.project_id, stage_id: storyboard?.stage_id,
-    }).then((res: any) => { onUpdate("image_url", res.image_url); setIsGeneratingImage(false) })
-      .catch((error: any) => { setIsGeneratingImage(false); setGeneratingImageError(error.message) })
+      scene_id: storyboard?.id,
+      project_id: storyboard?.project_id,
+      stage_id: storyboard?.stage_id,
+      prompt: prompt,
+      resolved_assets: resolvedAssets // Passing the resolved image maps
+    }).then((res: any) => {
+      if (prompt) onUpdate("image_prompt", prompt);
+      onUpdate("image_url", res.image_url)
+      setIsGeneratingImage(false)
+    })
+      .catch((error: any) => { setIsGeneratingImage(false); })
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0] || !storyboard) return
     const objectUrl = URL.createObjectURL(e.target.files[0])
-    onUpdate("image_url", objectUrl)
+    onUpdate("image_url", [objectUrl])
     e.target.value = ''
   }
 
@@ -191,7 +209,7 @@ export function StoryboardSettings({
     }
   }, [isVideoPromptChanged, onUpdate, storyboard?.id, storyboard?.project_id, storyboard?.stage_id, videoPrompt, videoModel])
 
-  const handleSavePromptes = () => {
+  const handleSavePrompt = () => {
     if (!isVideoPromptChanged) return
     instance.post('/api/v2/scene/savePrompts', {
       scene_id: storyboard?.id, stage_id: storyboard?.stage_id, project_id: storyboard?.project_id, video_prompt: videoPrompt
@@ -248,12 +266,12 @@ export function StoryboardSettings({
     <div className="h-[calc(100vh-8rem)] max-w-[1400px] mx-auto relative">
       <PanelGroup direction="horizontal">
         <Panel defaultSize={55} minSize={30}>
-          <div className="h-full bg-gray-50 p-4 rounded-lg space-y-4 overflow-y-auto">
+          <div className="h-full bg-gray-50 p-4 rounded-lg space-y-4 overflow-y-auto no-scrollbar">
+            {/* ── Context & Info ── */}
             <section className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3 shadow-sm">
               <div className="flex items-center justify-between px-1">
                 <div className="text-sm font-bold text-gray-800 tracking-tight">{storyboard?.title}</div>
               </div>
-
               <div className="px-2">
                 <div className="text-sm text-gray-500 leading-relaxed min-h-[40px]">
                   {storyboard?.description || <span className="text-gray-300 italic">No story context description available.</span>}
@@ -261,30 +279,28 @@ export function StoryboardSettings({
               </div>
             </section>
 
-            {/* ── Visual Ref (Controls at Bottom) ── */}
+            {/* ── Visual Ref (Image & Controls) ── */}
             <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Visual Reference</h3>
-
-              <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border-2 border-gray-100 shadow-inner group/preview mb-4">
-                {storyboard?.image_url ? (
-                  <>
-                    <img
-                      src={storyboard.image_url}
-                      alt="Storyboard preview"
-                      className="w-full h-full object-cover transition-all duration-500 hover:scale-[5.0] cursor-zoom-in"
-                      onClick={() => setZoomImageUrl(storyboard.image_url || null)}
-                    />
-                    <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/preview:opacity-100 transition-opacity pointer-events-none" />
-                  </>
-                ) : (
+              {storyboard?.image_url ? (
+                <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border-2 border-gray-100 shadow-inner mb-4">
+                  <img
+                    src={storyboard.image_url}
+                    alt="Storyboard preview"
+                    className="w-full h-full object-cover transition-all duration-500 hover:scale-[5.0] cursor-zoom-in"
+                    onClick={() => setZoomImageUrl(storyboard.image_url || null)}
+                  />
+                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/preview:opacity-100 transition-opacity pointer-events-none" />
+                </div>
+              ) : (
+                <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border-2 border-gray-100 shadow-inner mb-4">
                   <div className="w-full h-full flex flex-col items-center justify-center gap-3">
                     <ImageIcon className="h-8 w-8 text-gray-200" />
                     <span className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">No Storyboard Image Yet</span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Controls Bar Below Image */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="relative" ref={refCharsDialogRef}>
@@ -342,54 +358,29 @@ export function StoryboardSettings({
                     <Upload className="h-4 w-4" />Upload
                   </Button>
                 </div>
-                <Button
-                  size="sm"
-                  className="h-10 px-6 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-purple-100 flex items-center gap-2 transition-all border-none"
-                  onClick={handleGenerateImage}
-                  disabled={isGeneratingImage}
-                >
-                  {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-                  Generate Image
-                </Button>
               </div>
               <input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
             </section>
 
-            {/* ── Image Prompt (Moved Down) ── */}
+            {/* ── Image Prompt ── */}
             <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
               <div className="space-y-2 relative group">
                 <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
                   <ImageIcon className="h-3.5 w-3.5" /> Image Generation Prompt
                 </Label>
                 <div className="relative">
-                  <Textarea
-                    ref={promptRef}
-                    defaultValue={storyboard?.prompt || ''}
-                    placeholder="Enter image generation prompt…"
-                    className="min-h-[100px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-all p-4 rounded-xl focus-visible:ring-1 focus-visible:ring-gray-100 leading-relaxed font-mono"
-                    onChange={(e) => setIsPromptDirty(e.target.value !== (storyboard?.prompt || ''))}
-                    onBlur={(e) => {
-                      if (!e.relatedTarget?.closest('.confirm-btn')) {
-                        setTimeout(() => {
-                          if (promptRef.current) promptRef.current.value = storyboard?.prompt || ''
-                          setIsPromptDirty(false)
-                        }, 150)
-                      }
-                    }}
+                  <PromptChatbox
+                    initialValue={storyboard?.prompt || ''}
+                    assets={characters}
+                    history={storyboard?.image_prompt_history}
+                    onGenerate={handleGenerateImage}
+                    isGenerating={isGeneratingImage}
                   />
-                  {isPromptDirty && (
-                    <Button
-                      size="icon"
-                      className="confirm-btn absolute right-3 bottom-3 h-8 w-8 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg transition-all scale-110"
-                      onClick={() => onUpdate("image_prompt", promptRef.current?.value)}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
               </div>
             </section>
 
+            {/* ── Audio Settings ── */}
             <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 shadow-sm">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
                 <Mic className="h-4 w-4" /> Audio & Speech Settings
@@ -457,7 +448,7 @@ export function StoryboardSettings({
 
         <Panel defaultSize={45} minSize={20}>
           <div className="h-full p-6 space-y-6 overflow-y-auto no-scrollbar">
-            {/* ── Video Prompt Controls (Moved to Top) ── */}
+            {/* ── Video Prompt Controls ── */}
             <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -497,7 +488,7 @@ export function StoryboardSettings({
                   variant="outline"
                   className="h-10 text-sm font-bold border-gray-200 rounded-xl px-6 hover:bg-gray-50 transition-all font-sans"
                   disabled={!isVideoPromptChanged}
-                  onClick={handleSavePromptes}
+                  onClick={handleSavePrompt}
                 >
                   Save Changes
                 </Button>

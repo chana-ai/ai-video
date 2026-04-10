@@ -16,7 +16,18 @@ export interface VideoSettings {
   motion: string
 }
 
-/** A single line of dialog (character name + their content) */
+/**
+ * A single entry in the prompt generation history.
+ */
+export interface PromptHistoryItem {
+  timestamp: number
+  prompt: string
+  error_message: string | null
+}
+
+/**
+ * A single line of dialog (character name + their content)
+ */
 export interface DialogLine {
   character: string
   content: string
@@ -78,6 +89,7 @@ export interface Scene {
   voice_setting?: VoiceSettings
   voice_url?: string
   image_url?: string
+  image_urls?: string[]
   video_url?: string
 
   /** Speech/dialog content.
@@ -101,6 +113,10 @@ export interface Scene {
 
   /** Document version returned from /api/v2/scene/details */
   version?: string
+
+  /** Prompt generation history */
+  image_prompt_history?: PromptHistoryItem[]
+  video_prompt_history?: PromptHistoryItem[]
 
   // ── UI-only fields ─────────────────────────────────────────────────────────
 

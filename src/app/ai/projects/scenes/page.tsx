@@ -225,10 +225,13 @@ export default function ScenePage() {
 
           video_url: detail.resource?.video_url ?? node.video_url,
           voice_url: detail.resource?.voice_url ?? node.voice_url,
-          image_url: detail.resource?.storyboard_image_url || detail.resource?.scene_image_urls?.default || node.image_url,
+          image_url: detail.resource?.storyboard_image_url ?? node.image_url,
+          image_urls: detail.resource?.scene_image_urls ? Object.values(detail.resource.scene_image_urls) as string[] : node.image_urls,
 
           prompt: detail.image_prompt ?? node.prompt,
           video_prompt: detail.video_prompt ?? node.video_prompt,
+          image_prompt_history: detail.image_prompt_history ?? node.image_prompt_history,
+          video_prompt_history: detail.video_prompt_history ?? node.video_prompt_history,
           extra_data: detail.extra_data,
           version: detail.version,
         }
@@ -260,7 +263,7 @@ export default function ScenePage() {
 
   const handleUpdate = async (type: "scene" | "storyboard", item: any, key: string, value: any) => {
     // 1. Update backend if it's a persistent key
-    const persistentKeys = ["title", "description", "prompt", "image_prompt", "video_prompt", "video_setting", "character_ids", "scene_image_id", "resource_id"]
+    const persistentKeys = ["title", "description", "video_prompt", "video_setting", "character_ids", "scene_image_id", "resource_id"]
     if (persistentKeys.includes(key)) {
       const endpoint = '/api/v2/scene/update'
       const data: any = { id: item.id, project_id: projectId, stage_id: stageId }
@@ -275,9 +278,9 @@ export default function ScenePage() {
     if (type === "scene") {
       const updatedScene = { ...item, [key]: value }
       setScenes(prev => prev.map(s => s.id === item.id ? updatedScene : s))
-      if (selected?.type === "scene" && selected.data.id === item.id) {
-        setSelected({ type: "scene", data: updatedScene })
-      }
+      // if (selected?.type === "scene" && selected.data.id === item.id) {
+      //   setSelected({ type: "scene", data: updatedScene })
+      // }
     } else {
       if (key == "image_prompt") {
         key = "prompt"
@@ -415,7 +418,8 @@ export default function ScenePage() {
 
           video_url: detail.resource?.video_url,
           voice_url: detail.resource?.voice_url,
-          image_url: detail.resource?.storyboard_image_url || detail.resource?.scene_image_urls?.default,
+          image_url: detail.resource?.storyboard_image_url,
+          image_urls: detail.resource?.scene_image_urls ? Object.values(detail.resource.scene_image_urls) as string[] : [],
 
           prompt: detail.image_prompt,
           video_prompt: detail.video_prompt,
