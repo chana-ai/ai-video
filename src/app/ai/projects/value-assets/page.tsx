@@ -33,6 +33,8 @@ export default function ValueAssets() {
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
     const [history, setHistory] = useState<Batch[]>([])
     const [currentBatch, setCurrentBatch] = useState<Batch | null>(null)
+    const [currentVendor, setCurrentVendor] = useState<string>('azure')
+    const [projectDetail, setProjectDetail] = useState<any>(null)
     const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set())
 
     // Save history to localStorage (can be used as a local cache/fallback)
@@ -45,6 +47,18 @@ export default function ValueAssets() {
         };
         localStorage.setItem(key, JSON.stringify(cacheData));
     }, [history, selectedAsset?.id, selectedAsset?.type]);
+
+    // Fetch project detail on mount
+    useEffect(() => {
+        if (!projectId) return;
+        instance.get(`/api/v2/project/detail?project_id=${projectId}`)
+            .then((res: any) => {
+                setProjectDetail(res);
+            })
+            .catch(err => {
+                console.error("Failed to fetch project detail:", err);
+            });
+    }, [projectId]);
 
     // Fetch characters on mount
     useEffect(() => {
@@ -63,15 +77,18 @@ export default function ValueAssets() {
             .catch(err => {
                 console.error("Failed to fetch characters:", err);
             });
+    }, [projectId, stageId]);
 
-        instance.get('/api/v2/voice/get_voice_meta')
+    // Fetch voice metadata when vendor changes
+    useEffect(() => {
+        instance.get(`/api/v2/voice/get_voice_meta?vendor=${currentVendor}`)
             .then((res: any) => {
                 setVoiceModels(res || []);
             })
             .catch(err => {
                 console.error("Failed to fetch voice models:", err);
             });
-    }, [projectId, stageId]);
+    }, [currentVendor]);
 
     const selectAsset = async (type: AssetType, asset: Asset | ResourceAsset, forceRefresh: boolean = false) => {
         const scenario = type === 'character' ? 'CHARACTER' : 'RESOURCE';
@@ -108,7 +125,7 @@ export default function ValueAssets() {
                 description: char.description || '',
                 prompt: char.prompt || '',
                 images: char.images || [],
-                voiceConfig: config
+                voiceConfig: config.voice_setting || {}
             });
             setAudioPreviewUrl(config.voice_path);
         } else {
@@ -207,13 +224,13 @@ export default function ValueAssets() {
     const handleSaveVoiceConfig = async () => {
         if (!selectedAsset || !selectedAsset.voiceConfig) return;
         try {
-            await instance.post('/api/v2/voice/update_voice_config', {
-                id: selectedAsset.id,
+            await instance.post('/api/v2/asset/update_voice_config', {
+                asset_id: selectedAsset.id,
                 project_id: Number(projectId),
                 stage_id: Number(stageId),
                 ...selectedAsset.voiceConfig
             });
-            alert('语音配置保存成功！');
+
         } catch (err: any) {
             console.error('Failed to update voice config:', err);
             alert(`保存语音配置失败: ${err.message || '未知错误'}`);
@@ -426,18 +443,15 @@ export default function ValueAssets() {
         try {
             // TODO: Replace with actual API endpoint
             const response = await instance.post('/api/v2/voice/preview', {
-                character_id: selectedAsset.id,
-                project_id: projectId,
-                stage_id: stageId,
-                tts_engine: selectedAsset.voiceConfig.ttsEngine || 'qwen',
+                asset_id: selectedAsset.id,
+                model: selectedAsset.voiceConfig.voice,
+                vendor: selectedAsset.voiceConfig.vendor || 'azure',
+                text: '你好，这是语音试听效果。',
                 voice: selectedAsset.voiceConfig.voice,
-                gender: selectedAsset.voiceConfig.gender,
                 voice_name: selectedAsset.voiceConfig.voice_name,
-                desc: selectedAsset.voiceConfig.desc,
+                gender: selectedAsset.voiceConfig.gender,
                 emotion: selectedAsset.voiceConfig.emotion,
-                extraDesc: selectedAsset.voiceConfig.extraDesc,
-                // Sample text for preview
-                text: '你好，这是语音试听效果。'
+                desc: selectedAsset.voiceConfig.desc,
             });
 
             if (response.voice_path) {
@@ -482,6 +496,8 @@ export default function ValueAssets() {
                                 history={history}
                                 currentBatch={currentBatch}
                                 selectedImageIds={selectedImageIds}
+                                projectDetail={projectDetail}
+                                onVendorChange={setCurrentVendor}
                                 onPromptChange={handlePromptChange}
                                 onGenerateImages={handleGenerate}
                                 onImageUpload={handleImageUpload}

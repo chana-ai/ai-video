@@ -31,9 +31,9 @@ export interface VoiceConfig {
     voice_name: string;
     desc: string;
     gender: string;
-    ttsEngine: string;
-    emotion?: string;
-    extraDesc?: string;
+    emotion: string;
+    vendor?: string;
+    is_master?: boolean;
 }
 
 export interface Asset {

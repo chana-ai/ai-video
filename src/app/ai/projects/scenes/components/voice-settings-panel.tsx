@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { VoiceSettings, VoiceSettingsPanelProps } from "../types"
 import { useEffect, useState } from "react"
 import { PlayCircle, PauseCircle } from "lucide-react"
@@ -30,9 +31,10 @@ export function VoiceSettingsPanel({
   stage_id,
   subtitle,
   voice_url,
-  onSave,
+  narration,
+  // onSave,
   onGenerate
-}: VoiceSettingsPanelProps) { 
+}: VoiceSettingsPanelProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
   // const [voice_path, setVoicePath] = useState<string>(voice_url || "")
@@ -43,10 +45,17 @@ export function VoiceSettingsPanel({
   const defaultSettings: VoiceSettings = {
     voice_name: settings?.voice_name || "超真实笑笑",
     background: settings?.background || "无",
-    voice_pitch: settings?.voice_pitch || 0,
-    voice_speed: settings?.voice_speed || 1,
-    voice_volume: settings?.voice_volume || 1,
+    voice_pitch: settings?.voice_pitch || 1.0,
+    voice_speed: settings?.voice_speed || 1.0,
+    voice_volume: settings?.voice_volume || 1.0,
+    is_master: settings?.is_master || false,
+    vendor: settings?.vendor || "azure"
   }
+
+  const [vendor, setVendor] = useState<string>(defaultSettings.vendor || "azure")
+  const [selectedVoice, setSelectedVoice] = useState<string>(defaultSettings.voice_name)
+  const [isMaster, setIsMaster] = useState<boolean>(defaultSettings.is_master || false)
+  const [voiceList, setVoiceList] = useState<{ [key: string]: string }>(voice_menu || {})
 
   const handlePlayPause = () => {
     if (audioElement) {
@@ -61,20 +70,36 @@ export function VoiceSettingsPanel({
 
   useEffect(() => {
     setupVoice(voice_url || "")
-
   }, [voice_url])
 
+  useEffect(() => {
+    let url = `/api/v2/voice/get_voice_meta?vendor=${vendor}`
+    instance.get(url)
+      .then((res: any) => {
+        if (Array.isArray(res)) {
+          const mapped: { [key: string]: string } = {}
+          res.forEach((item: any) => {
+            mapped[item.voice] = `${item.voice_name} (${item.desc})`
+          })
+          setVoiceList(mapped)
+          // If current selection is not in list, maybe keep it or select first?
+          // For now, keep it to avoid unwanted jumps unless it's a first load.
+        }
+      })
+      .catch(err => console.error("Failed to fetch voice meta:", err))
+  }, [vendor])
+
   const setupVoice = (remote_video_url: string) => {
-    if(remote_video_url == null || remote_video_url == '' )
+    if (remote_video_url == null || remote_video_url == '')
       return
 
     const audio = new Audio(remote_video_url)
-      
+
     // Add event listeners
     audio.addEventListener('ended', () => {
       setIsPlaying(false)
     })
-    
+
     audio.addEventListener('loadedmetadata', () => {
       // Get duration in seconds when audio loads
       const durationInSeconds = Math.round(audio.duration)
@@ -91,6 +116,12 @@ export function VoiceSettingsPanel({
   }
 
   const handleSave = () => {
+    onSave({
+      ...defaultSettings,
+      voice_name: selectedVoice,
+      vendor: vendor,
+      is_master: isMaster
+    })
     onOpenChange(false)
   }
 
@@ -120,19 +151,33 @@ export function VoiceSettingsPanel({
 
         <div className="grid gap-6 py-4">
           <div className="grid gap-2">
+            <label className="text-sm font-medium">供应商</label>
+            <Select
+              value={vendor}
+              onValueChange={(value) => setVendor(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="选择供应商" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="azure">Azure</SelectItem>
+                <SelectItem value="qwen">Qwen</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
             <label className="text-sm font-medium">配音声音</label>
             <Select
-              defaultValue={defaultSettings.voice_name}
-              onValueChange={(value) => {
-                defaultSettings.voice_name = value
-              }}
+              value={selectedVoice}
+              onValueChange={(value) => setSelectedVoice(value)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="选择配音声音" />
               </SelectTrigger>
               <SelectContent>
                 {
-                  voice_menu && Object.entries(voice_menu).map(([key, value]) => (
+                  voiceList && Object.entries(voiceList).map(([key, value]) => (
                     <SelectItem key={key} value={key}>
                       {value}
                     </SelectItem>
@@ -141,6 +186,22 @@ export function VoiceSettingsPanel({
               </SelectContent>
             </Select>
           </div>
+
+          {narration === 1 && (
+            <div className="flex items-center space-x-2 py-2">
+              <Checkbox
+                id="is-master"
+                checked={isMaster}
+                onCheckedChange={(checked) => setIsMaster(!!checked)}
+              />
+              <label
+                htmlFor="is-master"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                主播音员
+              </label>
+            </div>
+          )}
 
           {/* Voice Preview Section */}
           <div className="grid gap-2 p-4 bg-gray-50 rounded-lg">
@@ -160,13 +221,13 @@ export function VoiceSettingsPanel({
                   )}
                 </button>
                 <div className="text-sm text-gray-500">
-                  {isPlaying ? `${Math.floor(duration/60)}:${String(duration % 60).padStart(2, '0')}` : "0:00"} / {`${Math.floor(duration/60)}:${String(duration % 60).padStart(2, '0')}`}
+                  {isPlaying ? `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}` : "0:00"} / {`${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`}
                 </div>
               </div>
               <div className="flex-grow mx-4">
                 <div className="h-1 bg-gray-200 rounded-full">
-                  <div 
-                    className="h-full bg-purple-600 rounded-full" 
+                  <div
+                    className="h-full bg-purple-600 rounded-full"
                     style={{ width: isPlaying ? '100%' : '0%', transition: 'width 7s linear' }}
                   />
                 </div>
@@ -201,14 +262,14 @@ export function VoiceSettingsPanel({
             </p>
           </div> */}
           <div className="flex flex-row items-center gap-2">
-            <Button 
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white" 
+            <Button
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
               onClick={handleSave}
             >
               保存
             </Button>
-            <Button 
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white" 
+            <Button
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
               disabled={isGenerating}
               onClick={handleGenerate}
             >

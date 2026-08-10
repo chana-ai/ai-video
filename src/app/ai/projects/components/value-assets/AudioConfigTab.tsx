@@ -3,6 +3,7 @@
 import React from 'react'
 import { Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,6 +18,8 @@ interface AudioConfigTabProps {
     onAudioPreview: () => void
     onSaveVoiceConfig: () => void
     onVoiceConfigChange: (config: VoiceConfig) => void
+    projectDetail: any
+    onVendorChange: (vendor: string) => void
 }
 
 export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
@@ -26,16 +29,18 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
     audioPreviewUrl,
     onAudioPreview,
     onSaveVoiceConfig,
-    onVoiceConfigChange
+    onVoiceConfigChange,
+    projectDetail,
+    onVendorChange
 }) => {
     const voiceConfig = selectedAsset.voiceConfig || {
         voice: '',
         voice_name: '',
         desc: '',
         gender: 'female',
-        ttsEngine: 'qwen',
         emotion: 'neutral',
-        extraDesc: ''
+        vendor: 'azure',
+        is_master: false
     }
 
     const updateConfig = (updates: Partial<VoiceConfig>) => {
@@ -45,6 +50,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
     console.log(`[Audio] Generating: ${isGeneratingAudio}, Voice: ${JSON.stringify(voiceConfig)}`)
     return (
         <div className="space-y-4">
+
             {/* Gender Selection */}
             <div>
                 <Label className="text-sm font-medium mb-2 block">性别</Label>
@@ -64,6 +70,27 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                 </RadioGroup>
             </div>
 
+            {/* Vendor Selection */}
+            <div>
+                <Label className="text-sm font-medium mb-2 block">供应商</Label>
+                <Select
+                    value={voiceConfig.vendor || 'azure'}
+                    onValueChange={(value) => {
+                        updateConfig({ vendor: value });
+                        onVendorChange(value);
+                    }}
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="选择供应商" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="azure">Azure</SelectItem>
+                        <SelectItem value="qwen">Qwen</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
+
             {/* Voice Model Selection */}
             <div>
                 <Label className="text-sm font-medium mb-2 block">语音模型</Label>
@@ -75,7 +102,6 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                             updateConfig({
                                 voice: model.voice,
                                 voice_name: model.voice_name,
-                                desc: model.desc,
                                 gender: model.gender
                             });
                         }
@@ -118,36 +144,40 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                 </Select>
             </div>
 
-            {/* Extra Description */}
+            {/* Additional Description */}
             <div>
                 <Label className="text-sm font-medium mb-2 block">补充描述 (可选)</Label>
                 <Textarea
-                    value={voiceConfig.extraDesc || ''}
-                    onChange={(e) => updateConfig({ extraDesc: e.target.value })}
+                    value={voiceConfig.desc || ''}
+                    onChange={(e) => updateConfig({ desc: e.target.value })}
                     placeholder="输入补充描述..."
                     className="w-full min-h-[80px] resize-none"
                     maxLength={200}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                    {(voiceConfig.extraDesc || '').length}/200 字符
+                    {(voiceConfig.desc || '').length}/200 字符
                 </div>
             </div>
 
-            {/* TTS Engine - Hidden as per requirement */}
-            <div className="hidden">
-                <Label className="text-sm font-medium mb-2 block">TTS引擎</Label>
-                <Select
-                    value={voiceConfig.ttsEngine}
-                    onValueChange={(value) => updateConfig({ ttsEngine: value })}
-                >
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="选择TTS引擎" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="qwen">qwen</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            {/* Master Anchor Selection */
+                console.log(projectDetail)
+            }
+            {projectDetail?.narration === true && (
+                <div className="flex items-center space-x-2 py-2">
+                    <Checkbox
+                        id="is-master-asset"
+                        checked={voiceConfig.is_master || false}
+                        onCheckedChange={(checked) => updateConfig({ is_master: !!checked })}
+                    />
+                    <Label
+                        htmlFor="is-master-asset"
+                        className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                        是否主播音声音
+                    </Label>
+                </div>
+            )}
+
 
 
             <div className="border-t pt-4 mt-6">

@@ -124,10 +124,7 @@ export default function ScenePage() {
       })
       .catch((err) => console.error('Failed to load project detail:', err))
 
-    // instance.post("/api/v2/voice/list_voices", { project_id: projectId, stage_id: stageId })
-    //   .then((res: any) => setVoiceMenu(res?.data || {}))
 
-    // checkCombiningTaskStatus()
   }, [projectId, stageId])
 
   useEffect(() => {
@@ -203,26 +200,6 @@ export default function ScenePage() {
           description: detail.description ?? node.description,
           config: detail.config ?? node.config,
 
-          video_setting: detail.config?.video_settings ? {
-            model: detail.config.video_settings.model,
-            camera: detail.config.video_settings.camera,
-            duration: String(detail.config.video_settings.duration),
-            motion: String(detail.config.video_settings.motion),
-          } : node.video_setting,
-
-          voice_setting: detail.config?.voice_settings ? {
-            voice_name: detail.config.voice_settings.voice,
-            background: detail.config.voice_settings.background || '',
-            voice_pitch: detail.config.voice_settings.voice_pitch || 1.0,
-            voice_speed: detail.config.voice_settings.speech_rate || 1.0,
-            voice_volume: detail.config.voice_settings.voice_volume || 1.0,
-          } : node.voice_setting,
-
-          dialog: detail.config?.dialogue ? {
-            character: detail.config.dialogue.asset_name,
-            content: detail.config.dialogue.content
-          } as any : node.dialog,
-
           video_url: detail.resource?.video_url ?? node.video_url,
           voice_url: detail.resource?.voice_url ?? node.voice_url,
           image_url: detail.resource?.storyboard_image_url ?? node.image_url,
@@ -263,7 +240,7 @@ export default function ScenePage() {
 
   const handleUpdate = async (type: "scene" | "storyboard", item: any, key: string, value: any) => {
     // 1. Update backend if it's a persistent key
-    const persistentKeys = ["title", "description", "video_prompt", "video_setting", "character_ids", "scene_image_id", "resource_id"]
+    const persistentKeys = ["title", "description", "video_setting", "character_ids", "scene_image_id", "resource_id"]
     if (persistentKeys.includes(key)) {
       const endpoint = '/api/v2/scene/update'
       const data: any = { id: item.id, project_id: projectId, stage_id: stageId }
@@ -275,22 +252,53 @@ export default function ScenePage() {
     }
 
     // 2. Update local state
-    if (type === "scene") {
-      const updatedScene = { ...item, [key]: value }
-      setScenes(prev => prev.map(s => s.id === item.id ? updatedScene : s))
-      // if (selected?.type === "scene" && selected.data.id === item.id) {
-      //   setSelected({ type: "scene", data: updatedScene })
-      // }
-    } else {
-      if (key == "image_prompt") {
-        key = "prompt"
+    const updateNode = (node: any) => {
+      if (key === "video_setting") {
+        return {
+          ...node,
+          config: {
+            ...node.config,
+            video_settings: {
+              ...node.config?.video_settings,
+              ...value
+            }
+          }
+        }
       }
-      const updatedStoryboard = { ...item, [key]: value }
-      setScenes(prev => prev.map(s => s.id === item.id ? updatedStoryboard : s))
-      if (selected?.type === "storyboard" && selected.data.id === item.id) {
-        setSelected({ type: "storyboard", data: updatedStoryboard })
+      if (key === "voice_setting") {
+        return {
+          ...node,
+          config: {
+            ...node.config,
+            voice_settings: {
+              ...node.config?.voice_settings,
+              ...value
+            }
+          }
+        }
       }
+      if (key === "dialogue") {
+        return {
+          ...node,
+          config: {
+            ...node.config,
+            dialogue: value
+          }
+        }
+      }
+      if (key === "image_prompt") {
+        return { ...node, prompt: value }
+      }
+      return { ...node, [key]: value }
     }
+
+    setScenes(prev => prev.map(s => s.id === item.id ? updateNode(s) : s))
+
+    // Update selection if it matches
+    setSelected(prev => {
+      if (!prev || prev.data.id !== item.id) return prev
+      return { ...prev, data: updateNode(prev.data) }
+    })
   }
 
   // ─── Action Handlers ────────────────────────────────────────────────────────
@@ -396,26 +404,6 @@ export default function ScenePage() {
           description: detail.description,
           config: detail.config,
 
-          video_setting: detail.config?.video_settings ? {
-            model: detail.config.video_settings.model,
-            camera: detail.config.video_settings.camera,
-            duration: String(detail.config.video_settings.duration),
-            motion: String(detail.config.video_settings.motion),
-          } : { model: "", camera: "frame", duration: "", motion: "" },
-
-          voice_setting: detail.config?.voice_settings ? {
-            voice_name: detail.config.voice_settings.voice,
-            background: detail.config.voice_settings.background || '',
-            voice_pitch: detail.config.voice_settings.voice_pitch || 1.0,
-            voice_speed: detail.config.voice_settings.speech_rate || 1.0,
-            voice_volume: detail.config.voice_settings.voice_volume || 1.0,
-          } : undefined,
-
-          dialog: detail.config?.dialogue ? {
-            character: detail.config.dialogue.asset_name,
-            content: detail.config.dialogue.content
-          } as any : undefined,
-
           video_url: detail.resource?.video_url,
           voice_url: detail.resource?.voice_url,
           image_url: detail.resource?.storyboard_image_url,
@@ -479,7 +467,7 @@ export default function ScenePage() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-800">Scenes</h2>
               <div className="flex gap-2 items-center">
-                <Mic className="h-4 w-4 text-gray-400 cursor-pointer" onClick={() => setIsVoiceSettingsOpen(true)} />
+                {/* <Mic className="h-4 w-4 text-gray-400 cursor-pointer" onClick={() => setIsVoiceSettingsOpen(true)} /> */}
                 <Button size="sm" variant="outline" className="bg-green-600 text-white hover:bg-green-700 hover:text-white" onClick={() => setShowExportUrlPanel(true)}>Export</Button>
                 <Button size="sm" variant="outline" onClick={handleCombineVideo} disabled={isCombiningTaskRunning}>
                   {isCombiningTaskRunning ? "Merging..." : "Merge"}
@@ -551,11 +539,14 @@ export default function ScenePage() {
                 onUpdate={(key, val) => handleUpdate("scene", selected.data, key, val)}
               />
             ) : selected?.type === "storyboard" ? (
-              <StoryboardSettings
-                storyboard={selected.data}
-                projectDetail={projectDetail}
-                onUpdate={(key, val) => handleUpdate("storyboard", selected.data, key, val)}
-              />
+              <>
+                {console.log('selected.data', selected.data)}
+                <StoryboardSettings
+                  storyboard={selected.data}
+                  projectDetail={projectDetail}
+                  onUpdate={(key, val) => handleUpdate("storyboard", selected.data, key, val)}
+                />
+              </>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
                 <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse" />
@@ -564,7 +555,7 @@ export default function ScenePage() {
             )}
           </div>
 
-          {/* Global voice settings panel */}
+          {/* Global voice settings panel
           {isVoiceSettingsOpen && projectId && stageId && (
             <VoiceSettingsPanel
               open={isVoiceSettingsOpen}
@@ -575,18 +566,23 @@ export default function ScenePage() {
               stage_id={stageId}
               subtitle={subtitle}
               voice_url={projectDetail?.voice_url ?? undefined}
+              narration={projectDetail?.narration}
               onGenerate={(voice_path: string) => {
                 setProjectDetail(prev => prev ? { ...prev, voice_url: voice_path } : prev)
               }}
-              onSave={(settings: VoiceSettings) => {
-                instance.post('/api/v2/voice/update_voice_config', {
-                  project_id: projectId, stage_id: stageId, voice_name: settings.voice_name,
-                }).then(() => {
-                  setProjectDetail(prev => prev ? { ...prev, config: { ...prev.config, voice_setting: settings } } : prev)
-                })
-              }}
+            // onSave={(settings: VoiceSettings) => {
+            //   instance.post('/api/v2/voice/update_voice_config', {
+            //     project_id: projectId,
+            //     stage_id: stageId,
+            //     voice_name: settings.voice_name,
+            //     vendor: settings.vendor,
+            //     is_master: settings.is_master
+            //   }).then(() => {
+            //     setProjectDetail(prev => prev ? { ...prev, config: { ...prev.config, voice_setting: settings } } : prev)
+            //   })
+            // }}
             />
-          )}
+          )} */}
 
           {showExportUrlPanel && projectId && stageId && (
             <ExportUrlPanel open={showExportUrlPanel} project_id={projectId} stage_id={stageId} onClose={() => setShowExportUrlPanel(false)} />

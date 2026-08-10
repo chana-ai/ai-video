@@ -85,18 +85,10 @@ export interface Scene {
   video_prompt?: string
   video_prompt_cn?: string
 
-  video_setting?: VideoSettings
-  voice_setting?: VoiceSettings
   voice_url?: string
   image_url?: string
   image_urls?: string[]
   video_url?: string
-
-  /** Speech/dialog content.
-   *  - narration=1 or 2 → plain string
-   *  - narration=3     → array of DialogLine
-   */
-  dialog?: string | DialogLine[]
 
   /** Associated assets */
   character_ids?: number[]
@@ -144,6 +136,8 @@ export interface VoiceSettings {
   voice_pitch: number
   voice_speed: number
   voice_volume: number
+  is_master?: boolean
+  vendor?: string
 }
 
 export interface ProjectVoiceConfig {
@@ -242,7 +236,8 @@ export interface VoiceSettingsPanelProps {
   scene_id?: string
   subtitle?: string
   voice_url?: string
-  onSave: (settings: VoiceSettings) => void
+  narration?: number
+  // onSave: (settings: VoiceSettings) => void
   onGenerate: (voice_path: string) => void
 }
 

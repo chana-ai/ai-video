@@ -15,8 +15,8 @@ const DURATION_OPTIONS = [
   { value: "32", label: "32 seconds" }
 ]
 const MODEL_SELECTIONS = [
-  {value: "lightricks/ltx-video", label: "Lightricks/ltx-video"},
-  {value: "hailuo", label: "hailuo"}
+  { value: "lightricks/ltx-video", label: "Lightricks/ltx-video" },
+  { value: "hailuo", label: "hailuo" }
 ]
 const MOTION_OPTIONS = [
   { value: "1", label: "Speed 1" },
@@ -60,14 +60,14 @@ const CameraControlButtons = memo(({ currentCamera, onCameraChange }: {
 CameraControlButtons.displayName = 'CameraControlButtons'
 
 // Create a memoized select component to prevent unnecessary re-renders
-const SettingsSelect = memo(({ 
-  value, 
-  onChange, 
-  options 
-}: { 
-  value: string, 
-  onChange: (value: string) => void, 
-  options: { value: string, label: string }[] 
+const SettingsSelect = memo(({
+  value,
+  onChange,
+  options
+}: {
+  value: string,
+  onChange: (value: string) => void,
+  options: { value: string, label: string }[]
 }) => {
   const handleSelect: SelectProps['onChange'] = (newValue) => {
     if (typeof newValue === 'string') {
@@ -110,7 +110,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
   )
 
   // console.log(`current video ${currentSettings.camera}  and settings ${settings?.camera}` )
-  
+
   // Memoize handlers to prevent recreating on each render
   const handleCameraChange = useCallback((value: CameraMovement) => {
     setCurrentSettings(prev => ({ ...prev, camera: value }))
@@ -125,7 +125,7 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
   }, [])
 
   const handleModelChange = useCallback((value: string) => {
-    setCurrentSettings(prev => ({...prev, model: value }))
+    setCurrentSettings(prev => ({ ...prev, model: value }))
   }, [])
 
   const handleSave = useCallback(() => {
@@ -134,29 +134,27 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
   }, [currentSettings, onSave, onOpenChange])
 
   return (
-    <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 transition-opacity ${
-      open ? 'opacity-100' : 'opacity-0 pointer-events-none'
-    }`}>
-      <div className={`transform transition-transform duration-200 ${
-        open ? 'scale-100' : 'scale-95'
+    <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 transition-opacity ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}>
-        <RightPanel 
-          open={open} 
+      <div className={`transform transition-transform duration-200 ${open ? 'scale-100' : 'scale-95'
+        }`}>
+        <RightPanel
+          open={open}
           onClose={() => onOpenChange(false)}
           title="Video Settings"
           className="top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-white rounded-lg shadow-xl"
-          // className="overflow-y-auto bg-white rounded-lg shadow-xl"
+        // className="overflow-y-auto bg-white rounded-lg shadow-xl"
         >
-          <div className="p-6 space-y-6"> 
-              <div className="space-y-2">
-            
-                <label className="text-sm font-medium">Model</label>
-                <SettingsSelect
-                  value={currentSettings?.model}
-                  onChange={handleModelChange}
-                  options={MODEL_SELECTIONS}
-                />
-              </div>
+          <div className="p-6 space-y-6">
+            <div className="space-y-2">
+
+              <label className="text-sm font-medium">Model</label>
+              <SettingsSelect
+                value={currentSettings?.model}
+                onChange={handleModelChange}
+                options={MODEL_SELECTIONS}
+              />
+            </div>
 
             {/* Camera Controls */}
             <div className="space-y-2">
@@ -189,8 +187,8 @@ export function VideoSettingsPanel({ open, onOpenChange, settings, onSave }: Vid
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => onOpenChange(false)}
               >
                 Cancel

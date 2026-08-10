@@ -45,20 +45,40 @@ function narrationLabel(narration: number | undefined): string {
 }
 
 /** Parse storyboard.dialog into either a plain string or DialogLine[] */
-function parseDialog(dialog: string | DialogLine[] | undefined, narration: number): { isDialogue: boolean; plain: string; lines: DialogLine[] } {
+function parseDialog(dialog: any, narration: number): { isDialogue: boolean; plain: string; lines: DialogLine[] } {
+
+  console.log('dialog', dialog, " narration ", narration)
+
   if (narration === 3) {
-    if (Array.isArray(dialog)) return { isDialogue: true, plain: '', lines: dialog }
+    if (Array.isArray(dialog)) {
+      const lines = dialog.map(l => ({
+        character: l.asset_name || l.asset_nae || l.character || '',
+        content: l.content || ''
+      }))
+      return { isDialogue: true, plain: lines.map(l => l.content).join('\n'), lines }
+    }
     if (typeof dialog === 'string') {
       try {
         const parsed = JSON.parse(dialog)
-        if (Array.isArray(parsed)) return { isDialogue: true, plain: '', lines: parsed }
+        if (Array.isArray(parsed)) {
+          const lines = parsed.map((l: any) => ({
+            character: l.asset_name || l.asset_nae || l.character || '',
+            content: l.content || ''
+          }))
+          return { isDialogue: true, plain: lines.map(l => l.content).join('\n'), lines }
+        }
       } catch { /* ignore */ }
-      return { isDialogue: true, plain: '', lines: [{ character: '', content: dialog }] }
+      return { isDialogue: true, plain: dialog, lines: [{ character: '', content: dialog }] }
     }
     return { isDialogue: true, plain: '', lines: [] }
   }
+
+  // Narration mode
   if (typeof dialog === 'string') return { isDialogue: false, plain: dialog, lines: [] }
-  if (Array.isArray(dialog)) return { isDialogue: false, plain: dialog.map(l => l.content).join('\n'), lines: [] }
+  if (Array.isArray(dialog)) return { isDialogue: false, plain: dialog.map((l: any) => l.content).join('\n'), lines: [] }
+  if (dialog && typeof dialog === 'object' && dialog.content !== undefined) {
+    return { isDialogue: false, plain: dialog.content, lines: [] }
+  }
   return { isDialogue: false, plain: '', lines: [] }
 }
 
@@ -95,18 +115,18 @@ export function StoryboardSettings({
   const [speechPlain, setSpeechPlain] = useState('')
   const [speechLines, setSpeechLines] = useState<DialogLine[]>([])
   const [voiceSpeed, setVoiceSpeed] = useState(
-    String(projectDetail?.config?.voice_setting?.voice_speed ?? '1.0')
+    String(storyboard?.config?.voice_settings?.speech_rate ?? projectDetail?.config?.voice_setting?.voice_speed ?? '1.0')
   )
-  const [voiceEmotion, setVoiceEmotion] = useState('neutral')
+  const [voiceEmotion, setVoiceEmotion] = useState(storyboard?.config?.voice_settings?.emotion || 'neutral')
+  const [emotions, setEmotions] = useState<{ en: string, zh: string }[]>([])
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
-  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
   const imageUploadRef = useRef<HTMLInputElement>(null)
   const refCharsDialogRef = useRef<HTMLDivElement>(null)
 
-  const narration = projectDetail?.narration ?? 1
+  const narration = storyboard?.config?.narration ?? projectDetail?.narration ?? 1
   const speechTypeLabel = narrationLabel(narration)
   const isDialogue = narration === 3
 
@@ -116,19 +136,19 @@ export function StoryboardSettings({
     if (promptRef.current) promptRef.current.value = storyboard?.prompt || ''
     setVideoPrompt(storyboard?.video_prompt || '')
     setIsVideoPromptChanged(false)
-    setAudioPreviewUrl(null)
 
-    const parsed = parseDialog(storyboard?.dialog, narration)
+    const parsed = parseDialog(storyboard?.config?.dialogue, narration)
     setSpeechPlain(parsed.plain)
     setSpeechLines(parsed.lines)
+    // Sync voiceSpeed from projectDetail or storyboard
+    // const speed = storyboard?.config?.voice_settings?.speech_rate ?? projectDetail?.config?.voice_setting?.voice_speed
+    // if (speed != null) {
+    //   setVoiceSpeed(String(speed))
+    // }
+
+    console.log('storyboard', storyboard)
   }, [storyboard, narration])
 
-  // Sync voiceSpeed from projectDetail
-  useEffect(() => {
-    if (projectDetail?.config?.voice_setting?.voice_speed != null) {
-      setVoiceSpeed(String(projectDetail.config.voice_setting.voice_speed))
-    }
-  }, [projectDetail])
 
   // Fetch characters
   useEffect(() => {
@@ -147,6 +167,19 @@ export function StoryboardSettings({
       })
       .catch((err) => console.error("Failed to fetch characters:", err))
   }, [storyboard?.project_id, storyboard?.stage_id])
+
+  // Fetch emotions
+  useEffect(() => {
+    instance.get('/api/v2/voice/get_emotion_list')
+      .then((res: any) => {
+        const fetchedEmotions = res || []
+        setEmotions(fetchedEmotions)
+        if (fetchedEmotions.length > 0) {
+          setVoiceEmotion(fetchedEmotions[0].en)
+        }
+      })
+      .catch((err) => console.error("Failed to fetch emotions:", err))
+  }, [])
 
   // Close ref-chars popover on outside click
   useEffect(() => {
@@ -198,7 +231,7 @@ export function StoryboardSettings({
     try {
       await instance.post("/api/v2/scene/createClip", {
         scene_id: storyboard.id, project_id: storyboard.project_id, stage_id: storyboard.stage_id,
-        regenerate_prompt, video_prompt: videoPrompt, video_model: videoModel,
+        video_prompt: videoPrompt
       })
       if (isVideoPromptChanged) { onUpdate("video_prompt", videoPrompt); setIsVideoPromptChanged(false) }
       setIsGeneratingVideo(false)
@@ -212,7 +245,10 @@ export function StoryboardSettings({
   const handleSavePrompt = () => {
     if (!isVideoPromptChanged) return
     instance.post('/api/v2/scene/savePrompts', {
-      scene_id: storyboard?.id, stage_id: storyboard?.stage_id, project_id: storyboard?.project_id, video_prompt: videoPrompt
+      scene_id: storyboard?.id,
+      stage_id: storyboard?.stage_id,
+      project_id: storyboard?.project_id,
+      video_prompt: videoPrompt
     }).then(() => { onUpdate("video_prompt", videoPrompt); setIsVideoPromptChanged(false) })
       .catch((error: any) => { setClipErrorMessage(error.response?.data?.message); setIsVideoPromptChanged(false) })
   }
@@ -232,21 +268,28 @@ export function StoryboardSettings({
 
   const handleGenerateAudio = async () => {
     if (!storyboard?.id) return
-    setIsGeneratingAudio(true); setAudioPreviewUrl(null)
+    setIsGeneratingAudio(true)
     const script = isDialogue
       ? speechLines.map(l => `${l.character}: ${l.content}`).join('\n')
       : speechPlain
+    if (!script) return
     try {
-      const res: any = await instance.post('/api/v2/voice/generate_speech', {
-        scene_id: storyboard.id, project_id: storyboard?.project_id, stage_id: storyboard?.stage_id,
+      const res: any = await instance.post('/api/v2/voice/generate_voice', {
+        project_id: storyboard?.project_id,
+        stage_id: storyboard?.stage_id,
+        scene_id: storyboard.id,
+        doc_id: storyboard?.doc_id,
         speech_type: speechTypeLabel.toLowerCase(),
-        script,
+        text: script,
         speed: voiceSpeed,
-        emotion: voiceEmotion,
-        voice_name: projectDetail?.config?.voice_setting?.voice_name,
+        emotion: voiceEmotion
       })
-      if (res.audio_url) setAudioPreviewUrl(res.audio_url)
-      else alert('生成音频失败，未获取到音频链接')
+      if (res.voice_path) {
+        onUpdate("voice_url", res.voice_path)
+        onUpdate("voice_setting", { speech_rate: voiceSpeed, emotion: voiceEmotion })
+        const dialogueVal = isDialogue ? speechLines : { content: speechPlain }
+        onUpdate("dialogue", dialogueVal)
+      }
     } catch (err: any) {
       alert(`生成音频失败: ${err.message || '未知错误'}`)
     } finally {
@@ -263,259 +306,237 @@ export function StoryboardSettings({
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="h-[calc(100vh-8rem)] max-w-[1400px] mx-auto relative">
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={55} minSize={30}>
-          <div className="h-full bg-gray-50 p-4 rounded-lg space-y-4 overflow-y-auto no-scrollbar">
-            {/* ── Context & Info ── */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between px-1">
-                <div className="text-sm font-bold text-gray-800 tracking-tight">{storyboard?.title}</div>
+    <div className="h-[calc(100vh-8rem)] max-w-[1500px] mx-auto relative border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex flex-col">
+      {/* Absolute floating Character dialog container */}
+      {isRefCharsOpen && (
+        <div ref={refCharsDialogRef} className="absolute right-[40%] top-20 z-[200] w-64 bg-white border border-gray-100 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-right-2 duration-200">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Select Reference Characters</p>
+          <div className="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar">
+            <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
+              <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${pendingCharIds.has('NONE') ? 'bg-purple-600 border-purple-600' : 'border-gray-200'}`} onClick={() => togglePendingChar('NONE')}>
+                {pendingCharIds.has('NONE') && <Check className="w-2.5 h-2.5 text-white" />}
               </div>
-              <div className="px-2">
-                <div className="text-sm text-gray-500 leading-relaxed min-h-[40px]">
-                  {storyboard?.description || <span className="text-gray-300 italic">No story context description available.</span>}
+              <span className="text-xs font-medium text-gray-500">No Character Reference</span>
+            </label>
+            {characters.map((char) => (
+              <label key={char.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
+                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${pendingCharIds.has(char.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-200'}`} onClick={() => togglePendingChar(char.id)}>
+                  {pendingCharIds.has(char.id) && <Check className="w-2.5 h-2.5 text-white" />}
                 </div>
-              </div>
-            </section>
-
-            {/* ── Visual Ref (Image & Controls) ── */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Visual Reference</h3>
-              {storyboard?.image_url ? (
-                <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border-2 border-gray-100 shadow-inner mb-4">
-                  <img
-                    src={storyboard.image_url}
-                    alt="Storyboard preview"
-                    className="w-full h-full object-cover transition-all duration-500 hover:scale-[5.0] cursor-zoom-in"
-                    onClick={() => setZoomImageUrl(storyboard.image_url || null)}
-                  />
-                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/preview:opacity-100 transition-opacity pointer-events-none" />
-                </div>
-              ) : (
-                <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border-2 border-gray-100 shadow-inner mb-4">
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-                    <ImageIcon className="h-8 w-8 text-gray-200" />
-                    <span className="text-[11px] font-bold text-gray-300 uppercase tracking-widest">No Storyboard Image Yet</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="relative" ref={refCharsDialogRef}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 px-5 flex items-center gap-2 text-sm font-bold rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 shadow-sm transition-all"
-                      onClick={handleOpenRefChars}
-                    >
-                      <Users className="h-4 w-4" />
-                      Characters
-                      {selectedCharIds.size > 0 && !selectedCharIds.has('NONE') && (
-                        <span className="ml-1 bg-purple-600 text-white rounded-full text-[10px] w-4.5 h-4.5 flex items-center justify-center">
-                          {selectedCharIds.size}
-                        </span>
-                      )}
-                    </Button>
-                    {isRefCharsOpen && (
-                      <div className="absolute left-0 bottom-full mb-2 z-[200] w-64 bg-white border border-gray-100 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Select Reference Characters</p>
-                        <div className="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar">
-                          <label className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
-                            <div
-                              className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${pendingCharIds.has('NONE') ? 'bg-purple-600 border-purple-600' : 'border-gray-200'}`}
-                              onClick={() => togglePendingChar('NONE')}
-                            >
-                              {pendingCharIds.has('NONE') && <Check className="w-2.5 h-2.5 text-white" />}
-                            </div>
-                            <span className="text-xs font-medium text-gray-500">No Character Reference</span>
-                          </label>
-                          {characters.map((char) => (
-                            <label key={char.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-2 transition-colors">
-                              <div
-                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${pendingCharIds.has(char.id) ? 'bg-purple-600 border-purple-600' : 'border-gray-200'}`}
-                                onClick={() => togglePendingChar(char.id)}
-                              >
-                                {pendingCharIds.has(char.id) && <Check className="w-2.5 h-2.5 text-white" />}
-                              </div>
-                              <span className="text-xs font-semibold text-gray-700 truncate">{char.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                        <Button size="sm" className="w-full mt-4 h-10 text-sm bg-purple-600 hover:bg-purple-700 rounded-xl font-bold shadow-sm" onClick={handleConfirmRefChars}>
-                          Confirm Characters
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 px-5 flex items-center gap-2 text-sm font-bold rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50 shadow-sm transition-all"
-                    onClick={() => imageUploadRef.current?.click()}
-                  >
-                    <Upload className="h-4 w-4" />Upload
-                  </Button>
-                </div>
-              </div>
-              <input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-            </section>
-
-            {/* ── Image Prompt ── */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
-              <div className="space-y-2 relative group">
-                <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <ImageIcon className="h-3.5 w-3.5" /> Image Generation Prompt
-                </Label>
-                <div className="relative">
-                  <PromptChatbox
-                    initialValue={storyboard?.prompt || ''}
-                    assets={characters}
-                    history={storyboard?.image_prompt_history}
-                    onGenerate={handleGenerateImage}
-                    isGenerating={isGeneratingImage}
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* ── Audio Settings ── */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 shadow-sm">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                <Mic className="h-4 w-4" /> Audio & Speech Settings
-              </h3>
-              <div>
-                <Label className="text-xs text-gray-500 mb-1 block">Script <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100">{speechTypeLabel}</span></Label>
-                {!isDialogue ? (
-                  <Textarea value={speechPlain} className="min-h-[100px] resize-none text-sm" onChange={(e) => setSpeechPlain(e.target.value)} />
-                ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {speechLines.map((line, idx) => (
-                      <div key={idx} className="flex gap-2 items-start bg-gray-50 rounded-md p-2 border text-xs">
-                        <input value={line.character} className="w-24 font-semibold text-purple-700 bg-purple-50 border p-1 rounded" onChange={(e) => {
-                          const updated = [...speechLines]; updated[idx] = { ...updated[idx], character: e.target.value }; setSpeechLines(updated)
-                        }} />
-                        <Textarea value={line.content} className="flex-1 min-h-[48px] resize-none" onChange={(e) => {
-                          const updated = [...speechLines]; updated[idx] = { ...updated[idx], content: e.target.value }; setSpeechLines(updated)
-                        }} />
-                        <button className="text-gray-300 hover:text-red-400" onClick={() => setSpeechLines(speechLines.filter((_, i) => i !== idx))}>✕</button>
-                      </div>
-                    ))}
-                    <Button variant="outline" size="sm" className="w-full text-xs h-7 border-dashed" onClick={() => setSpeechLines([...speechLines, { character: '', content: '' }])}>+ Add line</Button>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <Label className="text-xs text-gray-500 mb-1 block">Speed</Label>
-                  <Select value={voiceSpeed} onValueChange={setVoiceSpeed}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0.75">0.75×</SelectItem>
-                      <SelectItem value="1.0">1.0×</SelectItem>
-                      <SelectItem value="1.25">1.25×</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <Label className="text-xs text-gray-500 mb-1 block">Emotion</Label>
-                  <Select value={voiceEmotion} onValueChange={setVoiceEmotion}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="neutral">Neutral</SelectItem>
-                      <SelectItem value="happy">Happy</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 text-xs gap-2" onClick={handleGenerateAudio} disabled={isGeneratingAudio}>
-                {isGeneratingAudio ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic className="h-3.5 w-3.5" />} Generate Speech
-              </Button>
-              {audioPreviewUrl && (
-                <div className="flex items-center gap-3 bg-indigo-50 rounded-md px-3 py-2">
-                  <button onClick={toggleAudioPlay} className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center">
-                    {isPlayingAudio ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
-                  </button>
-                  <audio ref={audioRef} src={audioPreviewUrl} onEnded={() => setIsPlayingAudio(false)} className="hidden" />
-                </div>
-              )}
-            </section>
+                <span className="text-xs font-semibold text-gray-700 truncate">{char.name}</span>
+              </label>
+            ))}
           </div>
-        </Panel>
+          <Button size="sm" className="w-full mt-4 h-9 text-xs bg-purple-600 hover:bg-purple-700 rounded-lg font-bold shadow-sm" onClick={handleConfirmRefChars}>
+            Confirm Characters
+          </Button>
+        </div>
+      )}
+      <input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
 
-        <PanelResizeHandle className="w-2 bg-gray-200 hover:bg-gray-300" />
+      <PanelGroup direction="horizontal" className="flex-1 h-full">
+        <Panel defaultSize={65} minSize={40}>
+          <div className="h-full space-y-4 overflow-y-auto no-scrollbar pb-6 px-6 pt-6 relative">
 
-        <Panel defaultSize={45} minSize={20}>
-          <div className="h-full p-6 space-y-6 overflow-y-auto no-scrollbar">
-            {/* ── Video Prompt Controls ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+            {/* Visual Base / Result Monitor */}
+            <div className="bg-black/95 rounded-2xl border border-gray-200 p-1 shadow-xl overflow-hidden relative">
+              {storyboard?.video_url && !isGeneratingVideo ? (
+                <VideoDisplayPanel scene={storyboard as any} isGeneratingVideo={isGeneratingVideo} />
+              ) : (
+                <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center m-0">
+                  {storyboard?.image_url ? (
+                    <img src={storyboard.image_url} alt="Storyboard base" className="w-full h-full object-contain transition-all duration-700 hover:scale-[1.02] cursor-zoom-in" onClick={() => setZoomImageUrl(storyboard.image_url || null)} />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-gray-600 gap-3">
+                      <ImageIcon className="w-12 h-12 opacity-80 mix-blend-screen" />
+                      <p className="text-xs font-semibold tracking-widest uppercase opacity-70">No Image Reference</p>
+                    </div>
+                  )}
+                  {isGeneratingImage && <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 text-white z-10"><Loader2 className="w-8 h-8 animate-spin text-purple-400" /><span className="text-xs font-bold tracking-widest uppercase">Rendering Visuals...</span></div>}
+                  {isGeneratingVideo && <div className="absolute inset-0 bg-indigo-950/80 backdrop-blur-lg flex flex-col items-center justify-center gap-4 text-white z-10"><Loader2 className="w-10 h-10 animate-spin text-purple-300" /><span className="text-xs font-black tracking-widest uppercase">Synthesizing Sequence...</span></div>}
+                </div>
+              )}
+            </div>
+
+            {/* AI Video Cinematography Prompt */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3 mx-1">
+              <div className="flex items-center justify-between pl-1">
+                <Label className="text-[12px] font-black text-gray-800 uppercase tracking-widest flex gap-2 items-center"><Play className="w-4 h-4 text-purple-500 fill-current" /> Director's Script</Label>
+                <div className="flex items-center gap-2">
                   <Select value={videoModel} onValueChange={(v: string) => setVideoModel(v as VideoModel)}>
-                    <SelectTrigger className="w-32 h-10 rounded-xl border-gray-100 bg-gray-50/50 focus:ring-purple-200">
+                    <SelectTrigger className="w-36 h-9 text-xs font-bold rounded-xl bg-gray-50 border-gray-100 focus:ring-purple-200">
                       <SelectValue placeholder="Model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="MINMAX" className="text-xs font-semibold">MINMAX-3.0</SelectItem>
-                      <SelectItem value="WAN" className="text-xs font-semibold">WAN-2.1-PRO</SelectItem>
+                      <SelectItem value="MINMAX" className="text-xs font-bold">MINMAX-3.0</SelectItem>
+                      <SelectItem value="WAN" className="text-xs font-bold">WAN-2.1-PRO</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button
-                    disabled={isLoading}
-                    variant="outline"
-                    className="h-10 text-sm font-bold border-purple-200 text-purple-600 hover:bg-purple-50 rounded-xl px-5 transition-all"
-                    onClick={handleGenerateVideoPrompt}
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : 'Optimize Video Prompt'}
+                  <Button disabled={isLoading} variant="outline" size="sm" className="h-9 text-xs font-bold rounded-xl text-purple-600 border-purple-200 hover:bg-purple-50 px-4" onClick={handleGenerateVideoPrompt}>
+                    {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Generate Video Prompt'}
                   </Button>
                 </div>
               </div>
-
-              <div className="relative group">
-                <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 block">Direct Script / Prompt</Label>
-                <Textarea
-                  value={videoPrompt}
-                  className="min-h-[220px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-all p-5 rounded-2xl focus-visible:ring-1 focus-visible:ring-gray-100 leading-relaxed font-mono"
-                  onChange={(e) => { setVideoPrompt(e.target.value); setIsVideoPromptChanged(true) }}
-                  placeholder="Describe movement, cinematography, and effects..."
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-10 text-sm font-bold border-gray-200 rounded-xl px-6 hover:bg-gray-50 transition-all font-sans"
-                  disabled={!isVideoPromptChanged}
-                  onClick={handleSavePrompt}
-                >
-                  Save Changes
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-10 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl px-8 shadow-lg shadow-purple-100 transition-all disabled:opacity-50 font-sans"
-                  disabled={isGeneratingVideo || !storyboard?.image_url || !videoPrompt}
-                  onClick={() => handleGenerateVideo()}
-                >
-                  {isGeneratingVideo ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <Play className="h-5 w-5 mr-3 fill-current" />}
-                  Generate Movie Clip
-                </Button>
+              <Textarea
+                value={videoPrompt}
+                className="min-h-[160px] text-[13px] bg-gray-50/50 border-none resize-none focus:bg-white transition-colors p-5 rounded-xl focus-visible:ring-1 focus-visible:ring-purple-200 leading-relaxed font-mono shadow-inner"
+                onChange={(e) => { setVideoPrompt(e.target.value); setIsVideoPromptChanged(true) }}
+                placeholder="Describe precise camera movements, cinematic effects, and atmosphere..."
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button size="sm" variant="outline" className="text-xs h-9 px-6 font-bold rounded-xl border-gray-200 hover:bg-gray-50" disabled={!isVideoPromptChanged} onClick={handleSavePrompt}>Save</Button>
               </div>
             </div>
 
-            {/* ── Visual Result ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Generated Sequence</h3>
-              <VideoDisplayPanel scene={storyboard as any} isGeneratingVideo={isGeneratingVideo} />
+          </div>
+        </Panel>
+
+        <PanelResizeHandle className="w-[1px] bg-gray-200 shadow-sm" />
+
+        <Panel defaultSize={35} minSize={25}>
+          <div className="h-full bg-white flex flex-col border-l border-white/50">
+            <div className="flex-1 overflow-y-auto max-h-full no-scrollbar relative">
+
+              {/* Settings Header */}
+              <div className="p-6 pb-4 bg-gradient-to-b from-gray-50/80 to-white sticky top-0 z-10 backdrop-blur-md border-b border-gray-50/50">
+                <h2 className="text-sm font-black text-gray-900 tracking-tight leading-tight">{storyboard?.title}</h2>
+                <p className="text-[11px] text-gray-500 line-clamp-2 mt-1.5 font-medium">{storyboard?.description || 'No scene description.'}</p>
+              </div>
+
+              <div className="p-6 pt-2 space-y-8">
+                {/* Inspector Section 1: Visual Base Settings */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                      <ImageIcon className="w-3.5 h-3.5" /> Image Subject
+                    </h3>
+                    {storyboard?.image_url && <span className="text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><Check className="w-3 h-3" /> Ready</span>}
+                  </div>
+
+                  {/* Image Control Toolbar */}
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="h-[34px] text-[11px] font-bold flex-1 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm" onClick={() => imageUploadRef.current?.click()}><Upload className="h-3 w-3 mr-1.5" /> Upload</Button>
+                    <Button variant="outline" size="sm" className="h-[34px] text-[11px] font-bold flex-1 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm" onClick={handleOpenRefChars}><Users className="h-3 w-3 mr-1.5" /> Choose Actors</Button>
+                  </div>
+
+                  <div className="relative group rounded-xl bg-gray-50/80 border border-gray-100 p-1">
+                    <PromptChatbox initialValue={storyboard?.prompt || ''} assets={characters} history={storyboard?.image_prompt_history} onGenerate={handleGenerateImage} isGenerating={isGeneratingImage} />
+                  </div>
+                </div>
+
+                <div className="h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent" />
+
+                {/* Inspector Section 2: Audio Settings */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                      <Mic className="w-3.5 h-3.5" /> Audio Track
+                    </h3>
+                    {storyboard?.voice_url && <span className="text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><Check className="w-3 h-3" /> Ready</span>}
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col relative focus-within:ring-1 focus-within:ring-purple-200 transition-all">
+                    <div className="flex justify-between items-center bg-gray-50/80 border-b border-gray-100 px-3 py-2">
+                      <span className="text-[9px] font-black text-gray-400 tracking-widest uppercase">{speechTypeLabel} SCRIPT</span>
+                    </div>
+                    {!isDialogue ? (
+                      <Textarea value={speechPlain} className="min-h-[100px] border-0 text-[12px] resize-none focus-visible:ring-0 rounded-none shadow-none" placeholder="Enter narration script to voiceover..." onChange={(e) => setSpeechPlain(e.target.value)} />
+                    ) : (
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto no-scrollbar p-2 bg-gray-50/30">
+                        {speechLines.map((line, idx) => (
+                          <div key={idx} className="flex gap-1.5 items-start bg-white rounded flex-col border border-gray-100 overflow-hidden group">
+                            <div className="flex w-full items-center border-b border-gray-50">
+                              <span className="w-5 flex items-center justify-center text-[10px] text-gray-300 font-bold bg-gray-50 h-full">{idx + 1}</span>
+                              <input value={line.character} className="w-20 font-bold text-indigo-700 bg-transparent text-[11px] p-1.5 outline-none placeholder:text-gray-300 transition-colors" placeholder="Actor" onChange={(e) => {
+                                const updated = [...speechLines]; updated[idx] = { ...updated[idx], character: e.target.value }; setSpeechLines(updated)
+                              }} />
+                              <div className="flex-1 flex justify-end px-1"><button className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setSpeechLines(speechLines.filter((_, i) => i !== idx))}>✕</button></div>
+                            </div>
+                            <Textarea value={line.content} className="flex-1 w-full min-h-[30px] p-2 resize-none bg-transparent text-[12px] border-none focus-visible:ring-0 shadow-none leading-relaxed" placeholder="Type dialogue line..." onChange={(e) => {
+                              const updated = [...speechLines]; updated[idx] = { ...updated[idx], content: e.target.value }; setSpeechLines(updated)
+                            }} />
+                          </div>
+                        ))}
+                        <Button variant="ghost" size="sm" className="w-full text-[10px] h-7 font-bold text-gray-400 hover:text-gray-600 mt-2" onClick={() => setSpeechLines([...speechLines, { character: '', content: '' }])}>+ ADD DAILOGUE LINE</Button>
+                      </div>
+                    )}
+
+                    <div className="flex bg-gray-50 border-t border-gray-100 p-2 gap-2 mt-auto justify-between items-center">
+                      <div className="flex gap-2">
+                        <Select value={voiceSpeed} onValueChange={setVoiceSpeed}>
+                          <SelectTrigger className="w-[85px] h-7 text-[10px] bg-white border-gray-200 rounded shadow-sm font-medium focus:ring-0"><SelectValue placeholder="Speed" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0.75" className="text-[10px] font-medium">0.75x</SelectItem>
+                            <SelectItem value="1" className="text-[10px] font-medium">1.0x (Nrm)</SelectItem>
+                            <SelectItem value="1.25" className="text-[10px] font-medium">1.25x</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={voiceEmotion} onValueChange={setVoiceEmotion}>
+                          <SelectTrigger className="w-[85px] h-7 text-[10px] bg-white border-gray-200 rounded shadow-sm font-medium focus:ring-0"><SelectValue placeholder="Emotion" /></SelectTrigger>
+                          <SelectContent>
+                            {emotions.length > 0 ? (
+                              emotions.map((emo) => (
+                                <SelectItem key={emo.zh} value={emo.en} className="text-[10px] font-medium">
+                                  {emo.en}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <>
+                                <SelectItem value="neutral" className="text-[10px] font-medium">Neutral</SelectItem>
+                                <SelectItem value="happy" className="text-[10px] font-medium">Emotion</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {storyboard?.voice_url && (
+                          <button onClick={toggleAudioPlay} className="h-7 w-7 rounded bg-indigo-600 shadow-sm shadow-indigo-200 text-white flex items-center justify-center hover:bg-indigo-700 transition active:scale-95">
+                            {isPlayingAudio ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 ml-0.5" />}
+                          </button>
+                        )}
+                        <Button size="sm" variant="outline" className="h-7 px-3 text-[10px] bg-white font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50 shadow-sm" onClick={handleGenerateAudio} disabled={isGeneratingAudio}>
+                          {isGeneratingAudio ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mic className="h-3 w-3 mr-1" />} Sync Audio
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <audio ref={audioRef} src={storyboard?.voice_url || undefined} onEnded={() => setIsPlayingAudio(false)} className="hidden" />
+
+                </div>
+              </div>
+
+              {/* Pad bottom for floating bar */}
+              <div className="pb-32" />
             </div>
+
+            {/* Bottom Sticky Action Area */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 bg-white/80 backdrop-blur-xl border-t border-gray-100 shadow-[0_-20px_40px_-5px_rgba(0,0,0,0.05)]">
+              <div className="mb-3.5 flex gap-1.5 w-full">
+                <div className={`flex-1 h-1 rounded-full transition-colors ${storyboard?.image_url ? 'bg-purple-500' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded-full transition-colors ${storyboard?.voice_url || !(isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) ? 'bg-purple-500' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded-full transition-colors ${videoPrompt ? 'bg-purple-500' : 'bg-gray-200'}`} />
+              </div>
+              <Button
+                size="lg"
+                className="w-full h-[52px] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[15px] font-black tracking-widest rounded-xl shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
+                disabled={isGeneratingVideo || !storyboard?.image_url || !videoPrompt || ((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !storyboard?.voice_url)}
+                title={((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !storyboard?.voice_url) ? "Please Sync Audio Track first" : ""}
+                onClick={() => handleGenerateVideo()}
+              >
+                {isGeneratingVideo ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <span className="text-xl mr-2">🎬</span>}
+                GENERATE VIDEO
+              </Button>
+            </div>
+
           </div>
         </Panel>
       </PanelGroup>
 
       {/* ── Zoom Dialog ── */}
       <Dialog open={!!zoomImageUrl} onOpenChange={(open: boolean) => !open && setZoomImageUrl(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden border-none bg-transparent shadow-none flex items-center justify-center">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden border-none bg-transparent shadow-none flex items-center justify-center z-[300]">
           <div className="relative w-full h-full flex items-center justify-center p-8 shrink-0" onClick={() => setZoomImageUrl(null)}>
             <img
               src={zoomImageUrl || ''}

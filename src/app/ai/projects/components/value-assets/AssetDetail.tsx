@@ -28,6 +28,8 @@ interface AssetDetailProps {
     onVoiceConfigChange: (config: VoiceConfig) => void
     onRestoreBatch: (batch: Batch) => void
     onSetSelectedImageIds: (ids: Set<number>) => void
+    projectDetail: any
+    onVendorChange: (vendor: string) => void
     onRefresh?: () => void
     onSaveBatch?: () => void
 }
@@ -53,6 +55,8 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
     onVoiceConfigChange,
     onRestoreBatch,
     onSetSelectedImageIds,
+    projectDetail,
+    onVendorChange,
     onRefresh,
     onSaveBatch
 }) => {
@@ -119,6 +123,8 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
                             voiceModels={voiceModels}
                             isGeneratingAudio={isGeneratingAudio}
                             audioPreviewUrl={audioPreviewUrl}
+                            projectDetail={projectDetail}
+                            onVendorChange={onVendorChange}
                             onAudioPreview={onAudioPreview}
                             onSaveVoiceConfig={onSaveVoiceConfig}
                             onVoiceConfigChange={onVoiceConfigChange}
