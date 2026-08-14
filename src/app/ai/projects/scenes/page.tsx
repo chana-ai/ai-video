@@ -14,6 +14,8 @@ import { useSearchParams } from "next/navigation"
 import { VoiceSettingsPanel } from "./components/voice-settings-panel"
 import ExportUrlPanel from "./components/export_url_panel"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
+import { wsManager, type WsMessage } from "@/lib/websocket"
+import { showToast } from "@/lib/toast-helpers"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -87,6 +89,17 @@ export default function ScenePage() {
   useEffect(() => {
     if (!projectId || !stageId) return
 
+    // Connect WebSocket
+    wsManager.connect(projectId, stageId, projectDetail?.user_id)
+
+    return () => {
+      wsManager.disconnect()
+    }
+  }, [projectId, stageId])
+
+  useEffect(() => {
+    if (!projectId || !stageId) return
+
     instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`)
       .then((res: any) => {
         const flat_scenes: Scene[] = res || []
@@ -125,25 +138,114 @@ export default function ScenePage() {
       .catch((err) => console.error('Failed to load project detail:', err))
 
 
-  }, [projectId, stageId])
+  }, [projectId, stageId, projectDetail?.user_id])
 
+  // Subscribe to WebSocket events for video clip and combination generation
   useEffect(() => {
-    if (isCombiningTaskRunning) {
-      const timer = setInterval(checkCombiningTaskStatus, 150000)
-      return () => clearInterval(timer)
-    }
-    instance.get(`/api/v2/project/get_project_combine_videos?project_id=${projectId}&stage_id=${stageId}`)
-      .then((res: any) => { if (res.videos.length > 0) setCombinedVideos(res.videos) })
-  }, [isCombiningTaskRunning])
+    if (!projectId || !stageId || !projectDetail?.user_id) return
 
-  const checkCombiningTaskStatus = async () => {
-    if (!projectId || !stageId) return
-    instance.get(`/api/v2/project/get_project_combing_clip_stats?project_id=${projectId}&stage_id=${stageId}`)
-      .then((res: any) => {
-        const running = ['PROCESSING', 'PENDING', 'INIT'].includes(res.status)
-        setIsCombiningTaskRunning(running)
-      })
-  }
+    // Subscribe to createVideoClip events
+    const unsubscribeClip = wsManager.subscribe('createVideoClipAccepted', (message: WsMessage) => {
+      console.log('createVideoClipAccepted:', message)
+      if (message.task_id && message.scene_id) {
+        // Update the specific scene with the task_id
+        setScenes(prev => prev.map(s => {
+          if (s.id === Number(message.scene_id)) {
+            return { ...s, config: { ...s.config, video_task_id: message.task_id } }
+          }
+          return s
+        }))
+      }
+    })
+
+    const unsubscribeClipComplete = wsManager.subscribe('createVideoClipComplete', async (message: WsMessage) => {
+      console.log('createVideoClipComplete:', message)
+      if (message.data && message.data.video_url) {
+        // Fetch updated scene details
+        if (!projectId || !stageId) return
+        const sceneIds = [selected?.data.id].filter(Boolean) as number[]
+
+        instance.post('/api/v2/scene/details', {
+          project_id: Number(projectId),
+          stage_id: Number(stageId),
+          scene_ids: sceneIds
+        }).then((res: any) => {
+          if (!Array.isArray(res)) return
+
+          const mergeDetail = (node: Scene): Scene => {
+            const detail = res.find((d: any) => d.scene_id === node.id)
+            if (!detail) return node
+
+            return {
+              ...node,
+              video_url: detail.resource?.video_url ?? node.video_url,
+              image_url: detail.resource?.storyboard_image_url ?? node.image_url,
+            }
+          }
+
+          setScenes(prev => prev.map(s => {
+            if (sceneIds.includes(s.id)) {
+              return mergeDetail(s)
+            }
+            return s
+          }))
+
+          // Update selection if it matches
+          setSelected(prev => {
+            if (!prev) return prev
+            if (sceneIds.includes(prev.data.id)) {
+              return { ...prev, data: mergeDetail(prev.data) }
+            }
+            return prev
+          })
+        }).catch(err => console.error('Failed to fetch scene details after clip completion:', err))
+      }
+    })
+
+    // Subscribe to createVideoCombination events
+    const unsubscribeCombinationAccepted = wsManager.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
+      console.log('createVideoCombinationAccepted:', message)
+      if (message.task_id) {
+        setIsCombiningTaskRunning(true)
+      }
+    })
+
+    const unsubscribeCombinationComplete = wsManager.subscribe('createVideoCombinationComplete', async (message: WsMessage) => {
+      console.log('createVideoCombinationComplete:', message)
+      if (message.result_url) {
+        // Fetch updated project combine videos
+        if (!projectId || !stageId) return
+        instance.get(`/api/v2/project/get_project_combine_videos?project_id=${projectId}&stage_id=${stageId}`)
+          .then((res: any) => { if (res.videos.length > 0) setCombinedVideos(res.videos) })
+          .catch((err) => console.error('Failed to fetch combine videos:', err))
+      }
+    })
+
+    // Subscribe to error events
+    const unsubscribeClipError = wsManager.subscribe('createVideoClipError', (message: WsMessage) => {
+      console.error('createVideoClipError:', message)
+      const errorMsg = message.message || '视频生成失败，请稍后重试'
+      showToast(errorMsg, 'error')
+      setIsGeneratingVideo(false)
+    })
+
+    const unsubscribeCombinationError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
+      console.error('createVideoCombinationError:', message)
+      const errorMsg = message.message || '视频合并失败，请稍后重试'
+      showToast(errorMsg, 'error')
+      setIsCombiningTaskRunning(false)
+      setCombineErrorMessage(errorMsg)
+    })
+
+    return () => {
+      unsubscribeClip()
+      unsubscribeClipComplete()
+      unsubscribeCombinationAccepted()
+      unsubscribeCombinationComplete()
+      unsubscribeClipError()
+      unsubscribeCombinationError()
+    }
+  }, [projectId, stageId, projectDetail?.user_id, selected?.data.id])
 
   // ─── Scroll ─────────────────────────────────────────────────────────────────
 
@@ -240,7 +342,7 @@ export default function ScenePage() {
 
   const handleUpdate = async (type: "scene" | "storyboard", item: any, key: string, value: any) => {
     // 1. Update backend if it's a persistent key
-    const persistentKeys = ["title", "description", "video_setting", "character_ids", "scene_image_id", "resource_id"]
+    const persistentKeys = ["title", "description", "video_setting", "character_ids", "scene_image_id", "resource_id", "video_url"]
     if (persistentKeys.includes(key)) {
       const endpoint = '/api/v2/scene/update'
       const data: any = { id: item.id, project_id: projectId, stage_id: stageId }
@@ -289,6 +391,12 @@ export default function ScenePage() {
       if (key === "image_prompt") {
         return { ...node, prompt: value }
       }
+      if (key === "video_url") {
+        return {
+          ...node,
+          video_url: value
+        }
+      }
       return { ...node, [key]: value }
     }
 
@@ -304,14 +412,13 @@ export default function ScenePage() {
   // ─── Action Handlers ────────────────────────────────────────────────────────
 
   const handleCombineVideo = async () => {
-    const allReady = scenes.every((s) => s.video_url != null)
-    if (!allReady) { alert("请确保所有clip都已经生成"); return }
-    instance.post('/api/v2/project/combine_project_scene_clips', { project_id: projectId, stage_id: stageId })
-      .then(() => setIsCombiningTaskRunning(true))
-      .catch((error) => {
-        setIsCombiningTaskRunning(false)
-        setCombineErrorMessage(error.code === "ERR_NETWORK" ? "网络连接临时错误" : error.response?.data?.message)
-      })
+    try {
+      await wsManager.sendCreateVideoCombination(Number(projectId), Number(stageId))
+      setIsCombiningTaskRunning(true)
+    } catch (error: any) {
+      setIsCombiningTaskRunning(false)
+      setCombineErrorMessage(error.message || '视频合并失败')
+    }
   }
 
   const handleSceneAdd = async (scene: Scene) => {
@@ -554,35 +661,6 @@ export default function ScenePage() {
               </div>
             )}
           </div>
-
-          {/* Global voice settings panel
-          {isVoiceSettingsOpen && projectId && stageId && (
-            <VoiceSettingsPanel
-              open={isVoiceSettingsOpen}
-              onOpenChange={setIsVoiceSettingsOpen}
-              settings={projectDetail?.config?.voice_setting as VoiceSettings | undefined}
-              voice_menu={voiceMenu}
-              project_id={projectId}
-              stage_id={stageId}
-              subtitle={subtitle}
-              voice_url={projectDetail?.voice_url ?? undefined}
-              narration={projectDetail?.narration}
-              onGenerate={(voice_path: string) => {
-                setProjectDetail(prev => prev ? { ...prev, voice_url: voice_path } : prev)
-              }}
-            // onSave={(settings: VoiceSettings) => {
-            //   instance.post('/api/v2/voice/update_voice_config', {
-            //     project_id: projectId,
-            //     stage_id: stageId,
-            //     voice_name: settings.voice_name,
-            //     vendor: settings.vendor,
-            //     is_master: settings.is_master
-            //   }).then(() => {
-            //     setProjectDetail(prev => prev ? { ...prev, config: { ...prev.config, voice_setting: settings } } : prev)
-            //   })
-            // }}
-            />
-          )} */}
 
           {showExportUrlPanel && projectId && stageId && (
             <ExportUrlPanel open={showExportUrlPanel} project_id={projectId} stage_id={stageId} onClose={() => setShowExportUrlPanel(false)} />

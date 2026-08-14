@@ -74,7 +74,6 @@ export interface Scene {
    * Null for top-level scenes.
    */
   parent_id: number | null
-
   del: boolean
   create_time: string
   update_time: string
@@ -98,7 +97,9 @@ export interface Scene {
   resource_id?: number
 
   /** Config returned from /api/v2/scene/detail */
-  config?: Record<string, any>
+  config?: Record<string, any> & {
+    video_task_id?: string
+  }
 
   /** Extra arbitrary data returned from /api/v2/scene/details */
   extra_data?: Record<string, any>
@@ -251,4 +252,46 @@ export interface Task {
   task_id: number
   status: string
   video_url: string
+}
+
+
+
+export interface StoryDetail {
+  scene_id: number
+  doc_id?: string
+  description?: string
+  config?: {
+    assets?: any[]
+    voice_settings?: {
+      voice?: string
+      speech_rate?: number
+      mode?: string
+      emotion?: string
+      vendor?: string
+      background?: string | null
+      gender?: string
+    }
+    image_settings?: Record<string, any>
+    video_settings?: {
+      duration?: number
+      motion?: number
+      camera?: string
+      model?: string
+    }
+    dialogue?: any
+    narration?: number | null
+  }
+  resource?: {
+    scene_image_urls?: Record<string, any>
+    storyboard_image_url?: string
+    voice_url?: string
+    video_url?: string
+    subtitle_url?: string
+  }
+  image_prompt?: string
+  video_prompt?: string
+  image_prompt_history?: any[]
+  video_prompt_history?: any[]
+  extra_data?: Record<string, any>
+  version?: string | null
 }

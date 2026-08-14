@@ -7,25 +7,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { X } from 'lucide-react'
-import { ProjectFormData, themeMap, styleMap } from '@/app/ai/projects/types'
+import { type Theme } from '@/app/ai/projects/types'
 import instance from '@/lib/axios'
 
 export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter()
-  const [formData, setFormData] = useState<ProjectFormData>({
-    name: '',
-    aspect: '16:9',
-    theme: 'advertise',
-    style: 'cinimation',
-    audiences: 'KIDS',
-    narration: true,
-    purpose: ''
-  })
-
+  const [projectName, setProjectName] = useState("")
+  const [projectPurpose, setProjectPurpose] = useState("")
+  const [selectedTheme, setSelectedTheme] = useState<string>("")
+  const [selectedStyle, setSelectedStyle] = useState("cinematic")
+  const [selectedAudiences, setSelectedAudiences] = useState("KIDS")
+  const [isNarration, setIsNarration] = useState(true)
+  const [selectedAspect, setSelectedAspect] = useState("16:9")
   const [errorMessage, setErrorMessage] = useState("");
   const [backgroundInfo, setBackgroundInfo] = useState("");
+  const [themes, setThemes] = useState<Theme[]>([])
+  const [isLoadingThemes, setIsLoadingThemes] = useState(false)
+
   const aspectRatios = [
     { id: '1:1', label: '1:1', style: 'w-12 h-12' },
     { id: '1:2', label: '1:2', style: 'w-10 h-[80px]' },
@@ -35,25 +34,57 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     { id: '9:16', label: '9:16', style: 'w-9 h-16' },
   ]
 
+  useEffect(() => {
+    setIsLoadingThemes(true)
+    instance.get('/api/v2/project/themes')
+      .then((res: any) => {
+        const fetchedThemes = res || []
+        setThemes(fetchedThemes)
+        // Set initial background info from first theme
+        if (fetchedThemes.length > 0) {
+          const defaultTheme = fetchedThemes[0]
+          if (defaultTheme) {
+            setBackgroundInfo(defaultTheme.description)
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch themes:', err)
+        // Fallback to default
+        setBackgroundInfo("请补充额外的一些信息，比如产品简洁，最重要的功能和卖点，产品使用场景，解决的痛点等")
+      })
+      .finally(() => {
+        setIsLoadingThemes(false)
+      })
+  }, [])
+
+
   const handleSubmit = () => {
-    console.log(' formData: ' + JSON.stringify(formData))
-    if (!formData.name || !formData.purpose) {
+    console.log(' request body: ', { name: projectName, purpose: projectPurpose, theme: selectedTheme, style: selectedStyle, audiences: selectedAudiences, narration: isNarration, aspect: selectedAspect })
+
+    if (!projectName || !projectPurpose) {
       setErrorMessage("Name and purpose must not be empty.");
       return;
     }
-    instance.post('/api/v2/project/create', formData).then(res => {
-      console.log('res: ' + JSON.stringify(res))  // {project_id， stage_id}
+
+    const requestBody = {
+      name: projectName,
+      purpose: projectPurpose,
+      theme: selectedTheme,
+      style: selectedStyle,
+      audiences: selectedAudiences,
+      narration: isNarration,
+      aspect: selectedAspect
+    }
+
+    instance.post('/api/v2/project/create', requestBody).then(res => {
+      console.log('res: ', res)  // {project_id， stage_id}
 
       router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
     }).catch(error => {
       setErrorMessage(error.message)
     })
-    //router.push(`/ai/projects/script-configuration?projectId=1`)
   }
-
-  useEffect(() => {
-    setBackgroundInfo(themeMap['advertise'].description)
-  }, [])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,9 +92,6 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
         <DialogHeader>
           <div className="flex justify-between items-center">
             <DialogTitle className="text-2xl">Create Project</DialogTitle>
-            {/* <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button> */}
           </div>
         </DialogHeader>
 
@@ -71,8 +99,8 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
           <div>
             <label className="text-sm font-medium mb-2 block">名字</label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
             />
           </div>
 
@@ -81,18 +109,22 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             <div>
               <label className="text-sm font-medium mb-2 block">Theme</label>
               <Select
-                value={formData.theme}
+                value={selectedTheme}
                 onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, theme: value }))
-                  setBackgroundInfo(themeMap[value as keyof typeof themeMap].description)
+                  setSelectedTheme(value)
+                  const selectedThemeObj = themes.find((t: Theme) => t.value === value)
+                  if (selectedThemeObj) {
+                    setBackgroundInfo(selectedThemeObj.description)
+                  }
                 }}
+                disabled={isLoadingThemes}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="广告" />
+                  <SelectValue placeholder={isLoadingThemes ? "Loading..." : "广告"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(themeMap).map(([key, value]) => (
-                    <SelectItem key={key} value={key}>{value.name}</SelectItem>
+                  {themes.map((theme: Theme) => (
+                    <SelectItem key={theme.value} value={theme.value}>{theme.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -101,8 +133,8 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             <div>
               <label className="text-sm font-medium mb-2 block">风格</label>
               <Select
-                value={formData.style}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}
+                value={selectedStyle}
+                onValueChange={(value) => setSelectedStyle(value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="disney pixar" />
@@ -118,10 +150,27 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             </div>
 
             <div>
+              <label className="text-sm font-medium mb-2 block">画面比例</label>
+              <Select
+                value={selectedAspect}
+                onValueChange={(value) => setSelectedAspect(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="16:9" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aspectRatios.map((ratio) => (
+                    <SelectItem key={ratio.id} value={ratio.id}>{ratio.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <label className="text-sm font-medium mb-2 block">针对人群</label>
               <Select
-                value={formData.audiences}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, audiences: value }))}
+                value={selectedAudiences}
+                onValueChange={(value) => setSelectedAudiences(value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="儿童" />
@@ -138,8 +187,8 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             <div>
               <label className="text-sm font-medium mb-2 block">Narration</label>
               <Select
-                value={formData.narration ? 'true' : 'false'}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, narration: value === 'true' }))}
+                value={isNarration ? 'true' : 'false'}
+                onValueChange={(value) => setIsNarration(value === 'true')}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="True" />
@@ -157,11 +206,11 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
             <Textarea
               placeholder={backgroundInfo}
               className="h-24"
-              value={formData.purpose}
+              value={projectPurpose}
               onChange={(e) => {
                 const text = e.target.value;
                 if (text.length <= 70) {
-                  setFormData(prev => ({ ...prev, purpose: text }));
+                  setProjectPurpose(text);
                 }
               }}
               maxLength={100}
@@ -181,5 +230,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
       </DialogContent>
     </Dialog>
   )
+
+
 }
 
