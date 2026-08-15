@@ -23,6 +23,7 @@ interface AssetDetailProps {
     onGenerateImages: (options?: any) => void
     onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
     onAudioPreview: () => void
+    onVoiceClone: () => void
     onRowSelect: (index: number | null) => void
     onSaveVoiceConfig: () => void
     onVoiceConfigChange: (config: VoiceConfig) => void
@@ -50,6 +51,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
     onGenerateImages,
     onImageUpload,
     onAudioPreview,
+    onVoiceClone,
     onRowSelect,
     onSaveVoiceConfig,
     onVoiceConfigChange,
@@ -126,6 +128,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
                             projectDetail={projectDetail}
                             onVendorChange={onVendorChange}
                             onAudioPreview={onAudioPreview}
+                            onVoiceClone={onVoiceClone}
                             onSaveVoiceConfig={onSaveVoiceConfig}
                             onVoiceConfigChange={onVoiceConfigChange}
                         />

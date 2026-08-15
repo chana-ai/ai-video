@@ -7,10 +7,13 @@ import { User, Package } from 'lucide-react'
 import Header from "../../header"
 import { instance } from '@/lib/axios'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Asset, ImageInfo, ResourceAsset, VoiceConfig, AssetType, SelectedAsset, Batch } from './types'
+import { Asset, ResourceAsset, VoiceConfig, AssetType, SelectedAsset, Batch, ImageInfo } from './types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AssetList } from '../components/value-assets/AssetList'
 import { AssetDetail } from '../components/value-assets/AssetDetail'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ValueAssets() {
     const searchParams = useSearchParams()
@@ -37,6 +40,7 @@ export default function ValueAssets() {
     const [projectDetail, setProjectDetail] = useState<any>(null)
     const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set())
 
+
     // Save history to localStorage (can be used as a local cache/fallback)
     useEffect(() => {
         if (!selectedAsset) return;
@@ -54,6 +58,9 @@ export default function ValueAssets() {
         instance.get(`/api/v2/project/detail?project_id=${projectId}`)
             .then((res: any) => {
                 setProjectDetail(res);
+                if (res && res.config) {
+                    setCurrentVendor(res.config.vendor || 'azure');
+                }
             })
             .catch(err => {
                 console.error("Failed to fetch project detail:", err);
@@ -90,6 +97,7 @@ export default function ValueAssets() {
             });
     }, [currentVendor]);
 
+
     const selectAsset = async (type: AssetType, asset: Asset | ResourceAsset, forceRefresh: boolean = false) => {
         const scenario = type === 'character' ? 'CHARACTER' : 'RESOURCE';
         const referenceId = asset.id;
@@ -125,7 +133,17 @@ export default function ValueAssets() {
                 description: char.description || '',
                 prompt: char.prompt || '',
                 images: char.images || [],
-                voiceConfig: config.voice_setting || {}
+                voiceConfig: {
+                    voice: '',
+                    voice_name: '',
+                    desc: '',
+                    gender: 'female',
+                    emotion: 'neutral',
+                    vendor: 'azure',
+                    is_master: false,
+                    mode: 'tts',
+                    ...config.voice_setting
+                }
             });
             setAudioPreviewUrl(config.voice_path);
         } else {
@@ -223,13 +241,32 @@ export default function ValueAssets() {
 
     const handleSaveVoiceConfig = async () => {
         if (!selectedAsset || !selectedAsset.voiceConfig) return;
+
         try {
-            await instance.post('/api/v2/asset/update_voice_config', {
+            // 根据 mode 设置 voice_name
+            let finalVoiceName = selectedAsset.voiceConfig.voice || '';
+            if (selectedAsset.voiceConfig.mode === 'cloning') {
+                // Cloning 模式，如果已有 voice_name 则使用，否则为空
+                finalVoiceName = selectedAsset.voiceConfig.voice_name || '克隆声音';
+            }
+
+            // 准备请求数据
+            const requestConfig = {
                 asset_id: selectedAsset.id,
                 project_id: Number(projectId),
                 stage_id: Number(stageId),
-                ...selectedAsset.voiceConfig
-            });
+                voice: selectedAsset.voiceConfig.voice,
+                voice_name: finalVoiceName,
+                vendor: selectedAsset.voiceConfig.vendor,
+                gender: selectedAsset.voiceConfig.gender,
+                emotion: selectedAsset.voiceConfig.emotion,
+                desc: selectedAsset.voiceConfig.desc,
+                is_master: selectedAsset.voiceConfig.is_master,
+                mode: selectedAsset.voiceConfig.mode,
+                voice_url: selectedAsset.voiceConfig.voice_url,
+            };
+
+            await instance.post('/api/v2/asset/update_voice_config', requestConfig);
 
         } catch (err: any) {
             console.error('Failed to update voice config:', err);
@@ -398,6 +435,7 @@ export default function ValueAssets() {
             alert('Please save your changes before proceeding.');
             return;
         }
+
         router.push(`/ai/projects/scenes?project_id=${projectId}&&stage_id=${stageId}`);
     };
 
@@ -431,6 +469,7 @@ export default function ValueAssets() {
         // });
     };
 
+
     const handleAudioPreview = async () => {
         if (!selectedAsset || !selectedAsset.voiceConfig?.voice) {
             alert('请先选择TTS引擎和语音模型');
@@ -441,7 +480,6 @@ export default function ValueAssets() {
         setAudioPreviewUrl('');
 
         try {
-            // TODO: Replace with actual API endpoint
             const response = await instance.post('/api/v2/voice/preview', {
                 asset_id: selectedAsset.id,
                 model: selectedAsset.voiceConfig.voice,
@@ -454,8 +492,20 @@ export default function ValueAssets() {
                 desc: selectedAsset.voiceConfig.desc,
             });
 
+            // response 格式: { voice_path: oss_utils.get_oss_url(oss_voice_url), voice_oss_path: oss_voice_url, resource_id: resource.id }
             if (response.voice_path) {
                 setAudioPreviewUrl(response.voice_path);
+                // 更新 voiceConfig
+                handleVoiceConfigChange({
+                    ...selectedAsset.voiceConfig,
+                    voice_path: response.voice_path,
+                    voice: selectedAsset.voiceConfig.voice,
+                    voice_url: response.voice_oss_path,
+                    gender: selectedAsset.voiceConfig.gender,
+                    emotion: selectedAsset.voiceConfig.emotion,
+                    desc: selectedAsset.voiceConfig.desc,
+                    mode: 'tts'
+                });
             } else {
                 alert('生成音频失败，未获取到音频链接');
             }
@@ -467,70 +517,122 @@ export default function ValueAssets() {
         }
     };
 
-    return (
-        <>
-            <Header title="Value Assets" />
-            <div className="min-h-screen bg-gray-50 p-6">
-                <div className="max-w-[1600px] mx-auto">
-                    <h1 className="text-3xl font-bold mb-6">角色与资源设置</h1>
+    const handleVoiceClone = async () => {
+        if (!selectedAsset || !selectedAsset.voiceConfig?.voice) {
+            alert('请先录制声音');
+            return;
+        }
 
-                    <div className="flex gap-6">
-                        <AssetList
-                            characters={characters}
-                            resourceAssets={resourceAssets}
+        setIsGeneratingAudio(true);
+        setAudioPreviewUrl('');
+
+        try {
+            // 获取录制的音频文件并转换为 Base64
+            const audioFile = selectedAsset.voiceConfig.voice as Blob;
+            if (!audioFile) {
+                alert('请先录制声音');
+                setIsGeneratingAudio(false);
+                return;
+            }
+
+            // 将 Blob 转换为 Base64
+            const arrayBuffer = await audioFile.arrayBuffer();
+            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const base64Data = `data:audio/wav;base64,${base64Audio}`;
+
+            const response = await instance.post('/api/v2/voice/clone', {
+                audio_file: base64Data,
+                project_id: projectId || '',
+                stage_id: stageId || '',
+                asset_id: selectedAsset.id.toString(),
+                vendor: 'qwen',
+                emotion: selectedAsset.voiceConfig.emotion || 'neutral'
+            });
+
+            // response 格式: VoiceCloneResponse(voice_path, voice_oss_path, voice_name, voice)
+            if (response.voice_path) {
+                setAudioPreviewUrl(response.voice_path);
+                // 更新 voiceConfig 以包含克隆的音频
+                handleVoiceConfigChange({
+                    ...selectedAsset.voiceConfig,
+                    voice_url: response.voice_oss_path,
+                    voice_name: response.voice_name,
+                    mode: 'clone'
+                });
+            } else {
+                alert('声音克隆失败，未获取到音频链接');
+            }
+        } catch (err: any) {
+            console.error('Failed to clone voice:', err);
+            alert(`声音克隆失败: ${err.message || '未知错误'}`);
+        } finally {
+            setIsGeneratingAudio(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 p-6">
+            <div className="max-w-[1600px] mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                    <Header title="Value Assets" />
+                </div>
+                <h1 className="text-3xl font-bold mb-6">角色与资源设置</h1>
+
+                <div className="flex gap-6">
+                    <AssetList
+                        characters={characters}
+                        resourceAssets={resourceAssets}
+                        selectedAsset={selectedAsset}
+                        onSelectAsset={selectAsset}
+                        onAddResource={() => setIsResourceDialogOpen(true)}
+                    />
+
+                    <div className="flex-1 flex flex-col min-h-0">
+                        <AssetDetail
                             selectedAsset={selectedAsset}
-                            onSelectAsset={selectAsset}
-                            onAddResource={() => setIsResourceDialogOpen(true)}
+                            voiceModels={voiceModels}
+                            isGenerating={isGenerating}
+                            isGeneratingAudio={isGeneratingAudio}
+                            audioPreviewUrl={audioPreviewUrl}
+                            selectedRowIndex={selectedRowIndex}
+                            errors={errors}
+                            uploadingImage={uploadingImage}
+                            history={history}
+                            currentBatch={currentBatch}
+                            selectedImageIds={selectedImageIds}
+                            projectDetail={projectDetail}
+                            onVendorChange={setCurrentVendor}
+                            onPromptChange={handlePromptChange}
+                            onGenerateImages={handleGenerate}
+                            onImageUpload={handleImageUpload}
+                            onAudioPreview={handleAudioPreview}
+                            onRowSelect={setSelectedRowIndex}
+                            onSaveVoiceConfig={handleSaveVoiceConfig}
+                            onVoiceConfigChange={handleVoiceConfigChange}
+                            onSetSelectedImageIds={setSelectedImageIds}
+                            onSaveBatch={handleSaveBatch}
+                            onVoiceClone={handleVoiceClone}
+                            onRefresh={() => {
+                                if (selectedAsset) {
+                                    selectAsset(selectedAsset.type, selectedAsset as any, true);
+                                }
+                            }}
+                            onRestoreBatch={(batch) => {
+                                setCurrentBatch(batch);
+                                setSelectedImageIds(new Set()); // Reset selection when restoring
+                            }}
                         />
 
-                        <div className="flex-1 flex flex-col min-h-0">
-                            <AssetDetail
-                                selectedAsset={selectedAsset}
-                                voiceModels={voiceModels}
-                                isGenerating={isGenerating}
-                                isGeneratingAudio={isGeneratingAudio}
-                                audioPreviewUrl={audioPreviewUrl}
-                                selectedRowIndex={selectedRowIndex}
-                                errors={errors}
-                                uploadingImage={uploadingImage}
-                                history={history}
-                                currentBatch={currentBatch}
-                                selectedImageIds={selectedImageIds}
-                                projectDetail={projectDetail}
-                                onVendorChange={setCurrentVendor}
-                                onPromptChange={handlePromptChange}
-                                onGenerateImages={handleGenerate}
-                                onImageUpload={handleImageUpload}
-                                onAudioPreview={handleAudioPreview}
-                                onRowSelect={setSelectedRowIndex}
-                                onSaveVoiceConfig={handleSaveVoiceConfig}
-                                onVoiceConfigChange={handleVoiceConfigChange}
-                                onSetSelectedImageIds={setSelectedImageIds}
-                                onSaveBatch={handleSaveBatch}
-                                onRefresh={() => {
-                                    if (selectedAsset) {
-                                        selectAsset(selectedAsset.type, selectedAsset as any, true);
-                                    }
-                                }}
-                                onRestoreBatch={(batch) => {
-                                    setCurrentBatch(batch);
-                                    setSelectedImageIds(new Set()); // Reset selection when restoring
-                                }}
-                            />
-
-                            <div className="mt-6 flex justify-end">
-                                <Button
-                                    className="bg-blue-600 hover:bg-blue-700 px-8 py-2 text-lg h-auto"
-                                    onClick={handleNextClick}
-                                >
-                                    下一步
-                                </Button>
-                            </div>
+                        <div className="mt-6 flex justify-end">
+                            <Button
+                                className="bg-blue-600 hover:bg-blue-700 px-8 py-2 text-lg h-auto"
+                                onClick={handleNextClick}
+                            >
+                                下一步
+                            </Button>
                         </div>
                     </div>
                 </div>
-
-
 
                 <Dialog open={isResourceDialogOpen} onOpenChange={setIsResourceDialogOpen}>
                     <DialogContent>
@@ -570,7 +672,7 @@ export default function ValueAssets() {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </div >
-        </>
+            </div>
+        </div>
     );
 }

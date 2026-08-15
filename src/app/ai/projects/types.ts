@@ -8,6 +8,12 @@ export interface ProjectFormData {
   purpose: string;
 }
 
+export interface Theme {
+  value: string;
+  label: string;
+  description: string;
+}
+
 export interface ScriptGenerationData {
   type: 'subject' | 'script';
   content: string;
@@ -43,6 +49,10 @@ export const themeMap = {
   ip_channel: {
     name: "个人IP",
     description: "请补充额外的一些信息，比如个人IP的目标，个人IP的内容，个人IP的方式，个人IP的预期效果等"
+  },
+  digit_human: {
+    name: "数字人",
+    description: "请输入初始剧本，AI将润色并生成场景和数字人对话，上传人物图片和声音样本进行视频生成"
   },
   // other: {
   //   name: "其他",

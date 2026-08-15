@@ -27,13 +27,17 @@ export interface SelectedAsset {
 }
 
 export interface VoiceConfig {
-    voice: string;
+    voice: string | Blob;
     voice_name: string;
     desc: string;
     gender: string;
     emotion: string;
     vendor?: string;
     is_master?: boolean;
+    voice_path?: string;   //signed oss path.
+    voice_url?: string;    //oss_path.
+    mode?: string; // tts | cloning
+    is_cloned?: boolean;
 }
 
 export interface Asset {

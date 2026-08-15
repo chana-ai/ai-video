@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-//  output: "export",
+  //  output: "export",
   output: "standalone",
 
   trailingSlash: false,
@@ -27,10 +27,19 @@ const nextConfig = {
     config.cache = {
       type: 'filesystem',
     };
+    config.watchOptions = {
+      ignored: /node_modules|\.github|\.agent/,
+      // 也可以添加其他要忽略的模式
+      //aggregateTimeout: 300,
+      poll: 1000,
+    };
+
+
     return config;
   },
   reactStrictMode: false,
-  images: {   domains: ["cdn.pixabay.com"]}
+  images: { domains: ["cdn.pixabay.com"] },
+
 };
 
 export default nextConfig;

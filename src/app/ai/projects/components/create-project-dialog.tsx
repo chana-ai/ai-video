@@ -80,7 +80,12 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     instance.post('/api/v2/project/create', requestBody).then(res => {
       console.log('res: ', res)  // {project_id， stage_id}
 
-      router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
+      // Redirect based on theme
+      if (selectedTheme === 'digit_human') {
+        router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
+      } else {
+        router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
+      }
     }).catch(error => {
       setErrorMessage(error.message)
     })

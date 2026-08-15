@@ -3,14 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RefreshCw, ChevronRight, ChevronDown, User, Clapperboard, Loader2 } from 'lucide-react'
+import { RefreshCw, ChevronRight, ChevronDown, User, Clapperboard, Edit3 } from 'lucide-react'
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import type { ScriptGenerationData, ProjectMetaInfo } from '../types'
 import Header from "../../header";
 import instance from "@/lib/axios";
-import { set } from 'date-fns'
 import { themeMap, styleMap } from '../types'
 
 export default function ScriptConfiguration() {
@@ -37,6 +38,7 @@ export default function ScriptConfiguration() {
   const [allowSave, setAllowSave] = useState(false)
   const [docId, setDocId] = useState("")
 
+
   // const [savingScene, setSavingScene] = useState(false)
   // const [savingAsset, setSavingAsset] = useState(false)
   // const [savingScript, setSavingScript] = useState(false)
@@ -62,6 +64,7 @@ export default function ScriptConfiguration() {
           aspect: res.aspect || '',
           narration: res.narration || true
         })
+
       }
     }).catch(err => {
       console.error('Failed to fetch project details:', err)
@@ -144,7 +147,7 @@ export default function ScriptConfiguration() {
     })
     instance.post('/api/v2/script/generateScript', {
       generation_type: generationType,
-      content: generationType === 'subject' ? subject : script,
+      topic: generationType === 'subject' ? subject : script,
       project_id: projectId,
       stage_id: stageId
     }).then((res) => {
@@ -161,6 +164,7 @@ export default function ScriptConfiguration() {
       setIsGenerating(false)
     })
   };
+
 
   const saveAssets = async () => {
     const assetsValid = validateJSON(assets)
@@ -266,6 +270,7 @@ export default function ScriptConfiguration() {
             </div>
           </div>
 
+
           {/* Main Content */}
           <div className="flex-1 space-y-6">
             <Select
@@ -276,8 +281,8 @@ export default function ScriptConfiguration() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="subject">Generate from Subject</SelectItem>
-                {/* <SelectItem value="script">Generate from Script</SelectItem> */}
+                <SelectItem value="subject">AI生成剧本</SelectItem>
+                <SelectItem value="script">用户提供基本剧本</SelectItem>
               </SelectContent>
             </Select>
 
