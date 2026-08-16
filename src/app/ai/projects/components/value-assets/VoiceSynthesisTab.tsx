@@ -5,18 +5,26 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Loader2 } from 'lucide-react'
 import { VoiceConfig } from '../../value-assets/types'
 
 interface VoiceSynthesisTabProps {
     voiceConfig: VoiceConfig
     voiceModels: any[]
     onVoiceConfigChange: (config: VoiceConfig) => void
+    onAudioPreview: () => Promise<void>
+    isGeneratingAudio: boolean
+    audioPreviewUrl: string
 }
 
 export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
     voiceConfig,
     voiceModels,
-    onVoiceConfigChange
+    onVoiceConfigChange,
+    onAudioPreview,
+    isGeneratingAudio,
+    audioPreviewUrl
 }) => {
     const updateConfig = (updates: Partial<VoiceConfig>) => {
         onVoiceConfigChange({ ...voiceConfig, ...updates })
@@ -95,6 +103,41 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
                 />
                 <div className="text-xs text-gray-500 mt-1">
                     {(voiceConfig.desc || '').length}/200 字符
+                </div>
+            </div>
+
+            {/* 生成试听音频 */}
+            <div className="border-t pt-4 mt-4">
+                <Label className="text-sm font-medium mb-3 block">生成试听音频</Label>
+                <div className="space-y-3">
+                    <Button
+                        className="w-full bg-blue-600 hover:bg-blue-700 h-11 font-bold text-sm shadow-md transition-all active:scale-[0.98]"
+                        onClick={onAudioPreview}
+                        disabled={isGeneratingAudio || !voiceConfig.voice}
+                    >
+                        {isGeneratingAudio ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                生成中...
+                            </>
+                        ) : (
+                            '生成试听音频'
+                        )}
+                    </Button>
+
+                    {/* {audioPreviewUrl && (
+                        <div className="bg-gray-50 rounded-lg p-4 border">
+                            <p className="text-sm font-medium mb-2">试听音频：</p>
+                            <audio
+                                controls
+                                className="w-full"
+                                src={audioPreviewUrl}
+                                controlsList="nodownload"
+                            >
+                                您的浏览器不支持音频播放。
+                            </audio>
+                        </div>
+                    )} */}
                 </div>
             </div>
         </div>

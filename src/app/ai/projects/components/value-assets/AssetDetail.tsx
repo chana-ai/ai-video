@@ -12,7 +12,10 @@ interface AssetDetailProps {
     voiceModels: any[]
     isGenerating: boolean
     isGeneratingAudio: boolean
-    audioPreviewUrl: string
+    audioPreviewUrl_tts: string
+    audioPreviewUrl_clone: string
+    mode: 'tts' | 'clone'
+    onModeChange: (mode: 'tts' | 'clone') => void
     selectedRowIndex: number | null
     errors: string
     uploadingImage: boolean
@@ -22,8 +25,8 @@ interface AssetDetailProps {
     onPromptChange: (value: string) => void
     onGenerateImages: (options?: any) => void
     onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
-    onAudioPreview: () => void
-    onVoiceClone: () => void
+    onAudioPreview: () => Promise<void>
+    onVoiceClone: (audioUrl: string, text: string) => Promise<void>
     onRowSelect: (index: number | null) => void
     onSaveVoiceConfig: () => void
     onVoiceConfigChange: (config: VoiceConfig) => void
@@ -40,7 +43,10 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
     voiceModels,
     isGenerating,
     isGeneratingAudio,
-    audioPreviewUrl,
+    audioPreviewUrl_tts,
+    audioPreviewUrl_clone,
+    mode,
+    onModeChange,
     selectedRowIndex,
     errors,
     uploadingImage,
@@ -124,10 +130,13 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
                             selectedAsset={selectedAsset}
                             voiceModels={voiceModels}
                             isGeneratingAudio={isGeneratingAudio}
-                            audioPreviewUrl={audioPreviewUrl}
+                            audioPreviewUrl_tts={audioPreviewUrl_tts}
+                            audioPreviewUrl_clone={audioPreviewUrl_clone}
+                            mode={mode}
+                            onModeChange={onModeChange}
+                            onAudioPreview={onAudioPreview}
                             projectDetail={projectDetail}
                             onVendorChange={onVendorChange}
-                            onAudioPreview={onAudioPreview}
                             onVoiceClone={onVoiceClone}
                             onSaveVoiceConfig={onSaveVoiceConfig}
                             onVoiceConfigChange={onVoiceConfigChange}

@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2 } from 'lucide-react'
 import { VoiceSynthesisTab } from './VoiceSynthesisTab'
 import { VoiceCloningTab } from './VoiceCloningTab'
 
@@ -14,9 +13,12 @@ interface AudioConfigTabProps {
     selectedAsset: any
     voiceModels: any[]
     isGeneratingAudio: boolean
-    audioPreviewUrl: string
-    onAudioPreview: () => void
-    onVoiceClone: () => void
+    audioPreviewUrl_tts: string
+    audioPreviewUrl_clone: string
+    mode: 'tts' | 'clone'
+    onModeChange: (mode: 'tts' | 'clone') => void
+    onAudioPreview: () => Promise<void>
+    onVoiceClone: (audioUrl: string, text: string) => Promise<void>
     onSaveVoiceConfig: () => void
     onVoiceConfigChange: (config: any) => void
     projectDetail: any
@@ -27,7 +29,10 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
     selectedAsset,
     voiceModels,
     isGeneratingAudio,
-    audioPreviewUrl,
+    audioPreviewUrl_tts,
+    audioPreviewUrl_clone,
+    mode,
+    onModeChange,
     onAudioPreview,
     onVoiceClone,
     onSaveVoiceConfig,
@@ -42,21 +47,33 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
         gender: 'female',
         emotion: 'neutral',
         vendor: 'azure',
-        is_master: false,
-        mode: 'tts' // tts | cloning
+        is_master: false
     }
 
     const updateConfig = (updates: any) => {
-        // 如果切换到克隆模式，自动设置为 Qwen 供应商
-        if (updates.mode === 'cloning') {
-            updates = { ...updates, vendor: 'qwen' }
-        }
-        // 如果切换到语音合成模式，恢复供应商设置
-        if (updates.mode === 'tts' && !updates.vendor) {
-            updates = { ...updates, vendor: 'azure' }
-        }
         onVoiceConfigChange({ ...voiceConfig, ...updates })
     }
+
+    const handleModeChange = (value: string) => {
+        const nextMode = value === 'clone' ? 'clone' : 'tts'
+        const nextVendor = nextMode === 'clone' ? 'qwen' : 'azure'
+        onModeChange(nextMode)
+        updateConfig({ vendor: nextVendor })
+        onVendorChange(nextVendor)
+    }
+
+    const handleVoiceConfigChange = (config: any) => {
+        if (selectedAsset) {
+            setSelectedAsset({ ...selectedAsset, voiceConfig: config })
+        }
+    }
+
+    const setSelectedAsset = (asset: any) => {
+        // 这将在父组件中实现
+        console.log('setSelectedAsset called:', asset)
+    }
+
+    const currentAudioPreviewUrl = mode === 'clone' ? audioPreviewUrl_clone : audioPreviewUrl_tts
 
     return (
         <div className="space-y-4">
@@ -66,8 +83,8 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                     语音配置模式
                 </Label>
                 <RadioGroup
-                    value={voiceConfig.mode || 'tts'}
-                    onValueChange={(value) => updateConfig({ mode: value })}
+                    value={mode}
+                    onValueChange={handleModeChange}
                     className="flex gap-6"
                 >
                     <div className="flex items-center space-x-2">
@@ -80,9 +97,9 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                         </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="cloning" id="mode-cloning" />
+                        <RadioGroupItem value="clone" id="mode-clone" />
                         <Label
-                            htmlFor="mode-cloning"
+                            htmlFor="mode-clone"
                             className="cursor-pointer font-medium"
                         >
                             声音克隆
@@ -135,24 +152,24 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
             </div>
 
             {/* 语音合成模式 - 独立一部分 */}
-            {voiceConfig.mode === 'tts' && (
+            {mode === 'tts' && (
                 <VoiceSynthesisTab
                     voiceConfig={voiceConfig}
                     voiceModels={voiceModels}
                     onVoiceConfigChange={updateConfig}
+                    onAudioPreview={onAudioPreview}
+                    isGeneratingAudio={isGeneratingAudio}
+                    audioPreviewUrl={audioPreviewUrl_tts}
                 />
             )}
 
             {/* 声音克隆模式 - 独立一部分 */}
-            {voiceConfig.mode === 'cloning' && (
+            {mode === 'clone' && (
                 <VoiceCloningTab
                     voiceConfig={voiceConfig}
                     onVoiceConfigChange={updateConfig}
                     onSaveVoiceConfig={onSaveVoiceConfig}
-                    projectDetail={projectDetail}
-                    onAudioPreview={onAudioPreview}
-                    isGeneratingAudio={isGeneratingAudio}
-                    audioPreviewUrl={audioPreviewUrl}
+                    onVoiceClone={onVoiceClone}
                 />
             )}
 
@@ -160,28 +177,13 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
             <div className="border-t pt-4 mt-6">
                 <Label className="text-sm font-medium mb-3 block">试听效果</Label>
                 <div className="space-y-3">
-                    <Button
-                        className="w-full bg-blue-600 hover:bg-blue-700 h-11 font-bold text-sm shadow-md transition-all active:scale-[0.98]"
-                        onClick={voiceConfig.mode === 'cloning' ? onVoiceClone : onAudioPreview}
-                        disabled={isGeneratingAudio || (voiceConfig.mode === 'cloning' && !voiceConfig.voice)}
-                    >
-                        {isGeneratingAudio ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                生成中...
-                            </>
-                        ) : (
-                            voiceConfig.mode === 'cloning' ? '克隆声音' : '生成试听音频'
-                        )}
-                    </Button>
-
-                    {(audioPreviewUrl || voiceConfig.voice_url) && (
+                    {currentAudioPreviewUrl && (
                         <div className="bg-gray-50 rounded-lg p-4 border">
                             <p className="text-sm text-gray-600 mb-2">试听音频：</p>
                             <audio
                                 controls
                                 className="w-full"
-                                src={audioPreviewUrl || voiceConfig.voice_url}
+                                src={currentAudioPreviewUrl}
                                 controlsList="nodownload"
                             >
                                 您的浏览器不支持音频播放。
@@ -192,7 +194,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
             </div>
 
             {/* 主播音声音开关 - 只有在主播模式下显示 */}
-            {projectDetail?.narration === true && voiceConfig.mode === 'tts' && (
+            {projectDetail?.narration === true && mode === 'tts' && (
                 <div className="flex items-center space-x-2 py-2 border-t">
                     <div className="bg-blue-50 px-3 py-1 rounded text-xs text-blue-600">
                         主播模式

@@ -1,30 +1,22 @@
 'use client'
 
 import React, { useRef } from 'react'
-import { Mic, Square, AlertCircle } from 'lucide-react'
+import { Mic, Square, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 interface VoiceCloningTabProps {
     voiceConfig: any
     onVoiceConfigChange: (config: any) => void
     onSaveVoiceConfig: () => void
-    projectDetail: any
-    onAudioPreview: () => void
-    isGeneratingAudio: boolean
-    audioPreviewUrl: string
+    onVoiceClone: (audioUrl: string, text: string) => Promise<void>
 }
 
 export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
     voiceConfig,
     onVoiceConfigChange,
     onSaveVoiceConfig,
-    projectDetail,
-    onAudioPreview,
-    isGeneratingAudio,
-    audioPreviewUrl
+    onVoiceClone
 }) => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
@@ -32,12 +24,116 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
     const [recordedAudioUrl, setRecordedAudioUrl] = React.useState('')
     const [recordedText, setRecordedText] = React.useState('')
     const [recordingTime, setRecordingTime] = React.useState(0)
+    const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false)
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+    // 将 AudioBuffer 转换为 WAV 格式的 Uint8Array（16-bit PCM）
+    const bufferToWav = (buffer: any): Uint8Array => {
+        const numChannels = buffer.numberOfChannels
+        const sampleRate = buffer.sampleRate
+        const format = 1 // PCM
+        const bitDepth = 16
+
+        const bytesPerSample = bitDepth / 8
+        const blockAlign = numChannels * bytesPerSample
+
+        const dataLength = buffer.length * blockAlign
+        const headerLength = 44
+
+        const bufferLength = headerLength + dataLength
+        const arrayBuffer = new ArrayBuffer(bufferLength)
+        const view = new DataView(arrayBuffer)
+
+        // RIFF chunk descriptor
+        writeString(view, 0, 'RIFF')
+        view.setUint32(4, 36 + dataLength, true) // 文件大小
+        writeString(view, 8, 'WAVE')
+        // fmt sub-chunk
+        writeString(view, 12, 'fmt ')
+        view.setUint32(16, 16, true) // chunk size
+        view.setUint16(20, format, true) // PCM
+        view.setUint16(22, numChannels, true) // 通道数
+        view.setUint32(24, sampleRate, true) // 采样率
+        view.setUint32(28, sampleRate * blockAlign, true) // bytes/second
+        view.setUint16(32, blockAlign, true) // block align
+        view.setUint16(34, bitDepth, true) // bits/sample
+        // data sub-chunk
+        writeString(view, 36, 'data')
+        view.setUint32(40, dataLength, true) // data size
+
+        // 写入音频数据
+        const channels: any[] = []
+        for (let i = 0; i < numChannels; i++) {
+            channels.push(buffer.getChannelData(i))
+        }
+
+        let offset = 44
+        for (let i = 0; i < buffer.length; i++) {
+            for (let channel = 0; channel < numChannels; channel++) {
+                const sample = Math.max(-1, Math.min(1, channels[channel][i]))
+                const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
+                view.setInt16(offset, intSample, true)
+                offset += 2
+            }
+        }
+
+        return new Uint8Array(arrayBuffer)
+    }
+
+    const writeString = (view: DataView, offset: number, string: string) => {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i))
+        }
+    }
+
+    // 将音频 blob 转换为 WAV 格式
+    const convertToWav = async (audioBlob: Blob): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+
+            audioBlob.arrayBuffer()
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(buffer => {
+                    const wavData = bufferToWav(buffer)
+                    const wavBlob = new Blob([wavData], { type: 'audio/wav' })
+                    resolve(wavBlob)
+                })
+                .catch(err => {
+                    reject(err)
+                })
+        })
+    }
 
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-            const mediaRecorder = new MediaRecorder(stream)
+
+            // 尝试使用支持的 MIME 类型
+            const mimeTypeOptions = [
+                'audio/webm',
+                'audio/webm;codecs=opus',
+                'audio/webm;codecs=pcm',
+                'audio/ogg',
+                'audio/ogg;codecs=opus',
+                'audio/wav',
+                'audio/mp4'
+            ]
+
+            let mimeType = mimeTypeOptions[0]
+            let supportsWebM = false
+
+            for (const type of mimeTypeOptions) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    mimeType = type
+                    supportsWebM = type.includes('webm') || type.includes('ogg')
+                    break
+                }
+            }
+
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: mimeType,
+                audioBitsPerSecond: 128000 // 128kbps
+            })
             mediaRecorderRef.current = mediaRecorder
             audioChunksRef.current = []
 
@@ -47,18 +143,44 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
                 }
             }
 
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
-                const audioUrl = URL.createObjectURL(audioBlob)
-                setRecordedAudioUrl(audioUrl)
+            mediaRecorder.onstop = async () => {
+                // 如果是 webm/ogg 格式，需要转换为 wav
+                if (supportsWebM && audioChunksRef.current.length > 0) {
+                    try {
+                        const wavBlob = await convertToWav(new Blob(audioChunksRef.current, {
+                            type: mimeType
+                        }))
+                        const audioUrl = URL.createObjectURL(wavBlob)
+                        setRecordedAudioUrl(audioUrl)
 
-                // Set recorded audio as the voice config
-                onVoiceConfigChange({
-                    ...voiceConfig,
-                    voice: audioBlob,
-                    voice_name: '克隆声音',
-                    is_cloned: true
-                })
+                        // Set recorded audio as the voice config
+                        onVoiceConfigChange({
+                            ...voiceConfig,
+                            voice: wavBlob,
+                            voice_name: '克隆声音',
+                            is_cloned: true,
+                            recorded_text: recordedText // Save recorded text
+                        })
+                    } catch (err) {
+                        console.error('Failed to convert to WAV:', err)
+                        alert('音频转换失败，请重试')
+                        return
+                    }
+                } else {
+                    // 已经是 wav 格式
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
+                    const audioUrl = URL.createObjectURL(audioBlob)
+                    setRecordedAudioUrl(audioUrl)
+
+                    // Set recorded audio as the voice config
+                    onVoiceConfigChange({
+                        ...voiceConfig,
+                        voice: audioBlob,
+                        voice_name: '克隆声音',
+                        is_cloned: true,
+                        recorded_text: recordedText // Save recorded text
+                    })
+                }
 
                 // Clear timer
                 if (recordingTimerRef.current) {
@@ -104,19 +226,30 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
         }
     }
 
-    const saveRecordedVoice = () => {
+    const saveRecordedVoice = async () => {
         if (!recordedAudioUrl) {
             alert('请先录制声音')
             return
         }
-        onSaveVoiceConfig()
+
+        setIsGeneratingAudio(true)
+
+        try {
+            // 调用父组件的 handleVoiceClone 方法，传递音频 URL 和文本
+            await onVoiceClone(recordedAudioUrl, recordedText)
+        } catch (err: any) {
+            console.error('Failed to clone voice:', err)
+            alert(`声音克隆失败: ${err.message || '未知错误'}`)
+        } finally {
+            setIsGeneratingAudio(false)
+        }
     }
 
     return (
         <div className="space-y-4">
             {/* 录制区域 */}
             <div className="bg-gray-50 rounded-lg p-4 border">
-                <Label className="text-sm font-medium mb-3 block">声音录制</Label>
+                <div className="text-sm font-medium mb-3 block">声音录制</div>
 
                 {/* 录制按钮 */}
                 <div className="flex items-center gap-3 mb-4">
@@ -149,7 +282,7 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
 
                 {/* 计时器显示 */}
                 <div className="flex items-center justify-between mb-4">
-                    <Label className="text-sm font-medium">录制时长</Label>
+                    <div className="text-sm font-medium">录制时长</div>
                     <div className={`flex items-center gap-2 ${recordingTime >= 15 ? 'text-red-600' : 'text-gray-600'}`}>
                         <AlertCircle className={`w-4 h-4 ${recordingTime >= 15 ? 'animate-pulse' : ''}`} />
                         <span className={`font-mono text-lg font-bold ${recordingTime >= 15 ? 'text-red-600' : ''}`}>
@@ -161,7 +294,7 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
 
                 {/* 录制文本输入 */}
                 <div className="mb-4">
-                    <Label className="text-sm font-medium mb-2 block">录制文本</Label>
+                    <div className="text-sm font-medium mb-2 block">录制文本</div>
                     <Textarea
                         value={recordedText}
                         onChange={(e) => setRecordedText(e.target.value)}
@@ -182,6 +315,24 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
                         >
                             您的浏览器不支持音频播放。
                         </audio>
+
+                        {/* 克隆声音按钮 */}
+                        <div className="mt-4">
+                            <Button
+                                className="w-full bg-blue-600 hover:bg-blue-700 h-11 font-bold text-sm shadow-md transition-all active:scale-[0.98]"
+                                onClick={saveRecordedVoice}
+                                disabled={isGeneratingAudio}
+                            >
+                                {isGeneratingAudio ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        克隆中...
+                                    </>
+                                ) : (
+                                    '克隆声音'
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>

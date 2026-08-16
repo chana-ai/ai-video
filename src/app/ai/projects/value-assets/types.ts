@@ -36,8 +36,11 @@ export interface VoiceConfig {
     is_master?: boolean;
     voice_path?: string;   //signed oss path.
     voice_url?: string;    //oss_path.
-    mode?: string; // tts | cloning
+    mode?: string; // tts | clone
+    tts_voice_path?: string;
+    clone_voice_path?: string;
     is_cloned?: boolean;
+    recorded_text?: string
 }
 
 export interface Asset {
@@ -54,6 +57,9 @@ export interface Asset {
     version: number;
     voiceConfig?: VoiceConfig;
     config?: string | Record<string, any>;
+    tts_voice_path?: string;
+    tts_voice_Path?: string;
+    clone_voice_path?: string
 }
 
 export interface ResourceAsset {

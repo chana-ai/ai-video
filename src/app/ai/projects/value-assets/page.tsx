@@ -31,7 +31,9 @@ export default function ValueAssets() {
     const [isResourceDialogOpen, setIsResourceDialogOpen] = useState(false)
     const [newResourceName, setNewResourceName] = useState('')
     const [voiceModels, setVoiceModels] = useState<any[]>([])
-    const [audioPreviewUrl, setAudioPreviewUrl] = useState('')
+    const [audioPreviewUrl_tts, setAudioPreviewUrl_tts] = useState('')
+    const [audioPreviewUrl_clone, setAudioPreviewUrl_clone] = useState('')
+    const [mode, setMode] = useState<'tts' | 'clone'>('tts')
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
     const [history, setHistory] = useState<Batch[]>([])
@@ -108,6 +110,7 @@ export default function ValueAssets() {
         setCurrentBatch(null);
         setPromptChanged(false);
         setSelectedRowIndex(null);
+        setMode('tts');
 
         // Update selected asset basic info
         if (type === 'character') {
@@ -126,6 +129,11 @@ export default function ValueAssets() {
             if (config.back) initialSelected.add(config.back);
             setSelectedImageIds(initialSelected);
 
+            const ttsVoicePath = config.tts_voice_path || char.tts_voice_path || char.tts_voice_Path || '';
+            const cloneVoicePath = config.clone_voice_path || char.clone_voice_path || '';
+            const voiceSetting = { ...(config.voice_setting || {}) };
+            delete voiceSetting.mode;
+
             setSelectedAsset({
                 type: 'character',
                 id: char.id,
@@ -141,14 +149,18 @@ export default function ValueAssets() {
                     emotion: 'neutral',
                     vendor: 'azure',
                     is_master: false,
-                    mode: 'tts',
-                    ...config.voice_setting
+                    ...voiceSetting,
+                    tts_voice_path: ttsVoicePath,
+                    clone_voice_path: cloneVoicePath
                 }
             });
-            setAudioPreviewUrl(config.voice_path);
+            setAudioPreviewUrl_tts(ttsVoicePath);
+            setAudioPreviewUrl_clone(cloneVoicePath);
         } else {
             const resource = asset as ResourceAsset;
             setSelectedImageIds(new Set());
+            setAudioPreviewUrl_tts('');
+            setAudioPreviewUrl_clone('');
             setSelectedAsset({
                 type: 'resource',
                 id: resource.id,
@@ -245,7 +257,7 @@ export default function ValueAssets() {
         try {
             // 根据 mode 设置 voice_name
             let finalVoiceName = selectedAsset.voiceConfig.voice || '';
-            if (selectedAsset.voiceConfig.mode === 'cloning') {
+            if (mode === 'clone') {
                 // Cloning 模式，如果已有 voice_name 则使用，否则为空
                 finalVoiceName = selectedAsset.voiceConfig.voice_name || '克隆声音';
             }
@@ -262,7 +274,7 @@ export default function ValueAssets() {
                 emotion: selectedAsset.voiceConfig.emotion,
                 desc: selectedAsset.voiceConfig.desc,
                 is_master: selectedAsset.voiceConfig.is_master,
-                mode: selectedAsset.voiceConfig.mode,
+                mode,
                 voice_url: selectedAsset.voiceConfig.voice_url,
             };
 
@@ -457,16 +469,6 @@ export default function ValueAssets() {
         setNewResourceName('');
         setIsResourceDialogOpen(false);
 
-        // TODO: Call API to save the resource when endpoint is ready
-        // instance.post('/api/v2/resource/create', {
-        //     project_id: projectId,
-        //     stage_id: stageId,
-        //     name: newResourceName
-        // }).then((res: any) => {
-        //     // Update with actual ID from server
-        // }).catch(err => {
-        //     console.error("Failed to create resource:", err);
-        // });
     };
 
 
@@ -477,10 +479,10 @@ export default function ValueAssets() {
         }
 
         setIsGeneratingAudio(true);
-        setAudioPreviewUrl('');
+        setAudioPreviewUrl_tts('');
 
         try {
-            const response = await instance.post('/api/v2/voice/preview', {
+            const response: any = await instance.post('/api/v2/voice/preview', {
                 asset_id: selectedAsset.id,
                 model: selectedAsset.voiceConfig.voice,
                 vendor: selectedAsset.voiceConfig.vendor || 'azure',
@@ -494,17 +496,17 @@ export default function ValueAssets() {
 
             // response 格式: { voice_path: oss_utils.get_oss_url(oss_voice_url), voice_oss_path: oss_voice_url, resource_id: resource.id }
             if (response.voice_path) {
-                setAudioPreviewUrl(response.voice_path);
+                setAudioPreviewUrl_tts(response.voice_path);
                 // 更新 voiceConfig
                 handleVoiceConfigChange({
                     ...selectedAsset.voiceConfig,
                     voice_path: response.voice_path,
+                    tts_voice_path: response.voice_path,
                     voice: selectedAsset.voiceConfig.voice,
                     voice_url: response.voice_oss_path,
                     gender: selectedAsset.voiceConfig.gender,
                     emotion: selectedAsset.voiceConfig.emotion,
-                    desc: selectedAsset.voiceConfig.desc,
-                    mode: 'tts'
+                    desc: selectedAsset.voiceConfig.desc
                 });
             } else {
                 alert('生成音频失败，未获取到音频链接');
@@ -517,46 +519,71 @@ export default function ValueAssets() {
         }
     };
 
-    const handleVoiceClone = async () => {
-        if (!selectedAsset || !selectedAsset.voiceConfig?.voice) {
-            alert('请先录制声音');
+    const handleVoiceClone = async (audioUrl: string, text: string) => {
+        if (!selectedAsset) {
+            alert('请先选择一个角色');
             return;
         }
 
         setIsGeneratingAudio(true);
-        setAudioPreviewUrl('');
+        setAudioPreviewUrl_clone('');
 
         try {
-            // 获取录制的音频文件并转换为 Base64
-            const audioFile = selectedAsset.voiceConfig.voice as Blob;
-            if (!audioFile) {
-                alert('请先录制声音');
-                setIsGeneratingAudio(false);
-                return;
+            // 从音频 URL 获取音频文件
+            const audioResponse = await fetch(audioUrl);
+
+            // 检查响应状态
+            if (!audioResponse.ok) {
+                throw new Error(`HTTP error! status: ${audioResponse.status}`);
             }
 
-            // 将 Blob 转换为 Base64
-            const arrayBuffer = await audioFile.arrayBuffer();
-            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const arrayBuffer = await audioResponse.arrayBuffer();
+
+            // 检查文件大小（不超过 7MB）
+            const fileSizeMB = arrayBuffer.byteLength / (1024 * 1024);
+            if (fileSizeMB > 7) {
+                throw new Error(`音频文件过大，最大支持 7MB，当前大小: ${fileSizeMB.toFixed(2)}MB`);
+            }
+
+            // 转换为 WAV 格式（确保是有效的 WAV）
+            const wavBuffer = await convertToWav(arrayBuffer);
+
+            // 再次检查大小
+            const wavSizeMB = wavBuffer.byteLength / (1024 * 1024);
+            if (wavSizeMB > 7) {
+                throw new Error(`转换后的 WAV 文件过大，最大支持 7MB，当前大小: ${wavSizeMB.toFixed(2)}MB`);
+            }
+
+            // 转换为 Base64
+            const base64Audio = uint8ArrayToBase64(wavBuffer);
             const base64Data = `data:audio/wav;base64,${base64Audio}`;
 
-            const response = await instance.post('/api/v2/voice/clone', {
-                audio_file: base64Data,
+            const response: any = await instance.post('/api/v2/voice/clone', {
+                voice_code: base64Data,
                 project_id: projectId || '',
                 stage_id: stageId || '',
                 asset_id: selectedAsset.id.toString(),
                 vendor: 'qwen',
-                emotion: selectedAsset.voiceConfig.emotion || 'neutral'
+                content: text || "这是语音测试效果",
+                emotion: selectedAsset.voiceConfig?.emotion || 'neutral'
             });
 
             // response 格式: VoiceCloneResponse(voice_path, voice_oss_path, voice_name, voice)
             if (response.voice_path) {
-                setAudioPreviewUrl(response.voice_path);
+                setAudioPreviewUrl_clone(response.voice_path);
                 // 更新 voiceConfig 以包含克隆的音频
                 handleVoiceConfigChange({
-                    ...selectedAsset.voiceConfig,
+                    voice: response.voice || selectedAsset.voiceConfig?.voice || '', // 添加响应中的 voice 字段
+                    clone_voice_path: response.voice_path,
                     voice_url: response.voice_oss_path,
                     voice_name: response.voice_name,
+                    recorded_text: text,
+                    desc: selectedAsset.voiceConfig?.desc || '',
+                    gender: selectedAsset.voiceConfig?.gender || 'female',
+                    emotion: selectedAsset.voiceConfig?.emotion || 'neutral',
+                    vendor: selectedAsset.voiceConfig?.vendor || 'azure',
+                    is_master: selectedAsset.voiceConfig?.is_master || false,
+                    tts_voice_path: selectedAsset.voiceConfig?.tts_voice_path || '',
                     mode: 'clone'
                 });
             } else {
@@ -567,6 +594,91 @@ export default function ValueAssets() {
             alert(`声音克隆失败: ${err.message || '未知错误'}`);
         } finally {
             setIsGeneratingAudio(false);
+        }
+    };
+
+    // 将 Uint8Array 转换为 Base64
+    const uint8ArrayToBase64 = (uint8Array: Uint8Array): string => {
+        let binary = '';
+        const len = uint8Array.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(uint8Array[i]);
+        }
+        return window.btoa(binary);
+    };
+
+    // 将 ArrayBuffer 转换为 WAV 格式的 Uint8Array
+    const convertToWav = async (audioBuffer: ArrayBuffer): Promise<Uint8Array> => {
+        return new Promise((resolve, reject) => {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+            audioContext.decodeAudioData(audioBuffer)
+                .then(buffer => {
+                    const wavData = bufferToWav(buffer);
+                    resolve(wavData);
+                })
+                .catch(err => {
+                    reject(new Error(`解码音频失败: ${err.message}`));
+                });
+        });
+    };
+
+    // 将 AudioBuffer 转换为 WAV 格式的 Uint8Array（16-bit PCM）
+    const bufferToWav = (buffer: any): Uint8Array => {
+        const numChannels = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const format = 1; // PCM
+        const bitDepth = 16;
+
+        const bytesPerSample = bitDepth / 8;
+        const blockAlign = numChannels * bytesPerSample;
+
+        const dataLength = buffer.length * blockAlign;
+        const headerLength = 44;
+
+        const bufferLength = headerLength + dataLength;
+        const arrayBuffer = new ArrayBuffer(bufferLength);
+        const view = new DataView(arrayBuffer);
+
+        // RIFF chunk descriptor
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + dataLength, true); // 文件大小
+        writeString(view, 8, 'WAVE');
+        // fmt sub-chunk
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true); // chunk size
+        view.setUint16(20, format, true); // PCM
+        view.setUint16(22, numChannels, true); // 通道数
+        view.setUint32(24, sampleRate, true); // 采样率
+        view.setUint32(28, sampleRate * blockAlign, true); // bytes/second
+        view.setUint16(32, blockAlign, true); // block align
+        view.setUint16(34, bitDepth, true); // bits/sample
+        // data sub-chunk
+        writeString(view, 36, 'data');
+        view.setUint32(40, dataLength, true); // data size
+
+        // 写入音频数据
+        const channels: any[] = [];
+        for (let i = 0; i < numChannels; i++) {
+            channels.push(buffer.getChannelData(i));
+        }
+
+        let offset = 44;
+        for (let i = 0; i < buffer.length; i++) {
+            for (let channel = 0; channel < numChannels; channel++) {
+                const sample = Math.max(-1, Math.min(1, channels[channel][i]));
+                const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                view.setInt16(offset, intSample, true);
+                offset += 2;
+            }
+        }
+
+        return new Uint8Array(arrayBuffer);
+    };
+
+    const writeString = (view: DataView, offset: number, string: string) => {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
         }
     };
 
@@ -593,7 +705,10 @@ export default function ValueAssets() {
                             voiceModels={voiceModels}
                             isGenerating={isGenerating}
                             isGeneratingAudio={isGeneratingAudio}
-                            audioPreviewUrl={audioPreviewUrl}
+                            audioPreviewUrl_tts={audioPreviewUrl_tts}
+                            audioPreviewUrl_clone={audioPreviewUrl_clone}
+                            mode={mode}
+                            onModeChange={setMode}
                             selectedRowIndex={selectedRowIndex}
                             errors={errors}
                             uploadingImage={uploadingImage}
