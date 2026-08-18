@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { VoiceSynthesisTab } from './VoiceSynthesisTab'
 import { VoiceCloningTab } from './VoiceCloningTab'
+import { VoiceSetting } from '../../../value-assets/types'
 
 interface AudioConfigTabProps {
     selectedAsset: any
@@ -19,8 +20,8 @@ interface AudioConfigTabProps {
     onModeChange: (mode: 'tts' | 'clone') => void
     onAudioPreview: () => Promise<void>
     onVoiceClone: (audioUrl: string, text: string) => Promise<void>
-    onSaveVoiceConfig: () => void
-    onVoiceConfigChange: (config: any) => void
+    onVoiceSettingChange: (setting: VoiceSetting) => void
+    onVoiceSettingSave: () => void
     projectDetail: any
     onVendorChange: (vendor: string) => void
 }
@@ -35,23 +36,35 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
     onModeChange,
     onAudioPreview,
     onVoiceClone,
-    onSaveVoiceConfig,
-    onVoiceConfigChange,
+    onVoiceSettingChange,
+    onVoiceSettingSave,
     projectDetail,
     onVendorChange
 }) => {
-    const voiceConfig = selectedAsset.voiceConfig || {
-        voice: '',
-        voice_name: '',
-        desc: '',
+    // 使用 selectedAsset.voice_setting，如果没有则使用默认值
+    const voice_setting = selectedAsset?.voice_setting || {
         gender: 'female',
         emotion: 'neutral',
         vendor: 'azure',
-        is_master: false
+        is_master: false,
+        mode: 'tts',
+        tts: {
+            url: '',
+            desc: '',
+            voice: '',
+            voice_name: '',
+        },
+        clone: {
+            url: '',
+            desc: '',
+            voice: '',
+            voice_name: '',
+        }
     }
 
-    const updateConfig = (updates: any) => {
-        onVoiceConfigChange({ ...voiceConfig, ...updates })
+    const updateConfig = (updates: Partial<VoiceSetting>) => {
+        // 更新 voice_setting，但保持其他字段不变
+        onVoiceSettingChange({ ...voice_setting, ...updates })
     }
 
     const handleModeChange = (value: string) => {
@@ -60,17 +73,6 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
         onModeChange(nextMode)
         updateConfig({ vendor: nextVendor })
         onVendorChange(nextVendor)
-    }
-
-    const handleVoiceConfigChange = (config: any) => {
-        if (selectedAsset) {
-            setSelectedAsset({ ...selectedAsset, voiceConfig: config })
-        }
-    }
-
-    const setSelectedAsset = (asset: any) => {
-        // 这将在父组件中实现
-        console.log('setSelectedAsset called:', asset)
     }
 
     const currentAudioPreviewUrl = mode === 'clone' ? audioPreviewUrl_clone : audioPreviewUrl_tts
@@ -113,7 +115,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                 <div>
                     <Label className="text-sm font-medium mb-2 block">供应商</Label>
                     <Select
-                        value={voiceConfig.vendor || 'azure'}
+                        value={voice_setting.vendor || 'azure'}
                         onValueChange={(value) => {
                             updateConfig({ vendor: value });
                             onVendorChange(value);
@@ -132,7 +134,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                 <div>
                     <Label className="text-sm font-medium mb-2 block">情感</Label>
                     <Select
-                        value={voiceConfig.emotion || 'neutral'}
+                        value={voice_setting.emotion || 'neutral'}
                         onValueChange={(value) => updateConfig({ emotion: value })}
                     >
                         <SelectTrigger className="h-10">
@@ -154,7 +156,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
             {/* 语音合成模式 - 独立一部分 */}
             {mode === 'tts' && (
                 <VoiceSynthesisTab
-                    voiceConfig={voiceConfig}
+                    voiceConfig={voice_setting}
                     voiceModels={voiceModels}
                     onVoiceConfigChange={updateConfig}
                     onAudioPreview={onAudioPreview}
@@ -166,9 +168,10 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
             {/* 声音克隆模式 - 独立一部分 */}
             {mode === 'clone' && (
                 <VoiceCloningTab
-                    voiceConfig={voiceConfig}
-                    onVoiceConfigChange={updateConfig}
-                    onSaveVoiceConfig={onSaveVoiceConfig}
+                    voiceSetting={voice_setting}
+                    audioPreviewUrl={audioPreviewUrl_clone}
+                    onVoiceSettingChange={updateConfig}
+                    onSaveVoiceSetting={onVoiceSettingSave}
                     onVoiceClone={onVoiceClone}
                 />
             )}
@@ -201,7 +204,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                     </div>
                     <Checkbox
                         id="is-master-asset"
-                        checked={voiceConfig.is_master || false}
+                        checked={voice_setting.is_master || false}
                         onCheckedChange={(checked) => updateConfig({ is_master: !!checked })}
                     />
                     <Label
@@ -217,8 +220,8 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
             <div className="flex justify-end pt-4 mt-6 border-t">
                 <Button
                     className="bg-blue-600 hover:bg-blue-700 px-8 h-12 shadow-lg transition-all active:scale-[0.95]"
-                    onClick={onSaveVoiceConfig}
-                    disabled={!voiceConfig.voice}
+                    onClick={onVoiceSettingSave}
+                    disabled={mode === 'clone' ? !voice_setting.clone?.voice : !voice_setting.tts?.voice}
                 >
                     保存语音配置
                 </Button>

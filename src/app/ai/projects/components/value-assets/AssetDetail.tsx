@@ -3,7 +3,7 @@
 import React from 'react'
 import { ImageIcon, Volume2, Package } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SelectedAsset, VoiceConfig, Batch } from '../../value-assets/types'
+import { SelectedAsset, VoiceSetting, Batch } from '../../value-assets/types'
 import { ImageConfigTab } from './ImageConfigTab'
 import { AudioConfigTab } from './AudioConfigTab'
 
@@ -29,7 +29,7 @@ interface AssetDetailProps {
     onVoiceClone: (audioUrl: string, text: string) => Promise<void>
     onRowSelect: (index: number | null) => void
     onSaveVoiceConfig: () => void
-    onVoiceConfigChange: (config: VoiceConfig) => void
+    onVoiceConfigChange: (config: VoiceSetting) => void
     onRestoreBatch: (batch: Batch) => void
     onSetSelectedImageIds: (ids: Set<number>) => void
     projectDetail: any
@@ -92,7 +92,7 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
             </div>
 
             {/* Tabs for Characters, Single view for Resources */}
-            {selectedAsset.type === 'character' ? (
+            {selectedAsset.type === 0 ? (
                 <Tabs defaultValue="image" className="w-full flex-1 flex flex-col min-h-0">
                     <div className="px-6 pt-4 flex-shrink-0">
                         <TabsList className="grid w-80 grid-cols-2">
@@ -138,8 +138,8 @@ export const AssetDetail: React.FC<AssetDetailProps> = ({
                             projectDetail={projectDetail}
                             onVendorChange={onVendorChange}
                             onVoiceClone={onVoiceClone}
-                            onSaveVoiceConfig={onSaveVoiceConfig}
-                            onVoiceConfigChange={onVoiceConfigChange}
+                            onVoiceSettingSave={onSaveVoiceConfig}
+                            onVoiceSettingChange={onVoiceConfigChange}
                         />
                     </TabsContent>
                 </Tabs>

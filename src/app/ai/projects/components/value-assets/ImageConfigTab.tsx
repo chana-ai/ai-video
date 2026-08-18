@@ -89,7 +89,7 @@ export const ImageConfigTab: React.FC<ImageConfigTabProps> = ({
                         maxLength={120}
                     />
                     <div className="text-xs text-gray-400 mt-2 text-right">
-                        {selectedAsset.prompt.length}/120
+                        {selectedAsset.prompt?.length}/120
                     </div>
                 </div>
 

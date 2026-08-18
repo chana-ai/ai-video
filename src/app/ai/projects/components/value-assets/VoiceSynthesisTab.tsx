@@ -7,12 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from 'lucide-react'
-import { VoiceConfig } from '../../value-assets/types'
+import { VoiceSetting } from '../../../value-assets/types'
 
 interface VoiceSynthesisTabProps {
-    voiceConfig: VoiceConfig
+    voiceConfig: VoiceSetting
     voiceModels: any[]
-    onVoiceConfigChange: (config: VoiceConfig) => void
+    onVoiceConfigChange: (config: VoiceSetting) => void
     onAudioPreview: () => Promise<void>
     isGeneratingAudio: boolean
     audioPreviewUrl: string
@@ -26,8 +26,17 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
     isGeneratingAudio,
     audioPreviewUrl
 }) => {
-    const updateConfig = (updates: Partial<VoiceConfig>) => {
-        onVoiceConfigChange({ ...voiceConfig, ...updates })
+    const updateTtsConfig = (updates: Partial<NonNullable<VoiceSetting['tts']>>) => {
+        onVoiceConfigChange({
+            ...voiceConfig,
+            tts: {
+                voice: voiceConfig.tts?.voice || '',
+                voice_name: voiceConfig.tts?.voice_name || '',
+                desc: voiceConfig.tts?.desc || '',
+                url: voiceConfig.tts?.url || '',
+                ...updates
+            }
+        })
     }
 
     return (
@@ -37,7 +46,7 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
                 <Label className="text-sm font-medium mb-2 block">性别</Label>
                 <RadioGroup
                     value={voiceConfig.gender || 'female'}
-                    onValueChange={(value: string) => updateConfig({ gender: value })}
+                    onValueChange={(value: string) => onVoiceConfigChange({ ...voiceConfig, gender: value })}
                     className="flex gap-4"
                 >
                     <div className="flex items-center space-x-2">
@@ -55,18 +64,31 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
             <div>
                 <Label className="text-sm font-medium mb-2 block">语音模型</Label>
                 <Select
-                    value={typeof voiceConfig.voice === 'string' ? voiceConfig.voice : ''}
+                    value={voiceConfig.tts?.voice || ''}
                     onValueChange={(value) => {
                         const model = voiceModels.find(m => m.voice === value);
                         if (model) {
-                            updateConfig({
-                                voice: model.voice,
-                                voice_name: model.voice_name,
-                                gender: model.gender || voiceConfig.gender
+                            onVoiceConfigChange({
+                                ...voiceConfig,
+                                gender: model.gender || voiceConfig.gender,
+                                tts: {
+                                    url: voiceConfig.tts?.url || '',
+                                    voice: model.voice,
+                                    voice_name: model.voice_name,
+                                    desc: model.desc || ''
+                                }
                             });
                         } else {
                             // Clear voice if no model found
-                            updateConfig({ voice: '', voice_name: '' })
+                            onVoiceConfigChange({
+                                ...voiceConfig,
+                                tts: {
+                                    url: voiceConfig.tts?.url || '',
+                                    voice: '',
+                                    voice_name: '',
+                                    desc: ''
+                                }
+                            })
                         }
                     }}
                 >
@@ -95,14 +117,14 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
             <div>
                 <Label className="text-sm font-medium mb-2 block">补充描述 (可选)</Label>
                 <Textarea
-                    value={voiceConfig.desc || ''}
-                    onChange={(e) => updateConfig({ desc: e.target.value })}
+                    value={voiceConfig.tts?.desc || ''}
+                    onChange={(e) => updateTtsConfig({ desc: e.target.value })}
                     placeholder="输入补充描述..."
                     className="w-full min-h-[80px] resize-none"
                     maxLength={200}
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                    {(voiceConfig.desc || '').length}/200 字符
+                    {(voiceConfig.tts?.desc || '').length}/200 字符
                 </div>
             </div>
 
@@ -113,7 +135,7 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
                     <Button
                         className="w-full bg-blue-600 hover:bg-blue-700 h-11 font-bold text-sm shadow-md transition-all active:scale-[0.98]"
                         onClick={onAudioPreview}
-                        disabled={isGeneratingAudio || !voiceConfig.voice}
+                        disabled={isGeneratingAudio || !voiceConfig.tts?.voice}
                     >
                         {isGeneratingAudio ? (
                             <>

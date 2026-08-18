@@ -4,18 +4,21 @@ import React, { useRef } from 'react'
 import { Mic, Square, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { VoiceSetting } from '../../../value-assets/types'
 
 interface VoiceCloningTabProps {
-    voiceConfig: any
-    onVoiceConfigChange: (config: any) => void
-    onSaveVoiceConfig: () => void
+    voiceSetting: VoiceSetting
+    audioPreviewUrl: string
+    onVoiceSettingChange: (config: VoiceSetting) => void
+    onSaveVoiceSetting: () => void
     onVoiceClone: (audioUrl: string, text: string) => Promise<void>
 }
 
 export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
-    voiceConfig,
-    onVoiceConfigChange,
-    onSaveVoiceConfig,
+    voiceSetting,
+    audioPreviewUrl,
+    onVoiceSettingChange,
+    onSaveVoiceSetting,
     onVoiceClone
 }) => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -26,6 +29,13 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
     const [recordingTime, setRecordingTime] = React.useState(0)
     const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false)
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+    // Sync recordedText with voiceSetting.clone.desc when loaded
+    React.useEffect(() => {
+        if (voiceSetting.clone?.desc !== undefined && voiceSetting.clone?.desc !== recordedText) {
+            setRecordedText(voiceSetting.clone.desc)
+        }
+    }, [voiceSetting.clone?.desc])
 
     // 将 AudioBuffer 转换为 WAV 格式的 Uint8Array（16-bit PCM）
     const bufferToWav = (buffer: any): Uint8Array => {
@@ -152,15 +162,6 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
                         }))
                         const audioUrl = URL.createObjectURL(wavBlob)
                         setRecordedAudioUrl(audioUrl)
-
-                        // Set recorded audio as the voice config
-                        onVoiceConfigChange({
-                            ...voiceConfig,
-                            voice: wavBlob,
-                            voice_name: '克隆声音',
-                            is_cloned: true,
-                            recorded_text: recordedText // Save recorded text
-                        })
                     } catch (err) {
                         console.error('Failed to convert to WAV:', err)
                         alert('音频转换失败，请重试')
@@ -171,15 +172,6 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
                     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
                     const audioUrl = URL.createObjectURL(audioBlob)
                     setRecordedAudioUrl(audioUrl)
-
-                    // Set recorded audio as the voice config
-                    onVoiceConfigChange({
-                        ...voiceConfig,
-                        voice: audioBlob,
-                        voice_name: '克隆声音',
-                        is_cloned: true,
-                        recorded_text: recordedText // Save recorded text
-                    })
                 }
 
                 // Clear timer
@@ -297,7 +289,18 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
                     <div className="text-sm font-medium mb-2 block">录制文本</div>
                     <Textarea
                         value={recordedText}
-                        onChange={(e) => setRecordedText(e.target.value)}
+                        onChange={(e) => {
+                            setRecordedText(e.target.value)
+                            onVoiceSettingChange({
+                                ...voiceSetting,
+                                clone: {
+                                    voice: voiceSetting.clone?.voice || '',
+                                    voice_name: voiceSetting.clone?.voice_name || '克隆声音',
+                                    url: voiceSetting.clone?.url || '',
+                                    desc: e.target.value
+                                }
+                            })
+                        }}
                         placeholder="请输入用于录制声音的文本..."
                         className="w-full min-h-[80px] resize-none"
                         maxLength={500}
@@ -336,6 +339,21 @@ export const VoiceCloningTab: React.FC<VoiceCloningTabProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* 克隆音频预览 */}
+            {/* {audioPreviewUrl && (
+                <div className="bg-gray-50 rounded-lg p-4 border mt-4">
+                    <p className="text-sm font-medium mb-2 text-blue-600">克隆声音预览：</p>
+                    <audio
+                        controls
+                        className="w-full"
+                        src={audioPreviewUrl}
+                        controlsList="nodownload"
+                    >
+                        您的浏览器不支持音频播放。
+                    </audio>
+                </div>
+            )} */}
         </div>
     )
 }
