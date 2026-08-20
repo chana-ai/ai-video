@@ -230,6 +230,9 @@ export function StoryboardSettings({
   // Track resolved assets for image generation
   const [resolvedAssets, setResolvedAssets] = useState<Record<string, number>>({})
 
+  // Track asset image mapping for initial image generation
+  const [assetImageMap, setAssetImageMap] = useState<Record<string, number>>({})
+
   const handleImagePromptChange = useCallback((prompt: string) => {
     if (prompt) {
       onUpdate("image_prompt", prompt)
@@ -238,16 +241,21 @@ export function StoryboardSettings({
   }, [onUpdate])
 
   const handleConfirmAssetImage = useCallback((assetName: string, imageId: number, prompt: string) => {
-    // Store the resolved asset image mapping
+    // Update the asset image map
+    setAssetImageMap(prev => ({
+      ...prev,
+      [assetName]: imageId
+    }))
+
+    // Also update resolvedAssets for backward compatibility
     setResolvedAssets(prev => ({
       ...prev,
       [assetName]: imageId
     }))
 
     console.log(`Confirmed asset image: ${assetName} with id ${imageId}`)
-    console.log(`Current prompt with asset: ${prompt}`)
-    console.log("Resolved assets:", resolvedAssets)
-  }, [resolvedAssets])
+    console.log("Asset image map:", assetImageMap)
+  }, [])
 
   const handleGenerateImage = async (prompt?: string, resolvedAssets?: Record<string, number>) => {
     setIsGeneratingImage(true)
@@ -276,7 +284,6 @@ export function StoryboardSettings({
   const handleGenerateVideo = useCallback(async (regenerate_prompt = false) => {
     if (!storyboard?.id || !storyboard?.project_id || !storyboard?.stage_id) return
 
-    setClipErrorMessage(false)
     setIsGeneratingVideo(true)
 
     try {
@@ -332,7 +339,6 @@ export function StoryboardSettings({
       }
     } catch (error: any) {
       setIsGeneratingVideo(false)
-      setClipErrorMessage(error.message || "系统开了小差，联系下管理员，或者稍后再试")
     }
   }, [onUpdate, storyboard?.id, storyboard?.project_id, storyboard?.stage_id, storyDetail?.video_prompt, currentVideoModel, projectDetail?.user_id])
 
@@ -658,6 +664,7 @@ export function StoryboardSettings({
                   isGenerating={isGeneratingImage}
                   onImagePromptChange={handleImagePromptChange}
                   onConfirmAssetImage={handleConfirmAssetImage}
+                  asset_image_map={assetImageMap}
                 />
               </div>
             </div>

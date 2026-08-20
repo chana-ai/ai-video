@@ -5,9 +5,10 @@ import { EditorContent, useEditor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Mention from "@tiptap/extension-mention"
 import { Button } from "@/components/ui/button"
-import { Check, Loader2, Info, Users, Send } from 'lucide-react'
+import { Loader2, Info, Users, Send } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { PreviewImageList } from './ImageControl'
 
 import suggestion from './suggestion'
 
@@ -24,6 +25,7 @@ interface PromptChatboxProps {
     isGenerating: boolean
     onImagePromptChange?: (prompt: string) => void
     onConfirmAssetImage?: (assetName: string, imageId: number, prompt: string) => void
+    asset_image_map?: Record<string, number>  // New prop: asset_name -> image_id mapping
 }
 
 // Extend Mention to handle 'resolved' attribute
@@ -50,7 +52,8 @@ export function PromptChatbox({
     onGenerate,
     isGenerating,
     onImagePromptChange,
-    onConfirmAssetImage
+    onConfirmAssetImage,
+    asset_image_map = {}
 }: PromptChatboxProps) {
     const [isAssetDialogOpen, setIsAssetDialogOpen] = useState(false)
     const [activeAsset, setActiveAsset] = useState<Asset | null>(null)
@@ -71,7 +74,7 @@ export function PromptChatbox({
                 HTMLAttributes: {
                     class: 'mention',
                 },
-                suggestion: useMemo(() => suggestion(assetsRef), [assetsRef.current]),
+                suggestion: useMemo(() => suggestion(assetsRef), [assetsRef]),
             }),
         ],
         content: initialValue,
@@ -79,6 +82,23 @@ export function PromptChatbox({
         editorProps: {
             attributes: {
                 class: 'prose prose-sm focus:outline-none max-w-none min-h-[60px] p-4 text-sm leading-relaxed text-gray-700 font-mono',
+            },
+            handleClick(view, pos, event) {
+                // 1. 查找被点击的元素是否属于 mention 标签
+                const mentionEl = (event.target as HTMLElement).closest('.mention')
+
+                if (mentionEl) {
+                    // 2. 从 DOM 文本内容中提取名字（例如去掉前面的 '@'）
+                    const assetName = mentionEl.textContent?.replace(/^@/, '').trim()
+                    const asset = assetsRef.current.find(a => a.name === assetName)
+
+                    if (asset) {
+                        setActiveAsset(asset)
+                        setIsAssetDialogOpen(true)
+                        return true
+                    }
+                }
+                return false
             },
         }
     })
@@ -120,8 +140,11 @@ export function PromptChatbox({
             onImagePromptChange(text)
         }
 
+        // Merge resolvedAssets with asset_image_map
+        const mergedAssetImageMap = { ...resolvedAssets, ...asset_image_map }
+
         editor.commands.clearContent()
-        await onGenerate(text, resolvedAssets)
+        await onGenerate(text, mergedAssetImageMap)
     }, [editor, isGenerating, unresolvedMentions, assets, onGenerate, resolvedAssets, onImagePromptChange])
 
     const selectAssetImage = (imageId: number) => {
@@ -170,36 +193,16 @@ export function PromptChatbox({
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-gray-800">
-                            <Users className="h-5 w-5 text-purple-600" />
+                            <Users className="h-5 w-5 text-green-600" />
                             Select Image: {activeAsset?.name}
                         </DialogTitle>
                     </DialogHeader>
-                    <div className="grid grid-cols-3 gap-3 mt-4">
-                        {activeAsset?.images?.map((img, idx) => (
-                            <div
-                                key={`${activeAsset.id}-${idx}`}
-                                className={cn(
-                                    "relative aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all",
-                                    resolvedAssets[activeAsset.name] === img.id ? "border-purple-600 ring-2 ring-purple-100" : "border-transparent hover:border-gray-200"
-                                )}
-                                onClick={() => selectAssetImage(img.id)}
-                            >
-                                <img src={img.url} alt="Asset" className="w-full h-full object-cover" />
-                                {resolvedAssets[activeAsset.name] === img.id && (
-                                    <div className="absolute inset-0 bg-purple-600/10 flex items-center justify-center">
-                                        <div className="bg-purple-600 text-white p-1 rounded-full shadow-sm">
-                                            <Check className="h-3 w-3" />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {(!activeAsset?.images || activeAsset.images.length === 0) && (
-                            <div className="col-span-3 py-10 text-center text-gray-400 text-sm italic">
-                                No reference images found for this character.
-                            </div>
-                        )}
-                    </div>
+                    <PreviewImageList
+                        images={activeAsset?.images || []}
+                        selectedImageId={activeAsset ? (resolvedAssets[activeAsset.name] || 0) : 0}
+                        onImageSelect={selectAssetImage}
+                        className="mt-4"
+                    />
                 </DialogContent>
             </Dialog>
 
