@@ -1,12 +1,21 @@
 import { ReactRenderer } from '@tiptap/react'
 import tippy, { Instance as TippyInstance } from 'tippy.js'
+import { MutableRefObject } from 'react'
 import { SuggestionList } from './SuggestionList'
 
-export default (assets: any[]) => ({
+interface Asset {
+    id: number
+    name: string
+    images?: { id: number; url: string }[]
+}
+
+export default (assetsRef: MutableRefObject<Asset[]>) => ({
     items: ({ query }: { query: string }) => {
-        return assets
-            .filter(item => item.name.toLowerCase().startsWith(query.toLowerCase()))
-            .slice(0, 8)
+        console.log('Suggestion items called, assets:', assetsRef.current)
+        if (!query) {
+            return assetsRef.current.slice(0, 10)
+        }
+        return assetsRef.current.filter(asset => asset.name.toLowerCase().includes(query.toLowerCase())).slice(0, 10)
     },
 
     render: () => {
@@ -15,6 +24,8 @@ export default (assets: any[]) => ({
 
         return {
             onStart: (props: any) => {
+                console.log('Suggestion onStart, assets:', assetsRef.current)
+
                 component = new ReactRenderer(SuggestionList, {
                     props,
                     editor: props.editor,
@@ -32,11 +43,18 @@ export default (assets: any[]) => ({
                     interactive: true,
                     trigger: 'manual',
                     placement: 'bottom-start',
+                    onCreate: () => {
+                        console.log('Popup created')
+                    }
                 })
             },
 
             onUpdate(props: any) {
-                component.updateProps(props)
+                console.log('Suggestion onUpdate, assets:', assetsRef.current)
+                component.updateProps({
+                    ...props,
+                    items: assetsRef.current
+                })
 
                 if (!props.clientRect) {
                     return

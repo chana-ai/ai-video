@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { X, Upload } from "lucide-react"
-import type { UploadDialogProps } from "../types"
+import type { UploadDialogProps } from "@/app/ai/projects/types"
 
 export function UploadDialog({ open, onOpenChange, onUpload, existingImage }: UploadDialogProps) {
   const [isDragging, setIsDragging] = useState(false)

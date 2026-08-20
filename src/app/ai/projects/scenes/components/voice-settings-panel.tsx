@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { VoiceSettings, VoiceSettingsPanelProps } from "../types"
+import { VoiceSettings, VoiceSettingsPanelProps } from "@/app/ai/projects/types"
 import { useEffect, useState } from "react"
 import { PlayCircle, PauseCircle } from "lucide-react"
 import instance from "@/lib/axios";

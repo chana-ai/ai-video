@@ -11,16 +11,11 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Users, Check, Upload, Play, Pause, Loader2, Mic, Image as ImageIcon } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Users, Check, Upload, Play, Pause, Loader2, Mic, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { VideoDisplayPanel } from "./video-display-panel"
-import { PromptEditPanel } from "./prompt-edit-panel"
-import type { StoryboardSettingsProps, VideoSettings, DialogLine, StoryDetail } from "../types"
-import { VoiceSettingsPanel } from "./voice-settings-panel"
+import type { StoryboardSettingsProps, DialogLine, StoryDetail } from "@/app/ai/projects/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import instance from "@/lib/axios"
@@ -30,10 +25,18 @@ import { showToast } from "@/lib/toast-helpers"
 
 type VideoModel = 'MINMAX' | 'WAN'
 
+// API Response Type from /api/v2/asset/list
+interface AssetResponse {
+  id: number;
+  name: string;
+  url: string;
+  version?: number;
+}
+
 interface Character {
   id: number;
   name: string;
-  images?: { id: number; url: string }[]
+  images: AssetResponse[];  // Changed to required array, not optional
 }
 
 // ── Helpers ──────────────────────────────────────────────
@@ -103,7 +106,6 @@ export function StoryboardSettings({
 
   // ── Video prompt meta & detail ──
   const [isLoading, setIsLoading] = useState(false)
-  const [clipErrorMessage, setClipErrorMessage] = useState<string | false>(false)
   const [storyDetail, setStoryDetail] = useState<StoryDetail | null>(null)
 
   // ── Ref characters ──
@@ -118,8 +120,14 @@ export function StoryboardSettings({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
+  const [zoomImageIndex, setZoomImageIndex] = useState<number>(0)
   const imageUploadRef = useRef<HTMLInputElement>(null)
   const refCharsDialogRef = useRef<HTMLDivElement>(null)
+
+  // Image component state
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0)
+  const [focusedImageIndex, setFocusedImageIndex] = useState<number>(0)
+  const images = storyDetail?.resource?.images || []
 
   const narration = storyboard?.config?.narration ?? projectDetail?.narration ?? 1
   const speechTypeLabel = narrationLabel(narration)
@@ -170,13 +178,11 @@ export function StoryboardSettings({
     if (!storyboard?.project_id || !storyboard?.stage_id) return
     instance.get(`/api/v2/asset/list?project_id=${storyboard.project_id}&stage_id=${storyboard.stage_id}`)
       .then((res: any) => {
-        const mapped = (res.characters || []).map((char: any) => ({
-          ...char,
-          images: [
-            char.front_image_url && { id: char.id, url: char.front_image_url },
-            char.side_image_url && { id: char.id, url: char.side_image_url }, // Fallback to asset ID for now
-            char.back_image_url && { id: char.id, url: char.back_image_url }
-          ].filter(Boolean)
+        // Map assets to Character interface using the new API response structure
+        const mapped = (res.assets || []).map((asset: any) => ({
+          id: asset.id,
+          name: asset.name,
+          images: asset.images || []  // Use the images array from API response
         }))
         setCharacters(mapped)
       })
@@ -221,6 +227,28 @@ export function StoryboardSettings({
 
   // ── Handlers ─────────────────────────────────────────────
 
+  // Track resolved assets for image generation
+  const [resolvedAssets, setResolvedAssets] = useState<Record<string, number>>({})
+
+  const handleImagePromptChange = useCallback((prompt: string) => {
+    if (prompt) {
+      onUpdate("image_prompt", prompt)
+      console.log("Image prompt updated:", prompt)
+    }
+  }, [onUpdate])
+
+  const handleConfirmAssetImage = useCallback((assetName: string, imageId: number, prompt: string) => {
+    // Store the resolved asset image mapping
+    setResolvedAssets(prev => ({
+      ...prev,
+      [assetName]: imageId
+    }))
+
+    console.log(`Confirmed asset image: ${assetName} with id ${imageId}`)
+    console.log(`Current prompt with asset: ${prompt}`)
+    console.log("Resolved assets:", resolvedAssets)
+  }, [resolvedAssets])
+
   const handleGenerateImage = async (prompt?: string, resolvedAssets?: Record<string, number>) => {
     setIsGeneratingImage(true)
     instance.post('/api/v2/scene/generateSceneImage', {
@@ -235,13 +263,6 @@ export function StoryboardSettings({
       setIsGeneratingImage(false)
     })
       .catch((error: any) => { setIsGeneratingImage(false); })
-  }
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0] || !storyboard) return
-    const objectUrl = URL.createObjectURL(e.target.files[0])
-    onUpdate("image_url", [objectUrl])
-    e.target.value = ''
   }
 
   const handleGenerateVideoPrompt = async () => {
@@ -317,6 +338,119 @@ export function StoryboardSettings({
 
   const handleOpenRefChars = () => { setPendingCharIds(new Set(selectedCharIds)); setIsRefCharsOpen(true) }
   const handleConfirmRefChars = () => { setSelectedCharIds(new Set(pendingCharIds)); setIsRefCharsOpen(false) }
+
+  // Image component handlers
+  const handleImageClick = (index: number) => {
+    setZoomImageIndex(index)
+    setZoomImageUrl(images[index]?.url || null)
+  }
+
+  const handlePreviousImage = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation()
+    if (images.length === 0) return
+    const newIndex = selectedImageIndex === 0 ? images.length - 1 : selectedImageIndex - 1
+    setSelectedImageIndex(newIndex)
+    setZoomImageIndex(newIndex)
+    // If zoom is open, also update zoomImageUrl to show the previous image
+    if (zoomImageUrl) {
+      setZoomImageUrl(images[newIndex]?.url || null)
+    }
+  }
+
+  const handleNextImage = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation()
+    if (images.length === 0) return
+    const newIndex = selectedImageIndex === images.length - 1 ? 0 : selectedImageIndex + 1
+    setSelectedImageIndex(newIndex)
+    setZoomImageIndex(newIndex)
+    // If zoom is open, also update zoomImageUrl to show the next image
+    if (zoomImageUrl) {
+      setZoomImageUrl(images[newIndex]?.url || null)
+    }
+  }
+
+  const handleSelectImage = async (index: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!storyboard?.id) return
+
+    // Set the selected index (exclusive selection)
+    setSelectedImageIndex(index)
+    setFocusedImageIndex(index)
+
+    // try {
+    //   const res = await instance.post('/api/v2/scene/selectReferenceImage', {
+    //     image_id: images[index].id,
+    //     type: 'VIDEO_GENERATION'
+    //   })
+    //   console.log('Selected image:', res)
+    //   showToast('Reference image selected successfully', 'success')
+    // } catch (error: any) {
+    //   console.error('Failed to select image:', error)
+    //   showToast('Failed to select reference image', 'error')
+    // }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !storyboard) return
+
+    try {
+      const formData = new FormData()
+      formData.append('project_id', String(storyboard.project_id))
+      formData.append('stage_id', String(storyboard.stage_id))
+      formData.append('scene_id', String(storyboard.id))
+      formData.append('user_id', String(projectDetail?.user_id || 0))
+      formData.append('image', file)
+
+      const res: any = await instance.post('/api/v2/file/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
+      console.log('Upload response:', res)
+
+      // Extract required fields from response matching AssetResponse interface
+      const newImage: AssetResponse = {
+        id: res.id,
+        name: res.name,
+        url: res.signed_url || res.url
+      }
+
+      // Add to images array
+      setStoryDetail(prev => {
+        if (!prev || !prev.resource) return prev
+        return {
+          ...prev,
+          resource: {
+            ...prev.resource,
+            images: [...(prev.resource.images || []), newImage]
+          }
+        }
+      })
+
+      // Focus on the newly added image
+      setFocusedImageIndex(prev => prev + 1)
+      showToast('Image uploaded successfully', 'success')
+    } catch (error: any) {
+      console.error('Failed to upload image:', error)
+      showToast('Failed to upload image', 'error')
+    }
+  }
+
+  // Keyboard navigation for images
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (e.key === 'ArrowLeft') handlePreviousImage(e as any)
+        if (e.key === 'ArrowRight') handleNextImage(e as any)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [zoomImageIndex, images, selectedImageIndex])
 
   const togglePendingChar = (id: number | 'NONE') => {
     setPendingCharIds(prev => {
@@ -406,38 +540,89 @@ export function StoryboardSettings({
 
       <PanelGroup direction="horizontal" className="flex-1 h-full min-h-0">
         {/* Left Column: Image and Voice Components */}
-        <Panel defaultSize={55} minSize={35}>
+        <Panel defaultSize={50} minSize={35}>
           <div className="h-full space-y-6 overflow-y-auto no-scrollbar pb-6 px-6 pt-6 bg-gray-50/50">
             {/* 2. Image Component */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-700 flex items-center gap-2">
                   <ImageIcon className="w-3.5 h-3.5" /> Image Subject
                 </h3>
-                {(storyDetail?.resource?.storyboard_image_url || storyboard?.image_url) && (
-                  <span className="text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                {images.length > 0 && (
+                  <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                     <Check className="w-3 h-3" /> Ready
                   </span>
                 )}
               </div>
 
               {/* Image Show Box */}
-              <div className="group/preview relative w-full aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center m-0 border border-gray-100">
-                {storyDetail?.resource?.storyboard_image_url || storyboard?.image_url ? (
-                  <img
-                    src={storyDetail?.resource?.storyboard_image_url || storyboard.image_url}
-                    alt="Storyboard base"
-                    className="w-full h-full object-contain transition-all duration-700 hover:scale-[1.02] cursor-zoom-in"
-                    onClick={() => setZoomImageUrl(storyDetail?.resource?.storyboard_image_url || storyboard.image_url || null)}
-                  />
+              <div className="group/preview relative h-[350px] w-full rounded-xl overflow-hidden bg-black flex items-center justify-center border border-gray-100">
+                {images.length > 0 ? (
+                  <>
+                    {/* Main Image Display */}
+                    <img
+                      src={images[selectedImageIndex]?.url}
+                      alt={`Storyboard image ${selectedImageIndex + 1}`}
+                      className="w-full h-full object-contain transition-all duration-700 hover:scale-[1.02] cursor-zoom-in"
+                      onClick={() => handleImageClick(selectedImageIndex)}
+                    />
+
+                    {/* Selection Circle */}
+                    <button
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full border-2 transition-all z-30 flex items-center justify-center"
+                      onClick={(e) => {
+                        // e.stopPropagation()
+                        // e.preventDefault()
+                        handleSelectImage(selectedImageIndex, e)
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                      }}
+                      type="button"
+                      style={{
+                        borderColor: selectedImageIndex === focusedImageIndex ? '#22c55e' : '#9ca3af',
+                        backgroundColor: selectedImageIndex === focusedImageIndex ? '#22c55e' : '#f3f4f6',
+                      }}
+                    >
+                      {selectedImageIndex === focusedImageIndex && (
+                        <Check className="w-5 h-5 text-white" />
+                      )}
+                    </button>
+
+                    {/* Navigation Arrows */}
+                    {images.length > 1 && (
+                      <>
+                        <button
+                          className="absolute left-0 top-0 bottom-0 w-24 -translate-x-1/2 bg-gradient-to-r from-black/30 to-transparent hover:from-black/50 hover:to-black/30 flex items-center justify-start pl-8 opacity-0 group-hover/preview:opacity-100 transition-opacity z-20"
+                          onClick={handlePreviousImage}
+                        >
+                          <ChevronLeft className="w-12 h-12 text-white/90" />
+                        </button>
+                        <button
+                          className="absolute right-0 top-0 bottom-0 w-24 translate-x-1/2 bg-gradient-to-l from-black/30 to-transparent hover:from-black/50 hover:to-black/30 flex items-center justify-end pr-8 opacity-0 group-hover/preview:opacity-100 transition-opacity z-20"
+                          onClick={handleNextImage}
+                        >
+                          <ChevronRight className="w-12 h-12 text-white/90" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Image Counter */}
+                    {images.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-20">
+                        {selectedImageIndex + 1} / {images.length}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center text-gray-600 gap-3">
                     <ImageIcon className="w-12 h-12 opacity-80 mix-blend-screen" />
-                    <p className="text-xs font-semibold tracking-widest uppercase opacity-70">No Image Reference</p>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-gray-700">No Image Reference</p>
                   </div>
                 )}
+
                 {isGeneratingImage && (
-                  <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 text-white z-10">
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 text-white z-30">
                     <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
                     <span className="text-xs font-bold tracking-widest uppercase">Rendering Visuals...</span>
                   </div>
@@ -469,9 +654,10 @@ export function StoryboardSettings({
                 <PromptChatbox
                   initialValue={storyDetail?.image_prompt || storyboard?.prompt || ''}
                   assets={characters}
-                  history={storyDetail?.image_prompt_history || storyboard?.image_prompt_history}
                   onGenerate={handleGenerateImage}
                   isGenerating={isGeneratingImage}
+                  onImagePromptChange={handleImagePromptChange}
+                  onConfirmAssetImage={handleConfirmAssetImage}
                 />
               </div>
             </div>
@@ -479,11 +665,11 @@ export function StoryboardSettings({
             {/* 3. Voice Component */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-700 flex items-center gap-2">
                   <Mic className="w-3.5 h-3.5" /> Audio Track
                 </h3>
                 {(storyDetail?.resource?.voice_url || storyboard?.voice_url) && (
-                  <span className="text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                     <Check className="w-3 h-3" /> Ready
                   </span>
                 )}
@@ -491,7 +677,7 @@ export function StoryboardSettings({
 
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col relative focus-within:ring-1 focus-within:ring-purple-200 transition-all">
                 <div className="flex justify-between items-center bg-gray-50/80 border-b border-gray-100 px-3 py-2">
-                  <span className="text-[9px] font-black text-gray-400 tracking-widest uppercase">{speechTypeLabel} SCRIPT</span>
+                  <span className="text-[10px] font-bold text-gray-700 tracking-widest uppercase">{speechTypeLabel} SCRIPT</span>
                 </div>
                 {!isDialogue ? (
                   <Textarea
@@ -525,10 +711,10 @@ export function StoryboardSettings({
                     {speechLines.map((line, idx) => (
                       <div key={idx} className="flex gap-1.5 items-start bg-white rounded flex-col border border-gray-100 overflow-hidden group">
                         <div className="flex w-full items-center border-b border-gray-50">
-                          <span className="w-5 flex items-center justify-center text-[10px] text-gray-300 font-bold bg-gray-50 h-full">{idx + 1}</span>
+                          <span className="w-5 flex items-center justify-center text-xs text-gray-600 font-bold bg-gray-50 h-full">{idx + 1}</span>
                           <input
                             value={line.character}
-                            className="w-20 font-bold text-indigo-700 bg-transparent text-[11px] p-1.5 outline-none placeholder:text-gray-300 transition-colors"
+                            className="w-20 font-bold text-indigo-700 bg-transparent text-xs p-1.5 outline-none placeholder:text-gray-500 transition-colors"
                             placeholder="Actor"
                             onChange={(e) => {
                               const name = e.target.value
@@ -553,7 +739,7 @@ export function StoryboardSettings({
                           />
                           <div className="flex-1 flex justify-end px-1">
                             <button
-                              className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => {
                                 updateStoryDetailField(prev => {
                                   let currentDialogue = Array.isArray(prev.config?.dialogue) ? [...prev.config.dialogue] : []
@@ -601,7 +787,7 @@ export function StoryboardSettings({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full text-[10px] h-7 font-bold text-gray-400 hover:text-gray-600 mt-2"
+                      className="w-full text-xs h-7 font-bold text-gray-600 hover:text-gray-700 mt-2"
                       onClick={() => {
                         updateStoryDetailField(prev => {
                           let currentDialogue = Array.isArray(prev.config?.dialogue) ? [...prev.config.dialogue] : []
@@ -662,20 +848,20 @@ export function StoryboardSettings({
                         }))
                       }}
                     >
-                      <SelectTrigger className="w-[85px] h-7 text-[10px] bg-white border-gray-200 rounded shadow-sm font-medium focus:ring-0">
+                      <SelectTrigger className="w-[85px] h-7 text-xs bg-white border-gray-200 rounded shadow-sm font-medium focus:ring-0">
                         <SelectValue placeholder="Emotion" />
                       </SelectTrigger>
                       <SelectContent>
                         {emotions.length > 0 ? (
                           emotions.map((emo) => (
-                            <SelectItem key={emo.zh} value={emo.en} className="text-[10px] font-medium">
+                            <SelectItem key={emo.zh} value={emo.en} className="text-xs font-medium">
                               {emo.en}
                             </SelectItem>
                           ))
                         ) : (
                           <>
-                            <SelectItem value="neutral" className="text-[10px] font-medium">Neutral</SelectItem>
-                            <SelectItem value="happy" className="text-[10px] font-medium">Emotion</SelectItem>
+                            <SelectItem value="neutral" className="text-xs font-medium">Neutral</SelectItem>
+                            <SelectItem value="happy" className="text-xs font-medium">Emotion</SelectItem>
                           </>
                         )}
                       </SelectContent>
@@ -694,7 +880,7 @@ export function StoryboardSettings({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 px-3 text-[10px] bg-white font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50 shadow-sm"
+                      className="h-7 px-3 text-xs bg-white font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50 shadow-sm"
                       onClick={handleGenerateAudio}
                       disabled={isGeneratingAudio}
                     >
@@ -716,7 +902,7 @@ export function StoryboardSettings({
         <PanelResizeHandle className="w-[1px] bg-gray-200 shadow-sm" />
 
         {/* Right Column: Video Component */}
-        <Panel defaultSize={45} minSize={30}>
+        <Panel defaultSize={50} minSize={30}>
           <div className="h-full overflow-y-auto no-scrollbar pb-6 px-6 pt-6 bg-white border-l border-gray-100">
             {/* 4. Video Component */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4 flex flex-col justify-between h-full">
@@ -733,7 +919,7 @@ export function StoryboardSettings({
                 </div>
 
                 {/* Video Player */}
-                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center border border-gray-100">
+                <div className="relative h-[350px] w-full rounded-xl overflow-hidden bg-black flex items-center justify-center border border-gray-100">
                   {isGeneratingVideo ? (
                     <div className="absolute inset-0 bg-indigo-950/80 backdrop-blur-lg flex flex-col items-center justify-center gap-4 text-white z-10">
                       <Loader2 className="w-10 h-10 animate-spin text-purple-300" />
@@ -748,7 +934,7 @@ export function StoryboardSettings({
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-600 gap-3">
                       <Play className="w-12 h-12 opacity-80 mix-blend-screen" />
-                      <p className="text-xs font-semibold tracking-widest uppercase opacity-70">No Video Available</p>
+                      <p className="text-xs font-semibold tracking-widest uppercase text-gray-700">No Video Available</p>
                     </div>
                   )}
                 </div>
@@ -792,10 +978,10 @@ export function StoryboardSettings({
 
                 {/* Video Prompt */}
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Director&apos;s Script</Label>
+                  <Label className="text-xs font-bold text-gray-700 uppercase tracking-widest pl-1">Director&apos;s Script</Label>
                   <Textarea
                     value={storyDetail?.video_prompt || ""}
-                    className="min-h-[140px] text-[13px] bg-gray-50/50 border-none resize-none focus:bg-white transition-colors p-4 rounded-xl focus-visible:ring-1 focus-visible:ring-purple-200 leading-relaxed font-mono shadow-inner"
+                    className="min-h-[140px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-colors p-4 rounded-xl focus-visible:ring-1 focus-visible:ring-purple-200 leading-relaxed font-mono shadow-inner"
                     onChange={(e) => { const val = e.target.value; updateStoryDetailField(prev => ({ ...prev, video_prompt: val })) }}
                     placeholder="Describe precise camera movements, cinematic effects, and atmosphere..."
                   />
@@ -806,8 +992,8 @@ export function StoryboardSettings({
               <div className="pt-4 border-t border-gray-100 mt-auto">
                 <Button
                   size="lg"
-                  className="w-full h-[52px] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[14px] font-black tracking-widest rounded-xl shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-                  disabled={isGeneratingVideo || !(storyDetail?.resource?.storyboard_image_url || storyboard?.image_url) || !storyDetail?.video_prompt || ((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !(storyDetail?.resource?.voice_url || storyboard?.voice_url))}
+                  className="w-full h-[52px] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-base font-black tracking-widest rounded-xl shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
+                  disabled={isGeneratingVideo || images.length === 0 || !storyDetail?.video_prompt || ((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !(storyDetail?.resource?.voice_url || storyboard?.voice_url))}
                   title={((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !(storyDetail?.resource?.voice_url || storyboard?.voice_url)) ? "Please Sync Audio Track first" : ""}
                   onClick={() => handleGenerateVideo()}
                 >
