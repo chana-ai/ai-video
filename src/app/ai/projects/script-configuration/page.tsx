@@ -12,7 +12,39 @@ import { Badge } from "@/components/ui/badge"
 import type { ScriptGenerationData, ProjectMetaInfo } from '../types'
 import Header from "../../header";
 import instance from "@/lib/axios";
-import { themeMap, styleMap } from '../types'
+import { themeMap, styleMap, Theme } from '../types'
+import { getThemeMap, setStyleMap, setThemeMap } from '@/lib/localcache'
+
+// Fetch and populate themeMap if not in cache
+const fetchThemeMap = async () => {
+  try {
+    const res: any = await instance.get('/api/v2/project/themes')
+    const fetchedThemes: Theme[] = res || []
+
+    // Populate themeMap cache
+    const themeMapData: Record<string, Theme> = {}
+    fetchedThemes.forEach((theme: Theme) => {
+      themeMapData[theme.value] = theme
+    })
+
+    // Update the global themeMap
+    Object.assign(themeMap, themeMapData)
+
+    // Also cache it for 24 hours
+    setThemeMap(themeMapData)
+
+    // Fetch and cache styleMap
+    const defaultStyleMap: Record<string, string> = {
+      'cinematic': 'cinematic',
+      'animation_ghibli': '吉卜力'
+    }
+    setStyleMap(defaultStyleMap)
+  } catch (err) {
+    console.error('Failed to fetch themes:', err)
+  }
+}
+
+
 
 export default function ScriptConfiguration() {
   const router = useRouter()
@@ -39,6 +71,13 @@ export default function ScriptConfiguration() {
   const [docId, setDocId] = useState("")
 
 
+  // Initialize themeMap on mount
+  useEffect(() => {
+    const currentThemeMap = getThemeMap()
+    if (Object.keys(currentThemeMap).length === 0) {
+      fetchThemeMap()
+    }
+  }, [])
   // const [savingScene, setSavingScene] = useState(false)
   // const [savingAsset, setSavingAsset] = useState(false)
   // const [savingScript, setSavingScript] = useState(false)
@@ -239,7 +278,7 @@ export default function ScriptConfiguration() {
                 {projectMetaInfo.theme && (
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-1">主题 </label>
-                    <div className="text-gray-800 bg-white px-3 py-2 rounded border">{themeMap[projectMetaInfo.theme as keyof typeof themeMap]?.name || projectMetaInfo.theme}</div>
+                    <div className="text-gray-800 bg-white px-3 py-2 rounded border">{themeMap[projectMetaInfo.theme as keyof typeof themeMap]?.label || projectMetaInfo.theme}</div>
                   </div>
                 )}
                 {projectMetaInfo.style && (

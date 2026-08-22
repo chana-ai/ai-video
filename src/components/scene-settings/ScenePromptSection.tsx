@@ -4,7 +4,7 @@ import React from "react"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { ImageIcon, Loader2 } from "lucide-react"
-import { ScenePromptSectionProps } from "@/types/scene-settings"
+import { ScenePromptSectionProps } from "@/app/ai/projects/types/scene-settings"
 
 /**
  * Scene Prompt Section component for generating scene images from prompts

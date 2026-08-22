@@ -1,8 +1,11 @@
-# Refactor StoryboardSettings Layout Task List
+# Task Progress Tracker
 
-| Task | Status | Description |
+| Task | Description | Status |
 | --- | --- | --- |
-| Structure the Top-Level Layout and Header Component | [x] | Restructure the outer containers and place the Storyboard Title and Description at the top |
-| Implement the Left Column (Image & Voice Components) | [x] | Group the image preview box, uploader, choose actors button, and image prompt chatbox. Group dialogue scripts, selectors, player, and sync audio buttons. |
-| Implement the Right Column (Video Component) | [x] | Group model selection, prompt generation, video prompt textarea, and video player with a generation button. |
-| Build and Verification | [x] | Verified code structure and JSX tags manually. |
+| 1 | Fix Types in `types.ts` | [x] |
+| 2 | Refactor `VoiceSynthesisTab` Component | [x] |
+| 3 | Refactor `VoiceCloningTab` Component | [x] |
+| 4 | Refactor `AudioConfigTab` Component | [x] |
+| 5 | Refactor `AssetDetail` Component | [x] |
+| 6 | Refactor `page.tsx` state and API mappings | [x] |
+| 7 | Verification & Build checks | [/] |

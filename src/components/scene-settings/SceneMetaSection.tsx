@@ -4,7 +4,7 @@ import React from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { SceneMetaSectionProps } from "@/types/scene-settings"
+import { SceneMetaSectionProps } from "@/app/ai/projects/types/scene-settings"
 
 /**
  * Scene Meta Section component for displaying and editing scene title and description

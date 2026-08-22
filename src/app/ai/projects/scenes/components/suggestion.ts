@@ -53,7 +53,8 @@ export default (assetsRef: MutableRefObject<Asset[]>) => ({
                 console.log('Suggestion onUpdate, assets:', assetsRef.current)
                 component.updateProps({
                     ...props,
-                    items: assetsRef.current
+                    items: assetsRef.current,
+                    asset_image_map: props.asset_image_map  // Pass asset_image_map to SuggestionList
                 })
 
                 if (!props.clientRect) {

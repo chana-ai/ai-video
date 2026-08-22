@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Copy, X, RefreshCw } from "lucide-react"
 import { useState, useCallback, memo } from "react"
-import type { CombinedVideo } from "../types"
+import type { CombinedVideo } from "@/app/ai/projects/types"
 
 interface MultiVideoDisplayPanelProps {
   combinedVideos: CombinedVideo[]

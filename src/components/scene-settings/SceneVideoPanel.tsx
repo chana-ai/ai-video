@@ -3,7 +3,7 @@
 import React from "react"
 import { Play } from "lucide-react"
 import { Label } from "@/components/ui/label"
-import { SceneVideoPanelProps } from "@/types/scene-settings"
+import { SceneVideoPanelProps } from "@/app/ai/projects/types/scene-settings"
 import { VideoDisplayPanel } from "@/app/ai/projects/scenes/components/video-display-panel"
 
 /**

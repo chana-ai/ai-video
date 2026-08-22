@@ -3,7 +3,7 @@
 import React from "react"
 import { Users } from "lucide-react"
 import { Label } from "@/components/ui/label"
-import { AssetReferenceMapProps } from "@/types/scene-settings"
+import { AssetReferenceMapProps } from "@/app/ai/projects/types/scene-settings"
 
 /**
  * Asset Reference Map component displaying all assets for a project

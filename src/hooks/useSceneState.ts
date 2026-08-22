@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { Scene } from "../app/ai/projects/scenes/types"
+import { Scene } from "../app/ai/projects/types"
 
 /**
  * Custom hook for managing scene state with automatic sync

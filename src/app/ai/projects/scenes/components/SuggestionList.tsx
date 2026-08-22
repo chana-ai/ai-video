@@ -50,17 +50,28 @@ export const SuggestionList = forwardRef((props: any, ref) => {
         <div className="bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden min-w-[160px] z-[9999] animate-in fade-in zoom-in-95 duration-100">
             {props.items.length > 0 ? (
                 <div className="p-1">
-                    {props.items.map((item: any, index: number) => (
-                        <button
-                            className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between group ${index === selectedIndex ? 'bg-purple-600 text-white' : 'hover:bg-purple-50 text-gray-700'
+                    {props.items.map((item: any, index: number) => {
+                        // Check if asset has an image selected in asset_image_map
+                        const hasSelectedImage = props.asset_image_map && props.asset_image_map[item.name]
+                        return (
+                            <button
+                                className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between group ${
+                                    index === selectedIndex
+                                        ? hasSelectedImage
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-purple-600 text-white'
+                                        : hasSelectedImage
+                                            ? 'hover:bg-green-100 text-green-700'
+                                            : 'hover:bg-purple-50 text-gray-700'
                                 }`}
-                            key={index}
-                            onClick={() => selectItem(index)}
-                        >
-                            <span className="font-medium">{item.name}</span>
-                            {index === selectedIndex && <Check className="h-3.5 w-3.5 opacity-70" />}
-                        </button>
-                    ))}
+                                key={index}
+                                onClick={() => selectItem(index)}
+                            >
+                                <span className="font-medium">{item.name}</span>
+                                {index === selectedIndex && <Check className="h-3.5 w-3.5 opacity-70" />}
+                            </button>
+                        )
+                    })}
                 </div>
             ) : (
                 <div className="px-4 py-3 text-xs text-gray-400 italic text-center">

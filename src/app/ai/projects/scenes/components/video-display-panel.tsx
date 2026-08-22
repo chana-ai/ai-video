@@ -1,6 +1,6 @@
 import { RefreshCw } from "lucide-react"
 
-import type { VideoDisplayProps } from "../types"
+import type { VideoDisplayProps } from "@/app/ai/projects/types"
 
 export function VideoDisplayPanel({ scene, onClose, isGeneratingVideo }: VideoDisplayProps) {
   const showSpinner = Boolean(isGeneratingVideo)

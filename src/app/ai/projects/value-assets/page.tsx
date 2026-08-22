@@ -3,17 +3,14 @@
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { User, Package } from 'lucide-react'
+import { Package } from 'lucide-react'
 import Header from "../../header"
 import { instance } from '@/lib/axios'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Asset, ResourceAsset, VoiceConfig, AssetType, SelectedAsset, Batch, ImageInfo } from './types'
+import { Asset, ResourceAsset, SelectedAsset, Batch, ImageInfo, VoiceSetting } from './types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AssetList } from '../components/value-assets/AssetList'
 import { AssetDetail } from '../components/value-assets/AssetDetail'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ValueAssets() {
     const searchParams = useSearchParams()
@@ -23,7 +20,7 @@ export default function ValueAssets() {
 
     const [characters, setCharacters] = useState<Asset[]>([])
     const [resourceAssets, setResourceAssets] = useState<ResourceAsset[]>([])
-    const [selectedAsset, setSelectedAsset] = useState<SelectedAsset | null>(null)
+    const [selectedAsset, setSelectedAsset] = useState<SelectedAsset>()
     const [isGenerating, setIsGenerating] = useState(false)
     const [promptChanged, setPromptChanged] = useState(false)
     const [errors, setErrors] = useState('')
@@ -79,7 +76,7 @@ export default function ValueAssets() {
 
                 setCharacters(assets.filter((assets: any) => assets.type === 0));
                 if (assets.length > 0) {
-                    selectAsset('character', assets[0], true);
+                    selectAsset(assets[0], true);
                 }
                 setResourceAssets(assets.filter((assets: any) => assets.type === 1));
             })
@@ -100,75 +97,69 @@ export default function ValueAssets() {
     }, [currentVendor]);
 
 
-    const selectAsset = async (type: AssetType, asset: Asset | ResourceAsset, forceRefresh: boolean = false) => {
-        const scenario = type === 'character' ? 'CHARACTER' : 'RESOURCE';
+    const selectAsset = async (asset: Asset, forceRefresh: boolean = false) => {
         const referenceId = asset.id;
-        const cacheKey = `history_${type}_${referenceId}`;
+        const cacheKey = `history_${asset.type}_${referenceId}`;
+        let config: any = {};
 
         // Reset state before fetching new asset data
         setHistory([]);
         setCurrentBatch(null);
         setPromptChanged(false);
         setSelectedRowIndex(null);
-        setMode('tts');
+
+        setSelectedAsset(asset)
+        // let parsedConfig: any = {};
+        // if (asset.config) {
+        //     try {
+        //         parsedConfig = typeof asset.config === 'string' ? JSON.parse(asset.config) : asset.config;
+        //     } catch (e) {
+        //         console.error("Failed to parse asset config:", e);
+        //         parsedConfig = {};
+        //     }
+        // }
+        // const voiceSetting: VoiceSetting = parsedConfig.voice_setting || {
+        //     gender: 'female',
+        //     emotion: 'neutral',
+        //     vendor: 'azure',
+        //     is_master: false,
+        //     mode: 'tts'
+        // };
+
+        // if (!voiceSetting.tts) {
+        //     voiceSetting.tts = { url: '', desc: '', voice: '', voice_name: '' };
+        // }
+        // if (!voiceSetting.clone) {
+        //     voiceSetting.clone = { url: '', desc: '', voice: '', voice_name: '' };
+        // }
+
+        // const initialMode = voiceSetting.mode === 'clone' ? 'clone' : 'tts';
+        // setMode(initialMode);
+
+        // const initialVendor = voiceSetting.vendor || (initialMode === 'clone' ? 'qwen' : 'azure');
+        // setCurrentVendor(initialVendor);
+
+        // const assetWithVoice: SelectedAsset = {
+        //     ...asset,
+        //     config: parsedConfig,
+        //     voice_setting: voiceSetting
+        // };
+        // setSelectedAsset(assetWithVoice);
 
         // Update selected asset basic info
-        if (type === 'character') {
-            const char = asset as Asset;
-            let config: any = {};
-            if (char.config) {
-                try {
-                    config = typeof char.config === 'string' ? JSON.parse(char.config) : char.config;
-                } catch (e) {
-                    console.error("Failed to parse asset config:", e);
-                }
-            }
+        if (asset.type === 0) {
             const initialSelected = new Set<number>();
             if (config.front) initialSelected.add(config.front);
             if (config.side) initialSelected.add(config.side);
             if (config.back) initialSelected.add(config.back);
             setSelectedImageIds(initialSelected);
 
-            const ttsVoicePath = config.tts_voice_path || char.tts_voice_path || char.tts_voice_Path || '';
-            const cloneVoicePath = config.clone_voice_path || char.clone_voice_path || '';
-            const voiceSetting = { ...(config.voice_setting || {}) };
-            delete voiceSetting.mode;
-
-            setSelectedAsset({
-                type: 'character',
-                id: char.id,
-                name: char.name,
-                description: char.description || '',
-                prompt: char.prompt || '',
-                images: char.images || [],
-                voiceConfig: {
-                    voice: '',
-                    voice_name: '',
-                    desc: '',
-                    gender: 'female',
-                    emotion: 'neutral',
-                    vendor: 'azure',
-                    is_master: false,
-                    ...voiceSetting,
-                    tts_voice_path: ttsVoicePath,
-                    clone_voice_path: cloneVoicePath
-                }
-            });
-            setAudioPreviewUrl_tts(ttsVoicePath);
-            setAudioPreviewUrl_clone(cloneVoicePath);
+            setAudioPreviewUrl_tts(asset.config.voice_setting.tts?.url || '');
+            setAudioPreviewUrl_clone(asset.config.voice_setting.clone?.url || '');
         } else {
-            const resource = asset as ResourceAsset;
             setSelectedImageIds(new Set());
             setAudioPreviewUrl_tts('');
             setAudioPreviewUrl_clone('');
-            setSelectedAsset({
-                type: 'resource',
-                id: resource.id,
-                name: resource.name,
-                description: resource.description || '',
-                prompt: '',
-                images: resource.images || []
-            });
         }
 
         // Check cache first (2-hour TTL) unless forceRefresh is true
@@ -194,6 +185,7 @@ export default function ValueAssets() {
                 console.error("Failed to parse cached history:", e);
             }
         }
+        const scenario = (asset.type === 0) ? 'CHARACTER' : 'RESOURCE';
 
         // Fetch history from backend
         try {
@@ -245,37 +237,53 @@ export default function ValueAssets() {
         }
     };
 
-    const handleVoiceConfigChange = (config: VoiceConfig) => {
-        if (selectedAsset) {
-            setSelectedAsset({ ...selectedAsset, voiceConfig: config });
-        }
+    const handleVoiceSettingChange = (newSetting: VoiceSetting) => {
+        if (!selectedAsset) return;
+
+        const updatedAsset: SelectedAsset = {
+            ...selectedAsset,
+            voice_setting: newSetting,
+            config: {
+                ...(selectedAsset.config || {}),
+                voice_setting: newSetting
+            }
+        };
+        setSelectedAsset(updatedAsset);
     };
 
-    const handleSaveVoiceConfig = async () => {
-        if (!selectedAsset || !selectedAsset.voiceConfig) return;
+    const handleSaveVoiceSetting = async () => {
+        if (!selectedAsset) return;
+
+        const voiceSetting = selectedAsset.voice_setting || {
+            gender: 'female',
+            emotion: 'neutral',
+            vendor: 'azure',
+            is_master: false,
+            mode: 'tts'
+        };
 
         try {
-            // 根据 mode 设置 voice_name
-            let finalVoiceName = selectedAsset.voiceConfig.voice || '';
-            if (mode === 'clone') {
-                // Cloning 模式，如果已有 voice_name 则使用，否则为空
-                finalVoiceName = selectedAsset.voiceConfig.voice_name || '克隆声音';
-            }
+            const isClone = mode === 'clone';
+            const activeVoice = isClone ? (voiceSetting.clone?.voice || '') : (voiceSetting.tts?.voice || '');
+            const activeVoiceName = isClone ? (voiceSetting.clone?.voice_name || '克隆声音') : (voiceSetting.tts?.voice_name || '');
+            const activeDesc = isClone ? (voiceSetting.clone?.desc || '') : (voiceSetting.tts?.desc || '');
+            const activeUrl = isClone ? (voiceSetting.clone?.url || '') : (voiceSetting.tts?.url || '');
 
-            // 准备请求数据
+            // Prepare request body using voiceConfig state
             const requestConfig = {
                 asset_id: selectedAsset.id,
                 project_id: Number(projectId),
                 stage_id: Number(stageId),
-                voice: selectedAsset.voiceConfig.voice,
-                voice_name: finalVoiceName,
-                vendor: selectedAsset.voiceConfig.vendor,
-                gender: selectedAsset.voiceConfig.gender,
-                emotion: selectedAsset.voiceConfig.emotion,
-                desc: selectedAsset.voiceConfig.desc,
-                is_master: selectedAsset.voiceConfig.is_master,
-                mode,
-                voice_url: selectedAsset.voiceConfig.voice_url,
+
+                vendor: voiceSetting.vendor || (isClone ? 'qwen' : 'azure'),
+                gender: voiceSetting.gender || 'female',
+                emotion: voiceSetting.emotion || 'neutral',
+                desc: activeDesc,
+                is_master: voiceSetting.is_master || false,
+                mode: mode,
+                voice: activeVoice,
+                voice_name: activeVoiceName,
+                voice_url: activeUrl
             };
 
             await instance.post('/api/v2/asset/update_voice_config', requestConfig);
@@ -364,7 +372,7 @@ export default function ValueAssets() {
             await instance.post('/api/v2/asset/save_selected_images', {
                 project_id: Number(projectId),
                 stage_id: Number(stageId),
-                asset_id: selectedAsset.id,
+                asset_id: selectedAsset.asset.id,
                 front_image_id: ids[0],
                 side_image_id: ids[1],
                 back_image_id: ids[2]
@@ -377,7 +385,7 @@ export default function ValueAssets() {
 
             // const cacheKey = 'selected_images_cache';
             // const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-            // cache[selectedAsset.id] = selectedImages;
+            // cache[selectedAsset.asset.id] = selectedImages;
             // localStorage.setItem(cacheKey, JSON.stringify(cache));
 
             // alert('批次保存成功！');
@@ -473,7 +481,17 @@ export default function ValueAssets() {
 
 
     const handleAudioPreview = async () => {
-        if (!selectedAsset || !selectedAsset.voiceConfig?.voice) {
+        if (!selectedAsset) return;
+        const voiceSetting = selectedAsset.config.voice_setting || {
+            gender: 'female',
+            emotion: 'neutral',
+            vendor: 'azure',
+            is_master: false,
+            mode: 'tts'
+        };
+
+        const ttsVoice = voiceSetting.tts?.voice;
+        if (!ttsVoice) {
             alert('请先选择TTS引擎和语音模型');
             return;
         }
@@ -484,30 +502,27 @@ export default function ValueAssets() {
         try {
             const response: any = await instance.post('/api/v2/voice/preview', {
                 asset_id: selectedAsset.id,
-                model: selectedAsset.voiceConfig.voice,
-                vendor: selectedAsset.voiceConfig.vendor || 'azure',
+                model: ttsVoice,
+                vendor: voiceSetting.vendor || 'azure',
                 text: '你好，这是语音试听效果。',
-                voice: selectedAsset.voiceConfig.voice,
-                voice_name: selectedAsset.voiceConfig.voice_name,
-                gender: selectedAsset.voiceConfig.gender,
-                emotion: selectedAsset.voiceConfig.emotion,
-                desc: selectedAsset.voiceConfig.desc,
+                voice: ttsVoice,
+                voice_name: voiceSetting.tts?.voice_name || '',
+                gender: voiceSetting.gender || 'female',
+                emotion: voiceSetting.emotion || 'neutral',
+                desc: voiceSetting.tts?.desc || '',
             });
 
             // response 格式: { voice_path: oss_utils.get_oss_url(oss_voice_url), voice_oss_path: oss_voice_url, resource_id: resource.id }
             if (response.voice_path) {
                 setAudioPreviewUrl_tts(response.voice_path);
-                // 更新 voiceConfig
-                handleVoiceConfigChange({
-                    ...selectedAsset.voiceConfig,
-                    voice_path: response.voice_path,
-                    tts_voice_path: response.voice_path,
-                    voice: selectedAsset.voiceConfig.voice,
-                    voice_url: response.voice_oss_path,
-                    gender: selectedAsset.voiceConfig.gender,
-                    emotion: selectedAsset.voiceConfig.emotion,
-                    desc: selectedAsset.voiceConfig.desc
-                });
+                const updatedSetting: VoiceSetting = {
+                    ...voiceSetting,
+                    tts: {
+                        ...(voiceSetting.tts || { voice: '', voice_name: '', desc: '', url: '' }),
+                        url: response.voice_oss_path
+                    }
+                };
+                handleVoiceSettingChange(updatedSetting);
             } else {
                 alert('生成音频失败，未获取到音频链接');
             }
@@ -519,17 +534,25 @@ export default function ValueAssets() {
         }
     };
 
-    const handleVoiceClone = async (audioUrl: string, text: string) => {
+    const handleVoiceClone = async (audioUrl: string, text: string): Promise<void> => {
         if (!selectedAsset) {
             alert('请先选择一个角色');
             return;
         }
 
+        const voiceSetting = selectedAsset.voice_setting || {
+            gender: 'female',
+            emotion: 'neutral',
+            vendor: 'azure',
+            is_master: false,
+            mode: 'tts'
+        };
+
         setIsGeneratingAudio(true);
         setAudioPreviewUrl_clone('');
 
         try {
-            // 从音频 URL 获取音频文件
+            // 从音频 URL 获取音频 file
             const audioResponse = await fetch(audioUrl);
 
             // 检查响应状态
@@ -565,27 +588,22 @@ export default function ValueAssets() {
                 asset_id: selectedAsset.id.toString(),
                 vendor: 'qwen',
                 content: text || "这是语音测试效果",
-                emotion: selectedAsset.voiceConfig?.emotion || 'neutral'
+                emotion: voiceSetting.emotion || 'neutral'
             });
 
             // response 格式: VoiceCloneResponse(voice_path, voice_oss_path, voice_name, voice)
             if (response.voice_path) {
                 setAudioPreviewUrl_clone(response.voice_path);
-                // 更新 voiceConfig 以包含克隆的音频
-                handleVoiceConfigChange({
-                    voice: response.voice || selectedAsset.voiceConfig?.voice || '', // 添加响应中的 voice 字段
-                    clone_voice_path: response.voice_path,
-                    voice_url: response.voice_oss_path,
-                    voice_name: response.voice_name,
-                    recorded_text: text,
-                    desc: selectedAsset.voiceConfig?.desc || '',
-                    gender: selectedAsset.voiceConfig?.gender || 'female',
-                    emotion: selectedAsset.voiceConfig?.emotion || 'neutral',
-                    vendor: selectedAsset.voiceConfig?.vendor || 'azure',
-                    is_master: selectedAsset.voiceConfig?.is_master || false,
-                    tts_voice_path: selectedAsset.voiceConfig?.tts_voice_path || '',
-                    mode: 'clone'
-                });
+                const updatedSetting: VoiceSetting = {
+                    ...voiceSetting,
+                    clone: {
+                        url: response.voice_oss_path,
+                        desc: text,
+                        voice: response.voice || response.voice_name || '克隆声音',
+                        voice_name: response.voice_name || '克隆声音'
+                    }
+                };
+                handleVoiceSettingChange(updatedSetting);
             } else {
                 alert('声音克隆失败，未获取到音频链接');
             }
@@ -722,14 +740,14 @@ export default function ValueAssets() {
                             onImageUpload={handleImageUpload}
                             onAudioPreview={handleAudioPreview}
                             onRowSelect={setSelectedRowIndex}
-                            onSaveVoiceConfig={handleSaveVoiceConfig}
-                            onVoiceConfigChange={handleVoiceConfigChange}
+                            onSaveVoiceConfig={handleSaveVoiceSetting}
+                            onVoiceConfigChange={handleVoiceSettingChange}
                             onSetSelectedImageIds={setSelectedImageIds}
                             onSaveBatch={handleSaveBatch}
                             onVoiceClone={handleVoiceClone}
                             onRefresh={() => {
                                 if (selectedAsset) {
-                                    selectAsset(selectedAsset.type, selectedAsset as any, true);
+                                    selectAsset(selectedAsset as any, true);
                                 }
                             }}
                             onRestoreBatch={(batch) => {

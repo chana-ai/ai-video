@@ -5,7 +5,28 @@ export interface ImageInfo {
     is_selected: boolean;
 }
 
-export type AssetType = 'character' | 'resource';
+// export type AssetType = 'character' | 'resource';
+
+export interface VoiceSetting {
+    gender: string;
+    emotion: string;
+    vendor: string;
+    is_master: boolean;
+    mode?: string; // tts | clone
+    tts?: {
+        url: string;
+        desc: string;
+        voice: string;
+        voice_name: string;
+    };
+    clone?: {
+        url: string;
+        desc: string;
+        voice: string;
+        voice_name: string;
+    };
+}
+
 
 export interface Batch {
     id: number;
@@ -15,32 +36,15 @@ export interface Batch {
     version?: number;
 }
 
-export interface SelectedAsset {
-    type: AssetType;
-    id: number;
-    name: string;
-    description: string;
-    prompt: string;
-    images: ImageInfo[];
-    voiceConfig?: VoiceConfig;
+export interface SelectedAsset extends Asset {
+    // type: AssetType;
+    // asset: Asset | ResourceAsset; // Full asset object
+    // name?: string; // For display in AssetDetail
+    // description?: string; // For display in AssetDetail and prompt editing
+    // prompt?: string; // For prompt editing
+    voice_setting?: VoiceSetting; // Voice setting for current mode
     history?: Batch[]; // Local history for the session
-}
 
-export interface VoiceConfig {
-    voice: string | Blob;
-    voice_name: string;
-    desc: string;
-    gender: string;
-    emotion: string;
-    vendor?: string;
-    is_master?: boolean;
-    voice_path?: string;   //signed oss path.
-    voice_url?: string;    //oss_path.
-    mode?: string; // tts | clone
-    tts_voice_path?: string;
-    clone_voice_path?: string;
-    is_cloned?: boolean;
-    recorded_text?: string
 }
 
 export interface Asset {
@@ -53,20 +57,22 @@ export interface Asset {
     prompt_flag: boolean;
     create_time: string;
     selected_image_id: number;
-    images: ImageInfo[];
+    images: ImageInfo[] | null;
     version: number;
-    voiceConfig?: VoiceConfig;
-    config?: string | Record<string, any>;
-    tts_voice_path?: string;
-    tts_voice_Path?: string;
-    clone_voice_path?: string
+    gender: string;
+    timbre: string;
+    type: number;
+    config?: string | Record<string, any> & {
+        voice_setting?: VoiceSetting;
+    };
 }
 
-export interface ResourceAsset {
+export interface ResourceAsset extends Asset {
     id: number;
     name: string;
     description: string;
     images: ImageInfo[];
+    prompt?: string;
 }
 
 export interface SceneImage {

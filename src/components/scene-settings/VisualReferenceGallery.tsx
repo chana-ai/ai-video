@@ -3,7 +3,7 @@
 import React from "react"
 import { ImageIcon } from "lucide-react"
 import { Label } from "@/components/ui/label"
-import { VisualReferenceGalleryProps } from "@/types/scene-settings"
+import { VisualReferenceGalleryProps } from "@/app/ai/projects/types/scene-settings"
 
 /**
  * Visual Reference Gallery component with keyboard navigation

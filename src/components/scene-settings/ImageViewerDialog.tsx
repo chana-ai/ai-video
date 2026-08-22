@@ -2,7 +2,7 @@
 
 import React from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { ImageViewerDialogProps } from "@/types/scene-settings"
+import { ImageViewerDialogProps } from "@/app/ai/projects/types/scene-settings"
 
 /**
  * Image Viewer Dialog component for zooming in on images

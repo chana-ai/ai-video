@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { X } from 'lucide-react'
 import { type Theme } from '@/app/ai/projects/types'
 import instance from '@/lib/axios'
+import { setThemeMap } from '@/lib/localcache'
 
 export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter()
@@ -24,6 +24,42 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   const [backgroundInfo, setBackgroundInfo] = useState("");
   const [themes, setThemes] = useState<Theme[]>([])
   const [isLoadingThemes, setIsLoadingThemes] = useState(false)
+
+  // Fetch themes on mount and populate cache
+  useEffect(() => {
+    const fetchThemes = async () => {
+      try {
+        const res: any = await instance.get('/api/v2/project/themes')
+        const fetchedThemes = res || []
+
+        // Update local state
+        setThemes(fetchedThemes)
+
+        // Populate themeMap cache
+        const themeMapData: Record<string, Theme> = {}
+        fetchedThemes.forEach((theme: Theme) => {
+          themeMapData[theme.value] = theme
+        })
+        setThemeMap(themeMapData)
+
+        // Set initial background info from first theme
+        if (fetchedThemes.length > 0) {
+          const defaultTheme = fetchedThemes[0]
+          if (defaultTheme) {
+            setBackgroundInfo(defaultTheme.description)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch themes:', err)
+        // Fallback to default
+        setBackgroundInfo("请补充额外的一些信息，比如产品简洁，最重要的功能和卖点，产品使用场景，解决的痛点等")
+      }
+    }
+
+    if (open) {
+      fetchThemes()
+    }
+  }, [open])
 
   const aspectRatios = [
     { id: '1:1', label: '1:1', style: 'w-12 h-12' },
@@ -77,14 +113,14 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
       aspect: selectedAspect
     }
 
-    instance.post('/api/v2/project/create', requestBody).then(res => {
+    instance.post('/api/v2/project/create', requestBody).then((res: any) => {
       console.log('res: ', res)  // {project_id， stage_id}
 
       // Redirect based on theme
       if (selectedTheme === 'digit_human') {
-        router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
+        router.push(`/ai/projects/script-configuration?project_id=${res.data?.project_id}&stage_id=${res.data?.stage_id}`)
       } else {
-        router.push(`/ai/projects/script-configuration?project_id=${res.project_id}&stage_id=${res.stage_id}`)
+        router.push(`/ai/projects/script-configuration?project_id=${res.data?.project_id}&stage_id=${res.data?.stage_id}`)
       }
     }).catch(error => {
       setErrorMessage(error.message)

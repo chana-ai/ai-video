@@ -1,5 +1,5 @@
 // Shared types for scene settings component
-import { Scene, ProjectDetail } from "../app/ai/projects/scenes/types"
+import { Scene, ProjectDetail } from "../app/ai/projects/types"
 import { Asset, ImageInfo } from "../app/ai/projects/value-assets/types"
 
 export interface SceneSettingsProps {

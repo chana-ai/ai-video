@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Plus, Trash2, Clock, MonitorPlay, ChevronDown, ChevronRight, Film, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { SceneCardProps, StoryboardCardProps } from "../types"
+import type { SceneCardProps, StoryboardCardProps } from "@/app/ai/projects/types"
 
 // ─── shared helpers ────────────────────────────────────────────────────────────
 

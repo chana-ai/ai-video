@@ -12,7 +12,7 @@ import { useAssetList } from "@/hooks/useAssetList"
 import { useGalleryNavigation } from "@/hooks/useGalleryNavigation"
 import { sceneApi } from "@/lib/api/scene-api"
 import { showToast } from "@/lib/toast-helpers"
-import { SceneSettingsProps } from "@/types/scene-settings"
+import { SceneSettingsProps } from "@/app/ai/projects/types/scene-settings"
 
 /**
  * Main SceneSettings component - reusable for displaying and editing scene settings
