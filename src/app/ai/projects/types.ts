@@ -186,6 +186,13 @@ export interface CombinedVideo {
   url: string
 }
 
+export interface AssetImage {
+  asset_name?: string
+  asset_id: number
+  image_id: number
+  url?: string
+}
+
 export interface Task {
   scene_id: number
   task_id: number
@@ -229,6 +236,12 @@ export interface StoryDetail {
     video_url?: string
     subtitle_url?: string
   }
+  asset_image_map?: Array<{
+    asset_name?: string
+    asset_id: number
+    image_id: number
+    url?: string
+  }>
   image_prompt?: string
   video_prompt?: string
   image_prompt_history?: any[]

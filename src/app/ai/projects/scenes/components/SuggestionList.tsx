@@ -51,16 +51,18 @@ export const SuggestionList = forwardRef((props: any, ref) => {
             {props.items.length > 0 ? (
                 <div className="p-1">
                     {props.items.map((item: any, index: number) => {
-                        // Check if asset has an image selected in asset_image_map
+                        // Check if asset has an image selected in asset_image_map OR is already resolved
                         const hasSelectedImage = props.asset_image_map && props.asset_image_map[item.name]
+                        const isResolved = props.hasResolved || hasSelectedImage
+
                         return (
                             <button
                                 className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between group ${
                                     index === selectedIndex
-                                        ? hasSelectedImage
+                                        ? isResolved
                                             ? 'bg-green-600 text-white'
                                             : 'bg-purple-600 text-white'
-                                        : hasSelectedImage
+                                        : isResolved
                                             ? 'hover:bg-green-100 text-green-700'
                                             : 'hover:bg-purple-50 text-gray-700'
                                 }`}

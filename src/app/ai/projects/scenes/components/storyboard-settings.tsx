@@ -15,13 +15,14 @@ import {
 import { Users, Check, Upload, Play, Pause, Loader2, Mic, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import type { StoryboardSettingsProps, DialogLine, StoryDetail } from "@/app/ai/projects/types"
+import type { StoryboardSettingsProps, DialogLine, StoryDetail, AssetImage } from "@/app/ai/projects/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import instance from "@/lib/axios"
 import { PromptChatbox } from "./PromptChatbox"
 import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
+// import { url } from "inspector"
 
 type VideoModel = 'MINMAX' | 'WAN'
 
@@ -225,13 +226,40 @@ export function StoryboardSettings({
     return () => document.removeEventListener('mousedown', handler)
   }, [isRefCharsOpen])
 
-  // ── Handlers ─────────────────────────────────────────────
-
-  // Track resolved assets for image generation
-  const [resolvedAssets, setResolvedAssets] = useState<Record<string, number>>({})
-
   // Track asset image mapping for initial image generation
-  const [assetImageMap, setAssetImageMap] = useState<Record<string, number>>({})
+  const [assetImageMap, setAssetImageMap] = useState<Record<string, AssetImage>>({})
+
+  // Initialize assetImageMap from scene detail and assets list
+  useEffect(() => {
+    if (!storyboard?.project_id || !storyboard?.stage_id || !storyDetail?.config?.assets) {
+      return
+    }
+
+    // Create a map of asset_name -> config from scene detail
+    const configAssetsMap = new Map<string, any>()
+    storyDetail.config.assets.forEach((asset: any) => {
+      configAssetsMap.set(asset.asset_name, asset)
+    })
+
+    // Initialize assetImageMap with all assets from /asset/list
+    const newAssetImageMap: Record<string, AssetImage> = {}
+
+    characters.forEach(char => {
+      const configAsset = configAssetsMap.get(char.name)
+
+      if (configAsset && configAsset.image_id) {
+        // If asset is configured with resource_id, add with the image_id
+        newAssetImageMap[char.name] = {
+          asset_name: char.name,
+          asset_id: char.id,
+          image_id: configAsset.image_id
+        }
+      }
+    })
+
+    setAssetImageMap(newAssetImageMap)
+    console.log('Initialized assetImageMap:', newAssetImageMap)
+  }, [characters, storyDetail?.config?.assets])
 
   const handleImagePromptChange = useCallback((prompt: string) => {
     if (prompt) {
@@ -241,36 +269,92 @@ export function StoryboardSettings({
   }, [onUpdate])
 
   const handleConfirmAssetImage = useCallback((assetName: string, imageId: number, prompt: string) => {
-    // Update the asset image map
+    // Find the asset to get its ID
+    const asset = characters.find(c => c.name === assetName)
+
+    // Update the asset image map with new structure
     setAssetImageMap(prev => ({
       ...prev,
-      [assetName]: imageId
+      [assetName]: {
+        asset_name: assetName,
+        asset_id: asset?.id || 0,
+        image_id: imageId
+      }
     }))
 
     // Also update resolvedAssets for backward compatibility
-    setResolvedAssets(prev => ({
-      ...prev,
-      [assetName]: imageId
-    }))
+    // setResolvedAssets(prev => ({
+    //   ...prev,
+    //   [assetName]: imageId
+    // }))
 
     console.log(`Confirmed asset image: ${assetName} with id ${imageId}`)
     console.log("Asset image map:", assetImageMap)
-  }, [])
+  }, [characters])
 
-  const handleGenerateImage = async (prompt?: string, resolvedAssets?: Record<string, number>) => {
+  const handleGenerateImage = async (prompt: string, resolvedAssets?: Record<string, AssetImage>) => {
     setIsGeneratingImage(true)
-    instance.post('/api/v2/scene/generateSceneImage', {
-      scene_id: storyboard?.id,
-      project_id: storyboard?.project_id,
-      stage_id: storyboard?.stage_id,
-      prompt: prompt,
-      resolved_assets: resolvedAssets // Passing the resolved image maps
-    }).then((res: any) => {
-      if (prompt) onUpdate("image_prompt", prompt);
-      onUpdate("image_url", res.image_url)
+
+    // Convert resolvedAssets to AssetImage format for the request
+    const assetImageMap = resolvedAssets
+      ? Object.entries(resolvedAssets).map(([asset_name, { asset_id, image_id }]) => ({
+        asset_name,
+        asset_id,
+        image_id
+      }))
+      : []
+
+    try {
+      const res: any = await instance.post('/api/v2/scene/generateSceneImage', {
+        scene_id: storyboard?.id,
+        project_id: storyboard?.project_id,
+        stage_id: storyboard?.stage_id,
+        prompt: prompt,
+        asset_image_map: assetImageMap // New field for asset-image mapping
+      })
+
+      console.log('Image generation response:', res)
+
+      // Process response: update image list and image URL
+      onUpdate("image_prompt", prompt)
+
+      // Handle response with data.images structure
+      if (res && res.data && res.data.images && Array.isArray(res.data.images)) {
+        const newImages = res.data.images.map((item: any) => ({
+          id: item.id,
+          url: item.signed_url
+        }))
+
+        // Get the previous images length
+        const prevImagesLength = images.length
+
+        // Append to existing images
+        setStoryDetail(prev => {
+          if (!prev || !prev.resource) return prev
+          return {
+            ...prev,
+            resource: {
+              ...prev.resource,
+              images: [...(prev.resource.images || []), ...newImages]
+            }
+          }
+        })
+
+        // Focus on the newly added image (last image)
+        setFocusedImageIndex(prev => prevImagesLength)
+      }
+
+      // Also check for image_url in root level
+      if (res.image_url) {
+        onUpdate("image_url", res.image_url)
+      }
+
       setIsGeneratingImage(false)
-    })
-      .catch((error: any) => { setIsGeneratingImage(false); })
+    } catch (error: any) {
+      console.error("Failed to generate image:", error)
+      console.error("Error details:", error.response?.data)
+      setIsGeneratingImage(false)
+    }
   }
 
   const handleGenerateVideoPrompt = async () => {
@@ -435,8 +519,8 @@ export function StoryboardSettings({
         }
       })
 
-      // Focus on the newly added image
-      setFocusedImageIndex(prev => prev + 1)
+      // Focus on the newly added image (the last one in the array)
+      setFocusedImageIndex(prev => Math.max(0, images.length))
       showToast('Image uploaded successfully', 'success')
     } catch (error: any) {
       console.error('Failed to upload image:', error)
@@ -658,7 +742,7 @@ export function StoryboardSettings({
               {/* Image Prompt */}
               <div className="relative group rounded-xl bg-gray-50/80 border border-gray-100 p-1">
                 <PromptChatbox
-                  initialValue={storyDetail?.image_prompt || storyboard?.prompt || ''}
+                  prompt={storyDetail?.image_prompt || storyboard?.prompt || ''}
                   assets={characters}
                   onGenerate={handleGenerateImage}
                   isGenerating={isGeneratingImage}
