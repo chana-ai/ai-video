@@ -236,7 +236,9 @@ export const VoiceComponent = forwardRef<VoiceComponentHandle, VoiceComponentPro
           emotion: emotion,
           selected_asset_id: selectedAsset?.id!,
           selected_asset_name: selectedAsset?.name,
-          voice_name: voice
+          voice_name: voice,
+          mode: voiceSetting.mode,
+          vendor: voiceSetting.mode === "tts" ? "azure" : "qwen"
         })
       }
     } catch (err: any) {

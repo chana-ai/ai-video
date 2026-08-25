@@ -722,13 +722,38 @@ export function StoryboardSettings({
                 on_update_scene_voice_setting={(voice_url: string, voice_settings: any) => {
                   setStoryDetail(prev => {
                     if (!prev || !prev.config) return prev
+
+                    // Build dialogue object based on narration type
+                    let dialogue: any
+                    if (isDialogue) {
+                      // For dialogue mode, create array with character info
+                      dialogue = [{
+                        asset_id: voice_settings.selected_asset_id,
+                        asset_name: voice_settings.selected_asset_name,
+                        content: voice_settings.text
+                      }]
+                    } else {
+                      // For narration/monologue mode, store as string
+                      dialogue = {
+                        asset_id: voice_settings.selected_asset_id,
+                        asset_name: voice_settings.selected_asset_name,
+                        content: voice_settings.text
+                      }
+                    }
+
                     return {
                       ...prev,
                       config: {
                         ...prev.config,
-                        voice_settings: voice_settings
+                        voice_settings: {
+                          voice_name: voice_settings.voice_name,
+                          voice_speed: voice_settings.speed,
+                          emotion: voice_settings.emotion,
+                          mode: voice_settings.mode,
+                          vendor: voice_settings.vendor
+                        },
+                        dialogue: dialogue
                       },
-                      dialogue: voice_settings.text,
                       resource: {
                         ...prev.resource,
                         voice_url: voice_url
