@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
-import { ChevronUp, ChevronDown, RefreshCw, Mic } from "lucide-react"
 import { SceneCard, StoryboardCard } from "./components/scene-card"
 import { SceneSettings } from "@/components/scene-settings"
 import { StoryboardSettings } from "./components/storyboard-settings"
@@ -11,7 +10,7 @@ import type { Scene, ProjectDetail, VoiceSettings, CombinedVideo } from "@/app/a
 import Header from "../../header"
 import instance from "@/lib/axios"
 import { useSearchParams } from "next/navigation"
-import { VoiceSettingsPanel } from "./components/voice-settings-panel"
+
 import ExportUrlPanel from "./components/export_url_panel"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 import { wsManager, type WsMessage } from "@/lib/websocket"

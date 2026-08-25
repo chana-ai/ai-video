@@ -12,33 +12,23 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from "@/components/ui/alert-dialog"
-import { Users, Check, Upload, Play, Pause, Loader2, Mic, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { Check, Upload, Play, Loader2, Mic, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import type { StoryboardSettingsProps, DialogLine, StoryDetail, AssetImage } from "@/app/ai/projects/types"
+import type { AssetResponse, Character } from "@/app/ai/projects/scenes/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import instance from "@/lib/axios"
 import { PromptChatbox } from "./PromptChatbox"
+import { VoiceComponent } from "./VoiceComponent"
 import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
-// import { url } from "inspector"
 
 type VideoModel = 'MINMAX' | 'WAN'
 
 // API Response Type from /api/v2/asset/list
-interface AssetResponse {
-  id: number;
-  name: string;
-  url: string;
-  version?: number;
-}
 
-interface Character {
-  id: number;
-  name: string;
-  images: AssetResponse[];  // Changed to required array, not optional
-}
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -90,7 +80,7 @@ function parseDialog(dialog: any, narration: number): { isDialogue: boolean; pla
 
 // ── Component ─────────────────────────────────────────────
 
-
+//@TODO  改进意见： 后续只有 state信息才会向上一层进行传递，其他的详情信息不再往上传送。
 export function StoryboardSettings({
   storyboard,
   projectDetail,
@@ -115,11 +105,8 @@ export function StoryboardSettings({
   const [selectedCharIds, setSelectedCharIds] = useState<Set<number | 'NONE'>>(new Set<number | 'NONE'>(['NONE']))
   const [pendingCharIds, setPendingCharIds] = useState<Set<number | 'NONE'>>(new Set<number | 'NONE'>(['NONE']))
 
-  // ── Audio & Speech ──
-  const [emotions, setEmotions] = useState<{ en: string, zh: string }[]>([])
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  // ── Audio & Voice Controls ──
+  const [currentVoice, setCurrentVoice] = useState<string>('')
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
   const [zoomImageIndex, setZoomImageIndex] = useState<number>(0)
   const imageUploadRef = useRef<HTMLInputElement>(null)
@@ -163,7 +150,24 @@ export function StoryboardSettings({
       .then((res: any) => {
         console.log('res = ', res)
         if (res) {
-          setStoryDetail(res)
+          // Extract voice_url from resource.voices array if present
+          let updatedResource = res.resource
+          if (!updatedResource.voice_url) {
+            if (res.resource?.voices && Array.isArray(res.resource.voices) && res.resource.voices.length > 0) {
+              const voiceUrl = res.resource.voices[0].url || ""
+              if (voiceUrl) {
+                updatedResource = {
+                  ...res.resource,
+                  voice_url: voiceUrl
+                }
+              }
+            }
+          }
+
+          setStoryDetail({
+            ...res,
+            resource: updatedResource
+          })
           if (descriptionRef.current && res.description !== undefined) {
             descriptionRef.current.value = res.description || ''
           }
@@ -183,37 +187,13 @@ export function StoryboardSettings({
         const mapped = (res.assets || []).map((asset: any) => ({
           id: asset.id,
           name: asset.name,
-          images: asset.images || []  // Use the images array from API response
+          images: asset.images || [],  // Use the images array from API response
+          config: asset.config
         }))
         setCharacters(mapped)
       })
       .catch((err) => console.error("Failed to fetch characters:", err))
   }, [storyboard?.project_id, storyboard?.stage_id])
-
-  // Fetch emotions
-  useEffect(() => {
-    instance.get('/api/v2/voice/get_emotion_list')
-      .then((res: any) => {
-        const fetchedEmotions = res || []
-        setEmotions(fetchedEmotions)
-        if (fetchedEmotions.length > 0) {
-          setStoryDetail(prev => {
-            if (!prev) return null
-            return {
-              ...prev,
-              config: {
-                ...prev.config,
-                voice_settings: {
-                  ...prev.config?.voice_settings,
-                  emotion: fetchedEmotions[0].en
-                }
-              }
-            }
-          })
-        }
-      })
-      .catch((err) => console.error("Failed to fetch emotions:", err))
-  }, [])
 
   // Close ref-chars popover on outside click
   useEffect(() => {
@@ -268,7 +248,7 @@ export function StoryboardSettings({
     }
   }, [onUpdate])
 
-  const handleConfirmAssetImage = useCallback((assetName: string, imageId: number, prompt: string) => {
+  const handleConfirmAssetImage = useCallback((assetName: string, imageId: number) => {
     // Find the asset to get its ID
     const asset = characters.find(c => c.name === assetName)
 
@@ -341,7 +321,7 @@ export function StoryboardSettings({
         })
 
         // Focus on the newly added image (last image)
-        setFocusedImageIndex(prev => prevImagesLength)
+        setFocusedImageIndex(prevImagesLength)
       }
 
       // Also check for image_url in root level
@@ -365,7 +345,7 @@ export function StoryboardSettings({
       .catch((error: any) => { console.error(error.message); setIsLoading(false) })
   }
 
-  const handleGenerateVideo = useCallback(async (regenerate_prompt = false) => {
+  const handleGenerateVideo = useCallback(async () => {
     if (!storyboard?.id || !storyboard?.project_id || !storyboard?.stage_id) return
 
     setIsGeneratingVideo(true)
@@ -467,17 +447,6 @@ export function StoryboardSettings({
     setSelectedImageIndex(index)
     setFocusedImageIndex(index)
 
-    // try {
-    //   const res = await instance.post('/api/v2/scene/selectReferenceImage', {
-    //     image_id: images[index].id,
-    //     type: 'VIDEO_GENERATION'
-    //   })
-    //   console.log('Selected image:', res)
-    //   showToast('Reference image selected successfully', 'success')
-    // } catch (error: any) {
-    //   console.error('Failed to select image:', error)
-    //   showToast('Failed to select reference image', 'error')
-    // }
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -520,6 +489,9 @@ export function StoryboardSettings({
       })
 
       // Focus on the newly added image (the last one in the array)
+      setFocusedImageIndex(images.length)
+
+      // Focus on the newly added image (the last one in the array)
       setFocusedImageIndex(prev => Math.max(0, images.length))
       showToast('Image uploaded successfully', 'success')
     } catch (error: any) {
@@ -552,42 +524,17 @@ export function StoryboardSettings({
     })
   }
 
-  const handleGenerateAudio = async () => {
-    if (!storyboard?.id) return
-    setIsGeneratingAudio(true)
-    const script = isDialogue
-      ? speechLines.map(l => `${l.character}: ${l.content}`).join('\n')
-      : speechPlain
-    if (!script) return
-    try {
-      const res: any = await instance.post('/api/v2/voice/generate_voice', {
-        project_id: storyboard?.project_id,
-        stage_id: storyboard?.stage_id,
-        scene_id: storyboard.id,
-        doc_id: storyboard?.doc_id,
-        speech_type: speechTypeLabel.toLowerCase(),
-        text: script,
-        speed: currentVoiceSpeed,
-        emotion: currentVoiceEmotion
-      })
-      if (res.voice_path) {
-        onUpdate("voice_url", res.voice_path)
-        onUpdate("voice_setting", { speech_rate: currentVoiceSpeed, emotion: currentVoiceEmotion })
-        const dialogueVal = isDialogue ? speechLines : { content: speechPlain }
-        onUpdate("dialogue", dialogueVal)
-      }
-    } catch (err: any) {
-      alert(`生成音频失败: ${err.message || '未知错误'}`)
-    } finally {
-      setIsGeneratingAudio(false)
-    }
+  // Helper function to get voice from asset config
+  const getAssetVoice = (asset: Character): string => {
+    const voiceSetting = asset.config?.voice_setting
+    if (!voiceSetting?.mode) return ''
+
+    // If mode is 'clone', return clone voice; otherwise return tts voice
+    return voiceSetting.mode === 'clone' && voiceSetting.clone?.voice
+      ? voiceSetting.clone.voice
+      : voiceSetting.tts?.voice || ''
   }
 
-  const toggleAudioPlay = () => {
-    if (!audioRef.current) return
-    if (isPlayingAudio) { audioRef.current.pause(); setIsPlayingAudio(false) }
-    else { audioRef.current.play(); setIsPlayingAudio(true) }
-  }
 
   // ── Render ────────────────────────────────────────────────
 
@@ -729,14 +676,7 @@ export function StoryboardSettings({
                 >
                   <Upload className="h-3 w-3 mr-1.5" /> Upload Image
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-[34px] text-[11px] font-bold flex-1 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-600 shadow-sm"
-                  onClick={handleOpenRefChars}
-                >
-                  <Users className="h-3 w-3 mr-1.5" /> Choose Actors
-                </Button>
+
               </div>
 
               {/* Image Prompt */}
@@ -759,232 +699,43 @@ export function StoryboardSettings({
                 <h3 className="text-xs font-bold uppercase tracking-widest text-gray-700 flex items-center gap-2">
                   <Mic className="w-3.5 h-3.5" /> Audio Track
                 </h3>
-                {(storyDetail?.resource?.voice_url || storyboard?.voice_url) && (
-                  <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Ready
-                  </span>
-                )}
-              </div>
+                <div className="flex items-center gap-2">
 
-              <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col relative focus-within:ring-1 focus-within:ring-purple-200 transition-all">
-                <div className="flex justify-between items-center bg-gray-50/80 border-b border-gray-100 px-3 py-2">
-                  <span className="text-[10px] font-bold text-gray-700 tracking-widest uppercase">{speechTypeLabel} SCRIPT</span>
-                </div>
-                {!isDialogue ? (
-                  <Textarea
-                    value={speechPlain}
-                    className="min-h-[100px] border-0 text-[12px] resize-none focus-visible:ring-0 rounded-none shadow-none"
-                    placeholder="Enter narration script to voiceover..."
-                    onChange={(e) => {
-                      const val = e.target.value
-                      updateStoryDetailField(prev => {
-                        let newDialogue: any
-                        if (typeof prev.config?.dialogue === 'string') {
-                          newDialogue = val
-                        } else {
-                          newDialogue = {
-                            ...prev.config?.dialogue,
-                            content: val
-                          }
-                        }
-                        return {
-                          ...prev,
-                          config: {
-                            ...prev.config,
-                            dialogue: newDialogue
-                          }
-                        }
-                      })
-                    }}
-                  />
-                ) : (
-                  <div className="space-y-1.5 max-h-[160px] overflow-y-auto no-scrollbar p-2 bg-gray-50/30">
-                    {speechLines.map((line, idx) => (
-                      <div key={idx} className="flex gap-1.5 items-start bg-white rounded flex-col border border-gray-100 overflow-hidden group">
-                        <div className="flex w-full items-center border-b border-gray-50">
-                          <span className="w-5 flex items-center justify-center text-xs text-gray-600 font-bold bg-gray-50 h-full">{idx + 1}</span>
-                          <input
-                            value={line.character}
-                            className="w-20 font-bold text-indigo-700 bg-transparent text-xs p-1.5 outline-none placeholder:text-gray-500 transition-colors"
-                            placeholder="Actor"
-                            onChange={(e) => {
-                              const name = e.target.value
-                              updateStoryDetailField(prev => {
-                                let currentDialogue = Array.isArray(prev.config?.dialogue) ? [...prev.config.dialogue] : []
-                                if (currentDialogue[idx]) {
-                                  currentDialogue[idx] = {
-                                    ...currentDialogue[idx],
-                                    asset_name: name,
-                                    character: name
-                                  }
-                                }
-                                return {
-                                  ...prev,
-                                  config: {
-                                    ...prev.config,
-                                    dialogue: currentDialogue
-                                  }
-                                }
-                              })
-                            }}
-                          />
-                          <div className="flex-1 flex justify-end px-1">
-                            <button
-                              className="text-gray-700 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => {
-                                updateStoryDetailField(prev => {
-                                  let currentDialogue = Array.isArray(prev.config?.dialogue) ? [...prev.config.dialogue] : []
-                                  const updatedLines = currentDialogue.filter((_, i) => i !== idx)
-                                  return {
-                                    ...prev,
-                                    config: {
-                                      ...prev.config,
-                                      dialogue: updatedLines
-                                    }
-                                  }
-                                })
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                        <Textarea
-                          value={line.content}
-                          className="flex-1 w-full min-h-[30px] p-2 resize-none bg-transparent text-[12px] border-none focus-visible:ring-0 shadow-none leading-relaxed"
-                          placeholder="Type dialogue line..."
-                          onChange={(e) => {
-                            const content = e.target.value
-                            updateStoryDetailField(prev => {
-                              let currentDialogue = Array.isArray(prev.config?.dialogue) ? [...prev.config.dialogue] : []
-                              if (currentDialogue[idx]) {
-                                currentDialogue[idx] = {
-                                  ...currentDialogue[idx],
-                                  content
-                                }
-                              }
-                              return {
-                                ...prev,
-                                config: {
-                                  ...prev.config,
-                                  dialogue: currentDialogue
-                                }
-                              }
-                            })
-                          }}
-                        />
-                      </div>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-xs h-7 font-bold text-gray-600 hover:text-gray-700 mt-2"
-                      onClick={() => {
-                        updateStoryDetailField(prev => {
-                          let currentDialogue = Array.isArray(prev.config?.dialogue) ? [...prev.config.dialogue] : []
-                          const updatedLines = [...currentDialogue, { asset_name: '', character: '', content: '' }]
-                          return {
-                            ...prev,
-                            config: {
-                              ...prev.config,
-                              dialogue: updatedLines
-                            }
-                          }
-                        })
-                      }}
-                    >
-                      + ADD DIALOGUE LINE
-                    </Button>
-                  </div>
-                )}
-
-                <div className="flex bg-gray-50 border-t border-gray-100 p-2 gap-2 mt-auto justify-between items-center">
-                  <div className="flex gap-2">
-                    <Select
-                      value={currentVoiceSpeed}
-                      onValueChange={(v) => {
-                        updateStoryDetailField(prev => ({
-                          ...prev,
-                          config: {
-                            ...prev.config,
-                            voice_settings: {
-                              ...prev.config?.voice_settings,
-                              speech_rate: Number(v)
-                            }
-                          }
-                        }))
-                      }}
-                    >
-                      <SelectTrigger className="w-[85px] h-7 text-[10px] bg-white border-gray-200 rounded shadow-sm font-medium focus:ring-0">
-                        <SelectValue placeholder="Speed" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0.75" className="text-[10px] font-medium">0.75x</SelectItem>
-                        <SelectItem value="1" className="text-[10px] font-medium">1.0x (Nrm)</SelectItem>
-                        <SelectItem value="1.25" className="text-[10px] font-medium">1.25x</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={currentVoiceEmotion}
-                      onValueChange={(v) => {
-                        updateStoryDetailField(prev => ({
-                          ...prev,
-                          config: {
-                            ...prev.config,
-                            voice_settings: {
-                              ...prev.config?.voice_settings,
-                              emotion: v
-                            }
-                          }
-                        }))
-                      }}
-                    >
-                      <SelectTrigger className="w-[85px] h-7 text-xs bg-white border-gray-200 rounded shadow-sm font-medium focus:ring-0">
-                        <SelectValue placeholder="Emotion" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {emotions.length > 0 ? (
-                          emotions.map((emo) => (
-                            <SelectItem key={emo.zh} value={emo.en} className="text-xs font-medium">
-                              {emo.en}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <>
-                            <SelectItem value="neutral" className="text-xs font-medium">Neutral</SelectItem>
-                            <SelectItem value="happy" className="text-xs font-medium">Emotion</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {(storyDetail?.resource?.voice_url || storyboard?.voice_url) && (
-                      <button
-                        onClick={toggleAudioPlay}
-                        className="h-7 w-7 rounded bg-indigo-600 shadow-sm shadow-indigo-200 text-white flex items-center justify-center hover:bg-indigo-700 transition active:scale-95"
-                      >
-                        {isPlayingAudio ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3 ml-0.5" />}
-                      </button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-3 text-xs bg-white font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50 shadow-sm"
-                      onClick={handleGenerateAudio}
-                      disabled={isGeneratingAudio}
-                    >
-                      {isGeneratingAudio ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mic className="h-3 w-3 mr-1" />} Sync Audio
-                    </Button>
-                  </div>
+                  {(storyDetail?.resource?.voice_url || storyboard?.voice_url) && (
+                    <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Ready
+                    </span>
+                  )}
                 </div>
               </div>
-              <audio
-                ref={audioRef}
-                src={storyDetail?.resource?.voice_url || storyboard?.voice_url || undefined}
-                onEnded={() => setIsPlayingAudio(false)}
-                className="hidden"
+
+              <VoiceComponent
+                storyboardId={storyDetail?.scene_id}
+                storyboardConfig={storyDetail?.config}
+                projectDetail={projectDetail || null}
+                characters={characters}
+                voice_url={storyDetail?.resource?.voice_url || null}
+                speechTypeLabel={speechTypeLabel}
+                speechPlain={speechPlain}
+                speechLines={speechLines}
+                isDialogue={isDialogue}
+                on_update_scene_voice_setting={(voice_url: string, voice_settings: any) => {
+                  setStoryDetail(prev => {
+                    if (!prev || !prev.config) return prev
+                    return {
+                      ...prev,
+                      config: {
+                        ...prev.config,
+                        voice_settings: voice_settings
+                      },
+                      dialogue: voice_settings.text,
+                      resource: {
+                        ...prev.resource,
+                        voice_url: voice_url
+                      }
+                    }
+                  })
+                }}
               />
             </div>
           </div>
@@ -1109,6 +860,6 @@ export function StoryboardSettings({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   )
 }

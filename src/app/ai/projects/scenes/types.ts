@@ -295,3 +295,33 @@ export interface StoryDetail {
   extra_data?: Record<string, any>
   version?: string | null
 }
+
+
+
+export interface AssetResponse {
+  id: number;
+  name: string;
+  url: string;
+  version?: number;
+}
+
+export interface VoiceSetting {
+  mode?: 'tts' | 'clone';
+  tts?: {
+    voice?: string;
+  };
+  clone?: {
+    voice?: string;
+  };
+  speech_rate?: number;
+  emotion?: string;
+}
+
+export interface Character {
+  id: number;
+  name: string;
+  images: AssetResponse[];
+  config?: {
+    voice_setting?: VoiceSetting;
+  };
+}

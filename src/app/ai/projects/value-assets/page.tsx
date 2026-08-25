@@ -109,44 +109,7 @@ export default function ValueAssets() {
         setSelectedRowIndex(null);
 
         setSelectedAsset(asset)
-        // let parsedConfig: any = {};
-        // if (asset.config) {
-        //     try {
-        //         parsedConfig = typeof asset.config === 'string' ? JSON.parse(asset.config) : asset.config;
-        //     } catch (e) {
-        //         console.error("Failed to parse asset config:", e);
-        //         parsedConfig = {};
-        //     }
-        // }
-        // const voiceSetting: VoiceSetting = parsedConfig.voice_setting || {
-        //     gender: 'female',
-        //     emotion: 'neutral',
-        //     vendor: 'azure',
-        //     is_master: false,
-        //     mode: 'tts'
-        // };
 
-        // if (!voiceSetting.tts) {
-        //     voiceSetting.tts = { url: '', desc: '', voice: '', voice_name: '' };
-        // }
-        // if (!voiceSetting.clone) {
-        //     voiceSetting.clone = { url: '', desc: '', voice: '', voice_name: '' };
-        // }
-
-        // const initialMode = voiceSetting.mode === 'clone' ? 'clone' : 'tts';
-        // setMode(initialMode);
-
-        // const initialVendor = voiceSetting.vendor || (initialMode === 'clone' ? 'qwen' : 'azure');
-        // setCurrentVendor(initialVendor);
-
-        // const assetWithVoice: SelectedAsset = {
-        //     ...asset,
-        //     config: parsedConfig,
-        //     voice_setting: voiceSetting
-        // };
-        // setSelectedAsset(assetWithVoice);
-
-        // Update selected asset basic info
         if (asset.type === 0) {
             const initialSelected = new Set<number>();
             if (config.front) initialSelected.add(config.front);
@@ -154,8 +117,8 @@ export default function ValueAssets() {
             if (config.back) initialSelected.add(config.back);
             setSelectedImageIds(initialSelected);
 
-            setAudioPreviewUrl_tts(asset.config.voice_setting.tts?.url || '');
-            setAudioPreviewUrl_clone(asset.config.voice_setting.clone?.url || '');
+            setAudioPreviewUrl_tts(asset.config?.voice_setting?.tts?.url || '');
+            setAudioPreviewUrl_clone(asset.config?.voice_setting?.clone?.url || '');
         } else {
             setSelectedImageIds(new Set());
             setAudioPreviewUrl_tts('');

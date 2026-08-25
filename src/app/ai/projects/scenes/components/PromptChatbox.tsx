@@ -155,65 +155,6 @@ export function PromptChatbox({
         currentRawPromptRef.current = prompt
     }, [prompt, assets, asset_image_map])
 
-    // Update mentions in editor when resolvedAssets changes
-    useEffect(() => {
-        if (!editorRef.current || !editorRef.current.state) return
-
-        // Check if editor has mentions
-        let hasMentions = false
-        editorRef.current.state.doc.descendants((node) => {
-            if (node.type.name === 'mention') {
-                hasMentions = true
-                return true // Stop traversal if found
-            }
-        })
-
-        if (!hasMentions) return
-
-        // Get the current editor state
-        const state = editorRef.current.state
-        if (!state) return
-
-        // Update mentions with new resolved state by traversing nodes
-        const tr = state.tr
-        let updated = false
-
-        editorRef.current.state.doc.descendants((node, pos) => {
-            if (node.type.name === 'mention') {
-                const assetName = node.attrs.label || node.attrs.dataAssetName
-                const isResolved = resolvedAssets[assetName] !== undefined
-
-                // Check if we need to update this mention
-                const currentResolved = node.attrs.resolved === 'true'
-                if (currentResolved !== isResolved) {
-                    // Update the mention's resolved attribute
-                    tr.setNodeMarkup(pos, undefined, {
-                        ...node.attrs,
-                        resolved: isResolved
-                    })
-                    updated = true
-                }
-            }
-        })
-
-        // Only dispatch if something was updated
-        if (!updated) return
-
-        // Dispatch the transaction to apply changes
-        editorRef.current.view.dispatch(tr)
-
-        // Restore cursor position to its original position
-        try {
-            const { from, to } = state.selection
-            if (from > 0 && from <= tr.doc.content.size) {
-                editorRef.current.commands.focus()
-                editorRef.current.commands.setNodeSelection(from)
-            }
-        } catch (error) {
-            console.error('Error restoring cursor position:', error)
-        }
-    }, [resolvedAssets])
-
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -225,40 +166,44 @@ export function PromptChatbox({
             }),
         ],
         immediatelyRender: false,
-        // onUpdate: ({ editor, transaction }) => {
-        //     // Check if mention nodes were added
-        //     transaction.doc.descendants((node, pos) => {
+        // Use appendTransaction to monitor all editor transactions
+        // appendTransaction: (transactions, oldState, newState) => {
+        //     // Create a transaction to update mentions based on resolvedAssets
+        //     let transaction = newState.tr
+
+        //     // Check if any mentions were added or modified
+        //     let needsUpdate = false
+
+        //     newState.doc.descendants((node, pos) => {
         //         if (node.type.name === 'mention') {
         //             const assetName = node.attrs.label || node.attrs.dataAssetName
 
-        //             // Check if this mention was added in this transaction
-        //             // by checking if the node's position is within the transaction's content
-        //             if (pos >= transaction.from && pos < transaction.from + transaction.doc.content.size) {
-        //                 // This mention was added in the transaction
+        //             // Check if this asset is resolved
+        //             const isResolved = resolvedAssetsRef.current[assetName] !== undefined
 
-        //                 // Check if this asset is already resolved
-        //                 const isResolved = resolvedAssetsRef.current[assetName] !== undefined
-
-        //                 // Check if we need to update the mention's resolved attribute
-        //                 const currentResolved = node.attrs.resolved === true
-        //                 if (currentResolved !== isResolved) {
-        //                     // Update the mention's resolved attribute
-        //                     const tr = editor.state.tr
-        //                     tr.setNodeMarkup(pos, undefined, {
-        //                         ...node.attrs,
-        //                         resolved: isResolved
-        //                     })
-        //                     editor.view.dispatch(tr)
-        //                 }
+        //             // Check if the resolved attribute needs to be updated
+        //             const currentResolved = node.attrs.resolved === true
+        //             if (currentResolved !== isResolved) {
+        //                 transaction = transaction.setNodeMarkup(pos, undefined, {
+        //                     ...node.attrs,
+        //                     resolved: isResolved
+        //                 })
+        //                 needsUpdate = true
         //             }
         //         }
         //     })
+
+        //     // Return the transaction only if updates are needed
+        //     if (needsUpdate) {
+        //         return transaction
+        //     }
+        //     return null
         // },
         editorProps: {
             attributes: {
                 class: 'prose prose-sm focus:outline-none max-w-none min-h-[60px] p-4 text-sm leading-relaxed text-gray-700 font-mono',
             },
-            handleClick(view: any, pos: number, event: any) {
+            handleClick(view: any, _pos: number, event: any) {
                 // 1. 查找被点击的元素是否属于 mention 标签
                 const mentionEl = (event.target as HTMLElement).closest('.mention')
 
