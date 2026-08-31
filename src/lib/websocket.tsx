@@ -15,6 +15,7 @@ export interface WsMessage {
   result?: any
   project_id?: string | number
   stage_id?: string | number
+  scene_id?: string | number
 }
 
 export interface WsCallback {
@@ -132,8 +133,8 @@ class WebSocketManager {
       const requestPayload = {
         request_type,
         request_id,
-        project_id: payload.project_id,
-        stage_id: payload.stage_id,
+        // project_id: payload.project_id,
+        // stage_id: payload.stage_id,
         user_id: getUserId(),
         ...payload
       }
@@ -152,12 +153,13 @@ class WebSocketManager {
     })
   }
 
-  sendCreateVideoClip(scene_id: string | number, video_prompt: string, project_id: string | number, stage_id: string | number, user_id: string | number) {
+  sendCreateVideoClip(scene_id: string | number, video_prompt: string, project_id: string | number, stage_id: string | number, user_id: string | number, image_id: number) {
     return this.sendRequest('createVideoClip', {
       scene_id,
       video_prompt,
       project_id,
-      stage_id
+      stage_id,
+      image_id
     })
   }
 

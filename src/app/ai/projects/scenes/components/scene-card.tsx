@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Plus, Trash2, Clock, MonitorPlay, ChevronDown, ChevronRight, Film, Layers } from "lucide-react"
+import { Plus, Trash2, Clock, MonitorPlay, ChevronDown, ChevronRight, Film, Layers, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { SceneCardProps, StoryboardCardProps } from "@/app/ai/projects/types"
@@ -41,12 +41,13 @@ function getStatusBadge(status: string) {
 // ─── AddMenu ──────────────────────────────────────────────────────────────────
 
 interface AddMenuProps {
-  onAddScene: () => void
   onAddStoryboard: () => void
   onGenerateStoryboard: () => void
+  hasChildren?: boolean
+  isGenerating?: boolean
 }
 
-function AddMenu({ onAddScene, onAddStoryboard, onGenerateStoryboard }: AddMenuProps) {
+function AddMenu({ onAddStoryboard, onGenerateStoryboard, hasChildren = false, isGenerating = false }: AddMenuProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -79,25 +80,24 @@ function AddMenu({ onAddScene, onAddStoryboard, onGenerateStoryboard }: AddMenuP
         >
           <button
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { setOpen(false); onAddScene() }}
-          >
-            <Film className="h-4 w-4 text-purple-500" />
-            New Scene
-          </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             onClick={() => { setOpen(false); onAddStoryboard() }}
           >
             <Layers className="h-4 w-4 text-blue-500" />
-            New Storyboard
+            Add Scene
           </button>
-          <button
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            onClick={() => { setOpen(false); onGenerateStoryboard() }}
-          >
-            <Layers className="h-4 w-4 text-blue-500" />
-            AI Storyboards
-          </button>
+          {!hasChildren && (
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => { setOpen(false); onGenerateStoryboard() }}
+              disabled={isGenerating}
+            >
+              <Layers className="h-4 w-4 text-blue-500" />
+              Generate Storyboards
+              {isGenerating && (
+                <Loader2 className="h-3 w-3 ml-auto animate-spin" />
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -111,12 +111,13 @@ export function SceneCard({
   isSelected,
   isExpanded,
   storyboardCount,
+  hasChildren,
   onSelect,
   onSave,
-  onAddScene,
   onAddStoryboard,
   onGenerateStoryboards,
   onDelete,
+  generatingStoryboards,
 }: SceneCardProps) {
   return (
     <div
@@ -159,9 +160,10 @@ export function SceneCard({
 
           {/* Add menu */}
           <AddMenu
-            onAddScene={() => onAddScene(scene)}
             onAddStoryboard={() => onAddStoryboard(scene)}
             onGenerateStoryboard={() => onGenerateStoryboards(scene)}
+            hasChildren={hasChildren}
+            isGenerating={generatingStoryboards?.has(scene.id) ?? false}
           />
 
           {/* Delete */}

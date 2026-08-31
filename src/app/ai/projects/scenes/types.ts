@@ -185,6 +185,7 @@ export interface SceneCardProps {
   onAddStoryboard: (scene: Scene) => void
   onGenerateStoryboards: (scene: Scene) => void
   onDelete: (scene: Scene) => void
+  generatingStoryboards?: Set<number>
 }
 
 export interface StoryboardCardProps {

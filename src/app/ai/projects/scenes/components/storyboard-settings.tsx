@@ -2,8 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,20 +10,19 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from "@/components/ui/alert-dialog"
-import { Check, Upload, Play, Loader2, Mic, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { Check, Upload, Loader2, Mic, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import type { StoryboardSettingsProps, DialogLine, StoryDetail, AssetImage } from "@/app/ai/projects/types"
 import type { AssetResponse, Character } from "@/app/ai/projects/scenes/types"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import instance from "@/lib/axios"
 import { PromptChatbox } from "./PromptChatbox"
 import { VoiceComponent } from "./VoiceComponent"
+import { VideoComponent } from "./video-component"
 import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
 
-type VideoModel = 'MINMAX' | 'WAN'
 
 // API Response Type from /api/v2/asset/list
 
@@ -88,7 +85,6 @@ export function StoryboardSettings({
 }: StoryboardSettingsProps) {
 
   // ── General UI state ──
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false)
 
   // ── Storyboard data (Uncontrolled with Refs) ──
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
@@ -106,7 +102,6 @@ export function StoryboardSettings({
   const [pendingCharIds, setPendingCharIds] = useState<Set<number | 'NONE'>>(new Set<number | 'NONE'>(['NONE']))
 
   // ── Audio & Voice Controls ──
-  const [currentVoice, setCurrentVoice] = useState<string>('')
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
   const [zoomImageIndex, setZoomImageIndex] = useState<number>(0)
   const imageUploadRef = useRef<HTMLInputElement>(null)
@@ -132,13 +127,6 @@ export function StoryboardSettings({
   const speechPlain = parsedDialogue.plain
   const speechLines = parsedDialogue.lines
 
-  const currentVoiceSpeed = String(
-    storyDetail?.config?.voice_settings?.speech_rate ??
-    projectDetail?.config?.voice_setting?.voice_speed ??
-    '1.0'
-  )
-  const currentVoiceEmotion = storyDetail?.config?.voice_settings?.emotion || 'neutral'
-  const currentVideoModel = (storyDetail?.config?.video_settings?.model || 'MINMAX') as VideoModel
 
   // Sync when storyboard prop changes
   useEffect(() => {
@@ -322,6 +310,7 @@ export function StoryboardSettings({
 
         // Focus on the newly added image (last image)
         setFocusedImageIndex(prevImagesLength)
+        setSelectedImageIndex(prevImagesLength)
       }
 
       // Also check for image_url in root level
@@ -337,76 +326,7 @@ export function StoryboardSettings({
     }
   }
 
-  const handleGenerateVideoPrompt = async () => {
-    setIsLoading(true)
-    instance.post('/api/v2/scene/generateVideoPrompt', {
-      scene_id: storyboard?.id, stage_id: storyboard?.stage_id, project_id: storyboard?.project_id, video_model: currentVideoModel,
-    }).then((res: any) => { onUpdate("video_prompt", res.video_prompt); setIsLoading(false) })
-      .catch((error: any) => { console.error(error.message); setIsLoading(false) })
-  }
 
-  const handleGenerateVideo = useCallback(async () => {
-    if (!storyboard?.id || !storyboard?.project_id || !storyboard?.stage_id) return
-
-    setIsGeneratingVideo(true)
-
-    try {
-      // Subscribe to WebSocket events for this generation
-      const unsubscribeAccepted = wsManager.subscribe('createVideoClipAccepted', (message: WsMessage) => {
-        console.log('createVideoClipAccepted:', message)
-        // Store task_id in the scene config
-        if (message.task_id) {
-          onUpdate("video_task_id", message.task_id)
-        }
-      })
-
-      const unsubscribeComplete = wsManager.subscribe('createVideoClipComplete', async (message: WsMessage) => {
-        console.log('createVideoClipComplete:', message)
-
-        if (message.data && message.data.video_url) {
-          // Update the storyboard with the video URL
-          onUpdate("video_url", message.data.video_url)
-
-          // Also update the parent scene's video_url
-          if (storyboard.parent_id) {
-            onUpdate("video_url", message.data.video_url)
-          }
-
-          setIsGeneratingVideo(false)
-        }
-      })
-
-      const unsubscribeError = wsManager.subscribe('createVideoClipError', (message: WsMessage) => {
-        console.error('createVideoClipError:', message)
-        const errorMsg = message.message || '视频生成失败，请稍后重试'
-        showToast(errorMsg, 'error')
-        setIsGeneratingVideo(false)
-      })
-
-      try {
-        // Send WebSocket request
-        await wsManager.sendCreateVideoClip(
-          storyboard.id,
-          storyDetail?.video_prompt || "",
-          storyboard.project_id,
-          storyboard.stage_id,
-          projectDetail?.user_id || 0
-        )
-
-        onUpdate("video_prompt", storyDetail?.video_prompt || "")
-
-      } finally {
-        // Cleanup subscriptions
-        unsubscribeAccepted()
-        unsubscribeComplete()
-        unsubscribeError()
-      }
-    } catch (error: any) {
-      setIsGeneratingVideo(false)
-    }
-  }, [onUpdate, storyboard?.id, storyboard?.project_id, storyboard?.stage_id, storyDetail?.video_prompt, currentVideoModel, projectDetail?.user_id])
-
-  const handleOpenRefChars = () => { setPendingCharIds(new Set(selectedCharIds)); setIsRefCharsOpen(true) }
   const handleConfirmRefChars = () => { setSelectedCharIds(new Set(pendingCharIds)); setIsRefCharsOpen(false) }
 
   // Image component handlers
@@ -489,10 +409,9 @@ export function StoryboardSettings({
       })
 
       // Focus on the newly added image (the last one in the array)
-      setFocusedImageIndex(images.length)
+      setFocusedImageIndex(images.length - 1)
+      setSelectedImageIndex(images.length - 1)
 
-      // Focus on the newly added image (the last one in the array)
-      setFocusedImageIndex(prev => Math.max(0, images.length))
       showToast('Image uploaded successfully', 'success')
     } catch (error: any) {
       console.error('Failed to upload image:', error)
@@ -524,22 +443,12 @@ export function StoryboardSettings({
     })
   }
 
-  // Helper function to get voice from asset config
-  const getAssetVoice = (asset: Character): string => {
-    const voiceSetting = asset.config?.voice_setting
-    if (!voiceSetting?.mode) return ''
-
-    // If mode is 'clone', return clone voice; otherwise return tts voice
-    return voiceSetting.mode === 'clone' && voiceSetting.clone?.voice
-      ? voiceSetting.clone.voice
-      : voiceSetting.tts?.voice || ''
-  }
 
 
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="h-[calc(100vh-8rem)] max-w-[1500px] mx-auto relative border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex flex-col">
+    <div className="h-full max-w-[1500px] mx-auto relative border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex flex-col">
       {/* Absolute floating Character dialog container */}
       {isRefCharsOpen && (
         <div ref={refCharsDialogRef} className="absolute right-[40%] top-20 z-[200] w-64 bg-white border border-gray-100 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-right-2 duration-200">
@@ -568,7 +477,7 @@ export function StoryboardSettings({
       <input ref={imageUploadRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
 
       {/* 1. Storyboard Description */}
-      <div className="p-6 pb-4 bg-white border-b border-gray-100 flex-shrink-0">
+      <div className="p-4 pb-3 bg-white border-b border-gray-100 flex-shrink-0">
         <h2 className="text-base font-black text-gray-900 tracking-tight leading-tight">{storyboard?.title}</h2>
         <p className="text-[12px] text-gray-600 mt-2 font-medium leading-relaxed">
           {storyDetail?.description || storyboard?.description || 'No scene description.'}
@@ -578,12 +487,12 @@ export function StoryboardSettings({
       <PanelGroup direction="horizontal" className="flex-1 h-full min-h-0">
         {/* Left Column: Image and Voice Components */}
         <Panel defaultSize={50} minSize={35}>
-          <div className="h-full space-y-6 overflow-y-auto no-scrollbar pb-6 px-6 pt-6 bg-gray-50/50">
+          <div className="h-full space-y-6 overflow-y-auto no-scrollbar pb-4 px-4 pt-4 bg-gray-50/50">
             {/* 2. Image Component */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-4">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-gray-700 flex items-center gap-2">
-                  <ImageIcon className="w-3.5 h-3.5" /> Image Subject
+                  <ImageIcon className="w-3 h-3" /> Image Subject
                 </h3>
                 {images.length > 0 && (
                   <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
@@ -680,7 +589,7 @@ export function StoryboardSettings({
               </div>
 
               {/* Image Prompt */}
-              <div className="relative group rounded-xl bg-gray-50/80 border border-gray-100 p-1">
+              <div className="relative group rounded-xl bg-gray-50/80 border border-gray-100 p-1 h-48">
                 <PromptChatbox
                   prompt={storyDetail?.image_prompt || storyboard?.prompt || ''}
                   assets={characters}
@@ -694,14 +603,14 @@ export function StoryboardSettings({
             </div>
 
             {/* 3. Voice Component */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-4">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-gray-700 flex items-center gap-2">
-                  <Mic className="w-3.5 h-3.5" /> Audio Track
+                  <Mic className="w-3 h-3" /> Audio Track
                 </h3>
                 <div className="flex items-center gap-2">
 
-                  {(storyDetail?.resource?.voice_url || storyboard?.voice_url) && (
+                  {(storyDetail?.resource?.voice_url) && (
                     <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                       <Check className="w-3 h-3" /> Ready
                     </span>
@@ -770,105 +679,37 @@ export function StoryboardSettings({
 
         {/* Right Column: Video Component */}
         <Panel defaultSize={50} minSize={30}>
-          <div className="h-full overflow-y-auto no-scrollbar pb-6 px-6 pt-6 bg-white border-l border-gray-100">
-            {/* 4. Video Component */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4 flex flex-col justify-between h-full">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                    <Play className="w-3.5 h-3.5 text-purple-500 fill-current" /> Video Settings
-                  </h3>
-                  {(storyDetail?.resource?.video_url || storyboard?.video_url) && (
-                    <span className="text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Ready
-                    </span>
-                  )}
-                </div>
-
-                {/* Video Player */}
-                <div className="relative h-[350px] w-full rounded-xl overflow-hidden bg-black flex items-center justify-center border border-gray-100">
-                  {isGeneratingVideo ? (
-                    <div className="absolute inset-0 bg-indigo-950/80 backdrop-blur-lg flex flex-col items-center justify-center gap-4 text-white z-10">
-                      <Loader2 className="w-10 h-10 animate-spin text-purple-300" />
-                      <span className="text-xs font-black tracking-widest uppercase">Synthesizing Sequence...</span>
-                    </div>
-                  ) : (storyDetail?.resource?.video_url || storyboard?.video_url) ? (
-                    <video
-                      src={storyDetail?.resource?.video_url || storyboard?.video_url}
-                      className="w-full h-full object-contain"
-                      controls
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-600 gap-3">
-                      <Play className="w-12 h-12 opacity-80 mix-blend-screen" />
-                      <p className="text-xs font-semibold tracking-widest uppercase text-gray-700">No Video Available</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Model / Vendor Selection & Generate Video Prompt button */}
-                <div className="flex items-center justify-between gap-2">
-                  <Select
-                    value={currentVideoModel}
-                    onValueChange={(v: string) => {
-                      updateStoryDetailField(prev => ({
-                        ...prev,
-                        config: {
-                          ...prev.config,
-                          video_settings: {
-                            ...prev.config?.video_settings,
-                            model: v
-                          }
-                        }
-                      }))
-                    }}
-                  >
-                    <SelectTrigger className="w-32 h-9 text-xs font-bold rounded-xl bg-gray-50 border-gray-100 focus:ring-purple-200">
-                      <SelectValue placeholder="Model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MINMAX" className="text-xs font-bold">MINMAX-3.0</SelectItem>
-                      <SelectItem value="WAN" className="text-xs font-bold">WAN-2.1-PRO</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Button
-                    disabled={isLoading}
-                    variant="outline"
-                    size="sm"
-                    className="h-9 text-xs font-bold rounded-xl text-purple-600 border-purple-200 hover:bg-purple-50 px-4"
-                    onClick={handleGenerateVideoPrompt}
-                  >
-                    {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Generate Prompt'}
-                  </Button>
-                </div>
-
-                {/* Video Prompt */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-gray-700 uppercase tracking-widest pl-1">Director&apos;s Script</Label>
-                  <Textarea
-                    value={storyDetail?.video_prompt || ""}
-                    className="min-h-[140px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-colors p-4 rounded-xl focus-visible:ring-1 focus-visible:ring-purple-200 leading-relaxed font-mono shadow-inner"
-                    onChange={(e) => { const val = e.target.value; updateStoryDetailField(prev => ({ ...prev, video_prompt: val })) }}
-                    placeholder="Describe precise camera movements, cinematic effects, and atmosphere..."
-                  />
-                </div>
-              </div>
-
-              {/* Generate Video Action Button */}
-              <div className="pt-4 border-t border-gray-100 mt-auto">
-                <Button
-                  size="lg"
-                  className="w-full h-[52px] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-base font-black tracking-widest rounded-xl shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-                  disabled={isGeneratingVideo || images.length === 0 || !storyDetail?.video_prompt || ((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !(storyDetail?.resource?.voice_url || storyboard?.voice_url))}
-                  title={((isDialogue ? speechLines.some(l => l.content.trim()) : !!speechPlain.trim()) && !(storyDetail?.resource?.voice_url || storyboard?.voice_url)) ? "Please Sync Audio Track first" : ""}
-                  onClick={() => handleGenerateVideo()}
-                >
-                  {isGeneratingVideo ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <span className="text-xl mr-2">🎬</span>}
-                  GENERATE VIDEO
-                </Button>
-              </div>
-            </div>
+          <div className="h-full overflow-y-auto no-scrollbar pb-4 px-4 pt-4 bg-white border-l border-gray-100">
+            <VideoComponent
+              storyboardId={storyboard?.id}
+              storyboard={storyDetail}
+              projectDetail={projectDetail}
+              image_id={storyDetail?.resource?.images[selectedImageIndex]?.id}
+              video_url={storyDetail?.resource?.video_url}
+              isDialogue={isDialogue}
+              onUpdateVideoPrompt={(prompt) => {
+                // That's OK. 
+                updateStoryDetailField(prev => ({
+                  ...prev,
+                  config: {
+                    ...prev?.config,
+                    video_prompt: prompt
+                  }
+                }))
+              }}
+              onUpdateVideoUrl={(url) => {
+                updateStoryDetailField(prev => ({
+                  ...prev,
+                  resource: {
+                    ...prev?.resource,
+                    video_url: url
+                  }
+                }))
+              }}
+              onUpdateVideoTaskId={(taskId) => {
+                onUpdate("video_task_id", taskId)
+              }}
+            />
           </div>
         </Panel>
       </PanelGroup>

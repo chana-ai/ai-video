@@ -10,11 +10,15 @@ import type { Scene, ProjectDetail, VoiceSettings, CombinedVideo } from "@/app/a
 import Header from "../../header"
 import instance from "@/lib/axios"
 import { useSearchParams } from "next/navigation"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 import ExportUrlPanel from "./components/export_url_panel"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
+import internal from "node:stream"
+import { spaceChildren } from "antd/es/button"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -25,43 +29,84 @@ type SelectedItem =
   | { type: "storyboard"; data: Scene }
 
 // ── Helper: Sort items by linked list (pre_seq_id / next_seq_id) ────────────
-function sortLinkedList<T extends { id: number; pre_seq_id: number; next_seq_id: number }>(items: T[]): T[] {
+function sortLinkedList(items: Scene[]): Scene[] {
   if (items.length <= 1) return items
-  const map = new Map(items.map(i => [i.id, i]))
-  // Find all items that are either marked as heads (-1) or whose predecessor is missing from this list
-  const heads = items.filter(i => i.pre_seq_id === -1 || !map.has(i.pre_seq_id))
 
-  const res: T[] = []
-  const seen = new Set<number>()
-
-  heads.forEach(head => {
-    let curr: T | undefined = head
-    while (curr && !seen.has(curr.id)) {
-      res.push(curr)
-      seen.add(curr.id)
-      curr = map.get(curr.next_seq_id)
-      if (res.length > items.length + 10) break
+  // 1. Construct subSceneMap: storyboard=1, parent_id!=null, grouped by parent_id
+  const subSceneMap = new Map<number, Scene[]>()
+  items.forEach(s => {
+    if (s.storyboard === true && s.parent_id !== null) {
+      if (!subSceneMap.has(s.parent_id)) {
+        subSceneMap.set(s.parent_id, [])
+      }
+      subSceneMap.get(s.parent_id)?.push(s)
     }
   })
 
-  // Catch any remaining orphans just in case
-  items.forEach(item => {
-    if (!seen.has(item.id)) {
-      res.push(item)
-      seen.add(item.id)
-    }
+  // 2. Create sortBySeqId helper function
+  const sortBySeqId = (sceneList: Scene[]): Scene[] => {
+
+    if (sceneList.length <= 1) return sceneList
+
+    // Find head nodes (pre_seq_id = -1 or null)
+    const headNodes = sceneList.filter(i => i.pre_seq_id === -1 || i.pre_seq_id === null)
+
+    const result: Scene[] = []
+    const seen = new Set<number>()
+
+    // Traverse from each head node
+    headNodes.forEach(head => {
+      let curr = head
+      while (curr && curr.seq_id !== -1 && !seen.has(curr.id)) {
+        result.push(curr)
+        seen.add(curr.id)
+
+        // Find next node by next_seq_id (which is a seq_id)
+        const nextSeqId = curr.next_seq_id
+        curr = sceneList.find(s => s.seq_id === nextSeqId)
+      }
+    })
+
+    // Add any orphan nodes
+    sceneList.forEach(item => {
+      if (!seen.has(item.id)) {
+        result.push(item)
+        seen.add(item.id)
+      }
+    })
+
+    return result
+  }
+
+  // 3. Get topLevelScenes (storyboard == 0, parent_id == null)
+  const topListScenes = items.filter(i => i.storyboard === false && i.parent_id === null)
+
+  // 4. Sort topLevelScenes by seq_id
+  const topList = sortBySeqId(topListScenes)
+
+  // 5. Combine: for each top scene, add its sorted children
+  const result: Scene[] = []
+  topList.forEach(top => {
+    result.push(top)
+    const subList = sortBySeqId(subSceneMap.get(top.id) || [])
+    subList.forEach(child => {
+      // top.children?.push(child.id)
+      result.push(child)
+    })
   })
 
-  return res
+  return result
 }
 
 export default function ScenePage() {
   const [scenes, setScenes] = useState<Scene[]>([])
   const [expandedSceneIds, setExpandedSceneIds] = useState<Set<number>>(new Set())
   const [selected, setSelected] = useState<SelectedItem | null>(null)
+  const [generatingStoryboards, setGeneratingStoryboards] = useState<Set<number>>(new Set())
 
   // Memoize sorted scenes to keep linked list order across the entire project
-  const sortedScenes = useMemo(() => sortLinkedList(scenes), [scenes])
+  // Don't cache sortedScenes - recalculate on every scenes update
+  const sortedScenes = sortLinkedList(scenes)
 
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const scenesContainerRef = useRef<HTMLDivElement>(null)
@@ -82,6 +127,11 @@ export default function ScenePage() {
   const [combinedVideos, setCombinedVideos] = useState<CombinedVideo[]>([])
   const [isCombiningTaskRunning, setIsCombiningTaskRunning] = useState(false)
   const [combine_error_message, setCombineErrorMessage] = useState<string>()
+
+  // ─── Add Scene/Storyboard Dialog ────────────────────────────────────────────────────────────
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [newSceneTitle, setNewSceneTitle] = useState("")
+  const [currentSceneForAdd, setCurrentSceneForAdd] = useState<Scene | null>(null)
 
   // ─── Data loading ───────────────────────────────────────────────────────────
 
@@ -106,9 +156,10 @@ export default function ScenePage() {
         const scene_map = new Map<number, Scene>()
         const top_level: Scene[] = []
 
+        // Ensure children is always an array (avoid undefined/null)
         flat_scenes.forEach(s => {
-          s.children = []
           scene_map.set(s.id, s)
+          s.children = s.children || []  // Initialize children array if not present
         })
 
         flat_scenes.forEach(s => {
@@ -225,7 +276,7 @@ export default function ScenePage() {
       console.error('createVideoClipError:', message)
       const errorMsg = message.message || '视频生成失败，请稍后重试'
       showToast(errorMsg, 'error')
-      setIsGeneratingVideo(false)
+      // setIsGeneratingVideo(false) // Not implemented yet
     })
 
     const unsubscribeCombinationError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
@@ -279,58 +330,6 @@ export default function ScenePage() {
       setSelected({ type: "scene", data: scene })
       setExpandedSceneIds((prev) => new Set(prev).add(scene.id))
     }
-
-    // ── Fetch full details for this scene + its child storyboards ────────────
-    if (!projectId || !stageId) return
-    const sceneIds = [scene.id, ...(scene.children || [])]
-    instance.post('/api/v2/scene/details', {
-      project_id: Number(projectId),
-      stage_id: Number(stageId),
-      scene_ids: sceneIds
-    }).then((res: any) => {
-      // res is expected to be an array: SceneDetails[]
-      if (!Array.isArray(res)) return
-
-      const mergeDetail = (node: Scene): Scene => {
-        const detail = res.find((d: any) => d.scene_id === node.id)
-        if (!detail) return node
-
-        return {
-          ...node,
-          doc_id: detail.doc_id ?? node.doc_id,
-          description: detail.description ?? node.description,
-          config: detail.config ?? node.config,
-
-          video_url: detail.resource?.video_url ?? node.video_url,
-          voice_url: detail.resource?.voice_url ?? node.voice_url,
-          image_url: detail.resource?.storyboard_image_url ?? node.image_url,
-          image_urls: detail.resource?.scene_image_urls ? Object.values(detail.resource.scene_image_urls) as string[] : node.image_urls,
-
-          prompt: detail.image_prompt ?? node.prompt,
-          video_prompt: detail.video_prompt ?? node.video_prompt,
-          image_prompt_history: detail.image_prompt_history ?? node.image_prompt_history,
-          video_prompt_history: detail.video_prompt_history ?? node.video_prompt_history,
-          extra_data: detail.extra_data,
-          version: detail.version,
-        }
-      }
-
-      setScenes(prev => prev.map(s => {
-        if (sceneIds.includes(s.id)) {
-          return mergeDetail(s)
-        }
-        return s
-      }))
-
-      // Update selection with newly fetched details
-      setSelected(prev => {
-        if (!prev) return prev
-        if (sceneIds.includes(prev.data.id)) {
-          return { ...prev, data: mergeDetail(prev.data) }
-        }
-        return prev
-      })
-    }).catch(err => console.error('Failed to fetch scene details:', err))
   }
 
   const handleStoryboardSelect = (storyboard: Scene) => {
@@ -420,78 +419,107 @@ export default function ScenePage() {
     }
   }
 
-  const handleSceneAdd = async (scene: Scene) => {
-    instance.post('/api/v2/scene/add', { project_id: projectId, stage_id: stageId, scene_id: scene.id })
+  const handleAddStoryboard = (current_scene: Scene) => {
+    // Open dialog to ask for title
+    setCurrentSceneForAdd(current_scene)
+    setNewSceneTitle("")
+    setShowAddDialog(true)
+  }
+
+  const handleConfirmAddScene = async () => {
+    if (!currentSceneForAdd || !newSceneTitle.trim()) {
+      showToast("请输入名称", "error")
+      return
+    }
+
+    setShowAddDialog(false)
+
+    const endpoint = '/api/v2/scene/add'
+    const data = {
+      project_id: projectId,
+      stage_id: stageId,
+      scene_id: currentSceneForAdd.id,
+      title: newSceneTitle.trim()
+    }
+
+    instance.post(endpoint, data)
       .then((res: any) => {
-        const newScene: Scene = {
+        const newBoard: Scene = {
           id: res.id, title: res.title,
           status: "INIT",
-          storyboard: false,
-          parent_id: null,
+          storyboard: res.storyboard,
+          parent_id: res.parent_id,
           image_status: false, clip_status: false, voice_status: false,
           del: false,
           create_time: new Date().toISOString(), update_time: new Date().toISOString(),
-          project_id: Number(scene.project_id) || 0,
-          stage_id: Number(scene.stage_id) || 0,
+          project_id: Number(currentSceneForAdd.project_id) || 0,
+          stage_id: Number(currentSceneForAdd.stage_id) || 0,
           seq_id: res.seq_id, pre_seq_id: res.pre_seq_id, next_seq_id: res.next_seq_id,
           video_setting: { model: "", camera: "frame", duration: "", motion: "" },
           children: []
         }
-        const index = scenes.findIndex((s) => s.id === scene.id)
-        const newScenes = [...scenes]
-        newScenes.splice(index + 1, 0, newScene)
-        setScenes(newScenes)
-      })
-      .catch((error) => console.error('Add Scene Error:', error))
-  }
 
-  const handleAddStoryboard = (parentScene: Scene, afterStoryboard?: Scene) => {
-    const existingBoards = parentScene.children || []
-    const newBoard: Scene = {
-      id: Date.now(), // temp id until backend confirms
-      title: `Storyboard ${existingBoards.length + 1}`,
-      status: 'INIT',
-      storyboard: true,
-      parent_id: parentScene.id,
-      image_status: false, clip_status: false, voice_status: false,
-      del: false,
-      create_time: new Date().toISOString(), update_time: new Date().toISOString(),
-      project_id: parentScene.project_id, stage_id: parentScene.stage_id,
-      seq_id: existingBoards.length, pre_seq_id: -1, next_seq_id: -1,
-      video_setting: { model: "", camera: "frame", duration: "", motion: "" },
-      children: []
-    }
+        // 1. Find the next_scene based on current_scene.next_seq_id
+        const nextScene = scenes.find((s: Scene) => s.seq_id === currentSceneForAdd.next_seq_id
+          && s.parent_id == currentSceneForAdd.parent_id)
 
-    setScenes(prev => {
-      const updated = [...prev, newBoard]
-      return updated.map(s => {
-        if (s.id === parentScene.id) {
-          return { ...s, children: [...(s.children || []), newBoard.id] }
+        // 2. Update linked list by creating new objects with updated seq_id references
+        const updatedScenes = scenes.map(s => {
+          if (s.id === currentSceneForAdd.id) return { ...s, next_seq_id: newBoard.seq_id }
+          if (nextScene && s.id === nextScene.id) return { ...s, pre_seq_id: newBoard.seq_id }
+          return s
+        })
+
+        // 3. Create new array with newBoard inserted after current_scene
+        const scenesWithNewBoard = [
+          ...updatedScenes,
+          newBoard
+        ]
+
+        const scenesWithChildren = scenesWithNewBoard.map(s => {
+          if (s.storyboard == true && s.id === currentSceneForAdd.parent_id) {
+            return { ...s, children: [...(s.children || []), newBoard.id] }
+          }
+          return s
+        })
+
+        // 5. Set state with updated scenes
+        setScenes(scenesWithChildren)
+
+        // setExpandedSceneIds(prev => new Set(prev).add(currentSceneForAdd.id))
+        if (currentSceneForAdd.storyboard) {
+          setSelected({ type: "storyboard", data: newBoard })
+        } else {
+          setSelected({ type: "scene", data: currentSceneForAdd })
         }
-        return s
       })
-    })
-    setExpandedSceneIds(prev => new Set(prev).add(parentScene.id))
-    setSelected({ type: "storyboard", data: newBoard })
+      .catch((error) => {
+        console.error('Add Scene Error:', error)
+        showToast("添加场景失败", "error")
+      })
   }
 
 
-  const handleGenerateStoryboards = (parentScene: Scene) => {
+  const handleGenerateStoryboards = (current_scene: Scene) => {
     if (!projectId || !stageId || !projectDetail?.user_id) return
+
+    // Add to generating set to show loading state
+    setGeneratingStoryboards(prev => new Set(prev).add(current_scene.id))
 
     instance.post('/api/v2/scene/generate_storyboards', {
       project_id: projectId,
       stage_id: stageId,
-      scene_id: parentScene.id,
+      scene_id: current_scene.id,
       user_id: projectDetail.user_id,
       storyboard_no: 5
     }).then((res: any) => {
       if (!Array.isArray(res)) return
 
+      // 1. Construct newStoryboards first
       const newStoryboards: Scene[] = res
-        .filter((detail: any) => detail.scene_id !== parentScene.id) // Only storyboards
+        .filter((detail: any) => detail.scene_id !== current_scene.id) // Only storyboards
         .map((detail: any) => ({
-          id: detail.scene_id,
+          id: detail.id,
           title: detail.title || `AI Storyboard ${detail.scene_id}`,
           seq_id: detail.seq_id || 0,
           pre_seq_id: detail.pre_seq_id || -1,
@@ -500,7 +528,7 @@ export default function ScenePage() {
           stage_id: Number(stageId),
           status: detail.status || "INIT",
           storyboard: true,
-          parent_id: parentScene.id,
+          parent_id: current_scene.id,
           image_status: false, clip_status: false, voice_status: false,
           del: false,
           create_time: new Date().toISOString(),
@@ -522,45 +550,83 @@ export default function ScenePage() {
           children: []
         }))
 
-      const newIds = newStoryboards.map(s => s.id)
-
+      // 2. Append newStoryboards to scenes
+      // 3. Add all newStoryboards' ids to current_scene.children
+      // 4. SetExpandedSceneIds to the current_scene
       setScenes(prev => {
         const nextList = [...prev, ...newStoryboards]
+        const newIds = newStoryboards.map(s => s.id)
         return nextList.map(s => {
-          if (s.id === parentScene.id) {
+          if (s.id === current_scene.id) {
             return {
               ...s,
-              children: Array.from(new Set([...(s.children || []), ...newIds]))
+              children: newIds
             }
           }
           return s
         })
       })
 
-      // Expand the current scene to see the new storyboards
-      setExpandedSceneIds(prev => new Set(prev).add(parentScene.id))
-    }).catch(err => console.error('Failed to generate storyboards:', err))
+      // 4. Expand the current scene to see the new storyboards
+      setExpandedSceneIds(prev => new Set(prev).add(current_scene.id))
+
+      // Remove from generating set after success
+      setGeneratingStoryboards(prev => {
+        const next = new Set(prev)
+        next.delete(current_scene.id)
+        return next
+      })
+    }).catch(err => {
+      console.error('Failed to generate storyboards:', err)
+      // Remove from generating set on error
+      setGeneratingStoryboards(prev => {
+        const next = new Set(prev)
+        next.delete(current_scene.id)
+        return next
+      })
+    })
   }
 
   const handleSceneDelete = async (scene: Scene) => {
     instance.post('/api/v2/scene/delete', { project_id: projectId, stage_id: stageId, scene_id: scene.id })
       .then(() => {
-        setScenes(scenes.filter((s) => s.id !== scene.id))
-        if (selected?.type === "scene" && selected.data.id === scene.id) setSelected(null)
-      })
-  }
+        // Find pre and next scenes based on seq_id
+        const preScene = scene.pre_seq_id !== -1 && scene.pre_seq_id !== null
+          ? scenes.find((s) => s.seq_id === scene.pre_seq_id && s.parent_id == scene.parent_id)
+          : null;
 
-  const handleStoryboardDelete = (storyboard: Scene) => {
-    setScenes(prev => prev
-      .filter(s => s.id !== storyboard.id)
-      .map(s => {
-        if (s.id === storyboard.parent_id) {
-          return { ...s, children: (s.children || []).filter(id => id !== storyboard.id) }
-        }
-        return s
+        const nextScene = scene.next_seq_id !== -1 && scene.next_seq_id !== null
+          ? scenes.find((s) => s.seq_id === scene.next_seq_id && s.parent_id == scene.parent_id)
+          : null;
+
+        // Update linked list: pre.next_seq_id = current.next_seq_id (if pre exists)
+        // and next.pre_seq_id = current.pre_seq_id (if next exists)
+        const updatedScenes = scenes.map(s => {
+          if (s.id === scene.id) return null; // Remove current scene
+
+          // Update pre scene's next_seq_id
+          if (s.id === preScene?.id && scene.pre_seq_id !== -1 && scene.pre_seq_id !== null && s.parent_id == scene.parent_id) {
+            return { ...s, next_seq_id: scene.next_seq_id };
+          }
+
+          // Update next scene's pre_seq_id
+          if (s.id === nextScene?.id && scene.next_seq_id !== -1 && scene.next_seq_id !== null && s.parent_id == scene.parent_id) {
+            return { ...s, pre_seq_id: scene.pre_seq_id };
+          }
+
+          // Update children list if current is a storyboard and has a parent
+          if (scene.storyboard == true && s.storyboard === false && s.id === scene.parent_id) {
+            const updatedChildren = (s.children || []).filter(childId => childId !== scene.id);
+            return { ...s, children: updatedChildren };
+          }
+
+          return s;
+        }).filter(s => s !== null);
+
+        setScenes(updatedScenes);
+
+        if (selected?.type === "scene" && selected.data.id === scene.id) setSelected(null);
       })
-    )
-    if (selected?.type === "storyboard" && selected.data.id === storyboard.id) setSelected(null)
   }
 
   return (
@@ -603,12 +669,13 @@ export default function ScenePage() {
                               isSelected={selected?.type === "scene" && selected.data.id === scene.id}
                               isExpanded={expandedSceneIds.has(scene.id)}
                               storyboardCount={scene.children?.length || 0}
+                              hasChildren={scene.children && scene.children.length > 0}
                               onSelect={() => handleSceneSelect(scene)}
                               onSave={() => { }}
-                              onAddScene={() => handleSceneAdd(scene)}
                               onAddStoryboard={() => handleAddStoryboard(scene)}
                               onGenerateStoryboards={() => handleGenerateStoryboards(scene)}
                               onDelete={() => handleSceneDelete(scene)}
+                              generatingStoryboards={generatingStoryboards}
                             />
                             {expandedSceneIds.has(scene.id) && (scene.children && scene.children.length > 0) && (
                               <div className="space-y-1 mt-1">
@@ -619,8 +686,8 @@ export default function ScenePage() {
                                     storyboard={board}
                                     isSelected={selected?.type === "storyboard" && selected.data.id === board.id}
                                     onSelect={() => handleStoryboardSelect(board)}
-                                    onAddStoryboard={() => handleAddStoryboard(scene, board)}
-                                    onDelete={() => handleStoryboardDelete(board)}
+                                    onAddStoryboard={() => handleAddStoryboard(board)}
+                                    onDelete={() => handleSceneDelete(board)}
                                   />
                                 ))}
                               </div>
@@ -668,6 +735,30 @@ export default function ScenePage() {
           {isPreviewingVideo && combinedVideos.length > 0 && (
             <MultiVideoDisplayPanel combinedVideos={combinedVideos} isGenerating={isCombiningTaskRunning} onClose={() => setIsPreviewingVideo(false)} />
           )}
+
+          {/* Add Scene/Storyboard Dialog */}
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{currentSceneForAdd?.storyboard ? "添加 Storyboard" : "添加 Scene"}</DialogTitle>
+                <DialogDescription>
+                  请输入新场景/分镜的名称
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  placeholder="输入名称..."
+                  value={newSceneTitle}
+                  onChange={(e) => setNewSceneTitle(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAddDialog(false)}>取消</Button>
+                <Button onClick={handleConfirmAddScene}>确定</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </>

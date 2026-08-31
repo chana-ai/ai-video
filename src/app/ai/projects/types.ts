@@ -122,6 +122,14 @@ export interface Scene {
   /** Front-end dirty flag */
   isModified?: boolean
 
+  /** Video settings (backend returns this directly in some endpoints) */
+  video_setting?: {
+    model: string
+    camera: string
+    duration: string
+    motion: string
+  }
+
   /**
    * Storyboard children IDs, grouped client-side from the flat API list.
    * Only present on top-level scenes (storyboard === false).
@@ -256,9 +264,9 @@ export interface SceneCardProps {
   isSelected: boolean
   isExpanded: boolean
   storyboardCount: number
+  hasChildren?: boolean
   onSelect: (id: number) => void
   onSave: (id: number) => void
-  onAddScene: (scene: Scene) => void
   onAddStoryboard: (scene: Scene) => void
   onGenerateStoryboards: (scene: Scene) => void
   onDelete: (scene: Scene) => void

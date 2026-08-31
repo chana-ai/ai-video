@@ -24,8 +24,10 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   const [backgroundInfo, setBackgroundInfo] = useState("");
   const [themes, setThemes] = useState<Theme[]>([])
   const [isLoadingThemes, setIsLoadingThemes] = useState(false)
+  const [styles, setStyles] = useState<any[]>([])
+  const [isLoadingStyles, setIsLoadingStyles] = useState(false)
 
-  // Fetch themes on mount and populate cache
+  // Fetch themes and styles on mount and populate cache
   useEffect(() => {
     const fetchThemes = async () => {
       try {
@@ -56,8 +58,19 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
       }
     }
 
+    const fetchStyles = async () => {
+      try {
+        const res: any = await instance.get('/api/v2/project/styles')
+        const fetchedStyles = res || []
+        setStyles(fetchedStyles)
+      } catch (err) {
+        console.error('Failed to fetch styles:', err)
+      }
+    }
+
     if (open) {
       fetchThemes()
+      fetchStyles()
     }
   }, [open])
 
@@ -93,6 +106,22 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
         setIsLoadingThemes(false)
       })
   }, [])
+
+  useEffect(() => {
+    const fetchStyles = async () => {
+      try {
+        const res: any = await instance.get('/api/v2/project/styles')
+        const fetchedStyles = res || []
+        setStyles(fetchedStyles)
+      } catch (err) {
+        console.error('Failed to fetch styles:', err)
+      }
+    }
+
+    if (open) {
+      fetchStyles()
+    }
+  }, [open])
 
 
   const handleSubmit = () => {
@@ -176,16 +205,17 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
               <Select
                 value={selectedStyle}
                 onValueChange={(value) => setSelectedStyle(value)}
+                disabled={isLoadingStyles}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="disney pixar" />
+                  <SelectValue placeholder={isLoadingStyles ? "Loading..." : "disney pixar"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cinematic">cinematic</SelectItem>
-                  <SelectItem value="animation_ghibli">吉卜力</SelectItem>
-                  {/* <SelectItem value="disney pixar">迪士尼皮克斯</SelectItem>
-                  <SelectItem value="dreamworks">梦工厂</SelectItem>
-                  <SelectItem value="other">其他</SelectItem> */}
+                  {styles.map((style) => (
+                    <SelectItem key={style.value} value={style.value}>
+                      {style.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
