@@ -265,6 +265,7 @@ export interface SceneCardProps {
   isExpanded: boolean
   storyboardCount: number
   hasChildren?: boolean
+  generatingStoryboards?: Set<number>
   onSelect: (id: number) => void
   onSave: (id: number) => void
   onAddStoryboard: (scene: Scene) => void
@@ -278,6 +279,7 @@ export interface StoryboardCardProps {
   onSelect: (id: number) => void
   onAddStoryboard: (storyboard: Scene) => void
   onDelete: (storyboard: Scene) => void
+  onGenerateVideo: (storyboard: Scene) => void
 }
 
 export interface VideoSettingsProps {

@@ -39,4 +39,6 @@ next-env.d.ts
 .agent/*
 node_modules
 .git
-*.md
+.agents/*
+.claude/*
+skills-lock.json

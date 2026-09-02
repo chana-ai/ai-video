@@ -137,29 +137,42 @@ export function StoryboardSettings({
     instance.get(`/api/v2/scene/detail?project_id=${storyboard.project_id}&stage_id=${storyboard.stage_id}&scene_id=${storyboard.id}`)
       .then((res: any) => {
         console.log('res = ', res)
-        if (res) {
-          // Extract voice_url from resource.voices array if present
-          let updatedResource = res.resource
-          if (!updatedResource.voice_url) {
-            if (res.resource?.voices && Array.isArray(res.resource.voices) && res.resource.voices.length > 0) {
-              const voiceUrl = res.resource.voices[0].url || ""
-              if (voiceUrl) {
-                updatedResource = {
-                  ...res.resource,
-                  voice_url: voiceUrl
-                }
+        if (!res) return
+
+        // Extract voice_url from resource.voices array if present
+        let updatedResource = res.resource
+        if (!updatedResource.voice_url) {
+          if (res.resource?.voices && Array.isArray(res.resource.voices) && res.resource.voices.length > 0) {
+            const voiceUrl = res.resource.voices[0].url || ""
+            if (voiceUrl) {
+              updatedResource = {
+                ...res.resource,
+                voice_url: voiceUrl
               }
             }
           }
+        }
 
-          setStoryDetail({
-            ...res,
-            resource: updatedResource
-          })
-          if (descriptionRef.current && res.description !== undefined) {
-            descriptionRef.current.value = res.description || ''
+        if (!updatedResource.video_url) {
+          if (res.resource?.videos && Array.isArray(res.resource.videos) && res.resource.videos.length > 0) {
+            const video = res.resource.videos[0].url || ""
+            if (video) {
+              updatedResource = {
+                ...res.resource,
+                video_url: video
+              }
+            }
           }
         }
+
+        setStoryDetail({
+          ...res,
+          resource: updatedResource
+        })
+        if (descriptionRef.current && res.description !== undefined) {
+          descriptionRef.current.value = res.description || ''
+        }
+
       })
       .catch((err) => console.error("Failed to fetch scene detail:", err))
 
@@ -685,7 +698,7 @@ export function StoryboardSettings({
               storyboard={storyDetail}
               projectDetail={projectDetail}
               image_id={storyDetail?.resource?.images[selectedImageIndex]?.id}
-              video_url={storyDetail?.resource?.video_url}
+              video_url={storyDetail?.resource?.video_url || storyDetail?.resource?.videos}
               isDialogue={isDialogue}
               onUpdateVideoPrompt={(prompt) => {
                 // That's OK. 

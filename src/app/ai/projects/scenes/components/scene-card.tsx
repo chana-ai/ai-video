@@ -15,6 +15,7 @@ function getStatusBadge(status: string) {
     image_generating: "bg-blue-100 text-blue-600",
     video_generating: "bg-purple-100 text-purple-600",
     voice_generating: "bg-orange-100 text-orange-600",
+    PROCESSING: "bg-blue-100 text-blue-600",
     complete: "bg-green-100 text-green-600",
     COMPLETE: "bg-green-100 text-green-600",
     fail: "bg-red-100 text-red-600",
@@ -26,6 +27,7 @@ function getStatusBadge(status: string) {
     image_generating: "Generating Image",
     video_generating: "Generating Video",
     voice_generating: "Generating Voice",
+    PROCESSING: "Processing",
     complete: "Complete",
     COMPLETE: "Complete",
     fail: "Failed",
@@ -117,7 +119,7 @@ export function SceneCard({
   onAddStoryboard,
   onGenerateStoryboards,
   onDelete,
-  generatingStoryboards,
+  generatingStoryboards
 }: SceneCardProps) {
   return (
     <div

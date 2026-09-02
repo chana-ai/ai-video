@@ -1,7 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react'
-import config from '@/app/settings/config';
-import instance from '@/lib/axios'
-import { getCredentials, getUserId } from '@/lib/localcache';
+import { useEffect } from 'react'
+import config from '@/app/settings/config'
+import { getUserId } from '@/lib/localcache'
 
 
 export interface WsMessage {
@@ -16,6 +15,10 @@ export interface WsMessage {
   project_id?: string | number
   stage_id?: string | number
   scene_id?: string | number
+  progress?: number
+  processed?: number
+  total?: number
+  current_processing?: string
 }
 
 export interface WsCallback {
@@ -163,11 +166,20 @@ class WebSocketManager {
     })
   }
 
-  sendCreateVideoCombination(project_id: string | number, stage_id: string | number) {
+  sendCreateVideoCombination(project_id: string | number, stage_id: string | number, scene_ids: number[]) {
     return this.sendRequest('createVideoCombination', {
       project_id,
-      stage_id
+      stage_id,
+      scene_ids
     })
+  }
+
+  cancelVideoCombination() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        request_type: 'cancelVideoCombination'
+      }))
+    }
   }
 }
 
