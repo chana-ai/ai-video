@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { VoiceSynthesisTab } from './VoiceSynthesisTab'
 import { VoiceCloningTab } from './VoiceCloningTab'
 import { VoiceSetting } from '../../../value-assets/types'
+import { cn } from "@/lib/utils"
 
 interface AudioConfigTabProps {
     selectedAsset: any
@@ -42,7 +43,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
     onVendorChange
 }) => {
     // 使用 selectedAsset.voice_setting，如果没有则使用默认值
-    const voice_setting = selectedAsset?.voice_setting || {
+    const voice_setting = selectedAsset?.config?.voice_setting || {
         gender: 'female',
         emotion: 'neutral',
         vendor: 'azure',
@@ -85,7 +86,7 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                     语音配置模式
                 </Label>
                 <RadioGroup
-                    value={mode}
+                    value={mode || voice_setting.mode}
                     onValueChange={handleModeChange}
                     className="flex gap-6"
                 >
@@ -93,18 +94,28 @@ export const AudioConfigTab: React.FC<AudioConfigTabProps> = ({
                         <RadioGroupItem value="tts" id="mode-tts" />
                         <Label
                             htmlFor="mode-tts"
-                            className="cursor-pointer font-medium"
+                            className={cn(
+                                "cursor-pointer font-medium transition-colors",
+                                (mode || voice_setting.mode) === 'tts'
+                                    ? "text-green-700 font-bold"  // Highlight green for TTS mode
+                                    : "text-gray-600"
+                            )}
                         >
-                            语音合成
+                            合成语音
                         </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="clone" id="mode-clone" />
                         <Label
                             htmlFor="mode-clone"
-                            className="cursor-pointer font-medium"
+                            className={cn(
+                                "cursor-pointer font-medium transition-colors",
+                                (mode || voice_setting.mode) === 'clone'
+                                    ? "text-green-700 font-bold"  // Highlight green for Clone mode
+                                    : "text-gray-600"
+                            )}
                         >
-                            声音克隆
+                            语音克隆
                         </Label>
                     </div>
                 </RadioGroup>

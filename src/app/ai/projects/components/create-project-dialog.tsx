@@ -146,11 +146,7 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
       console.log('res: ', res)  // {project_id， stage_id}
 
       // Redirect based on theme
-      if (selectedTheme === 'digit_human') {
-        router.push(`/ai/projects/script-configuration?project_id=${res.data?.project_id}&stage_id=${res.data?.stage_id}`)
-      } else {
-        router.push(`/ai/projects/script-configuration?project_id=${res.data?.project_id}&stage_id=${res.data?.stage_id}`)
-      }
+      router.push(`/ai/projects/script-configuration?project_id=${res?.project_id}&stage_id=${res.stage_id}`)
     }).catch(error => {
       setErrorMessage(error.message)
     })

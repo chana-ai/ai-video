@@ -209,7 +209,7 @@ export interface Task {
 }
 
 export interface StoryDetail {
-  scene_id: number
+  id: number
   doc_id?: string
   description?: string
   config?: {

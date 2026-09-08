@@ -113,11 +113,8 @@ export function useMergeAdapter({
       setCombineErrorMessage('')
       onMergeStart?.()
 
-      // 发送合并请求
-      await wsManager.sendCreateVideoCombination(
-        Number(projectId),
-        Number(stageId)
-      )
+      // 发送合并请求（场景ID在WebSocket消息中）
+      await wsManager.createVideoCombination(Array.from(selectedStoryboards))
 
       showToast(`已提交 ${readyToMerge.length} 个storyboard 进行合并`, "success", 3000)
     } catch (error: any) {

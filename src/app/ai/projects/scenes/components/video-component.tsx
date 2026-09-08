@@ -9,7 +9,7 @@ import { Play, Loader2, Check } from "lucide-react"
 import type { ProjectDetail } from "@/app/ai/projects/types"
 import type { Character } from "@/app/ai/projects/scenes/types"
 import instance from "@/lib/axios"
-import { wsManager, type WsMessage } from "@/lib/websocket"
+import { wsManager } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
 
 type VideoModel = 'MINMAX' | 'WAN'
@@ -44,11 +44,9 @@ export function VideoComponent({
   const currentVideoModel = (storyboard?.video_settings?.model || 'MINMAX') as VideoModel
   const [videoPrompt, setVideoPrompt] = useState<string>("")
 
-
   useEffect(() => {
     setVideoPrompt(storyboard?.video_prompt)
   }, [storyboard])
-
 
   const handleGenerateVideoPrompt = async () => {
     setIsLoading(true)
@@ -79,22 +77,22 @@ export function VideoComponent({
 
     try {
       // Subscribe to WebSocket events for this generation
-      const unsubscribeAccepted = wsManager.subscribe('createVideoClipAccepted', (message: WsMessage) => {
+      const unsubscribeAccepted = wsManager.subscribe('createVideoClipAccepted', (message: any) => {
         console.log('createVideoClipAccepted:', message)
         if (message.task_id) {
           onUpdateVideoTaskId?.(message.task_id)
         }
       })
 
-      const unsubscribeComplete = wsManager.subscribe('createVideoClipComplete', async (message: WsMessage) => {
+      const unsubscribeComplete = wsManager.subscribe('createVideoClipComplete', async (message: any) => {
         console.log('createVideoClipComplete:', message)
-        if (message.data && message.data.video_url) {
-          onUpdateVideoUrl?.(message.data.video_url)
+        if (message.result_url) {
+          onUpdateVideoUrl?.(message.result_url)
           setIsGeneratingVideo(false)
         }
       })
 
-      const unsubscribeError = wsManager.subscribe('createVideoClipError', (message: WsMessage) => {
+      const unsubscribeError = wsManager.subscribe('createVideoClipError', (message: any) => {
         console.error('createVideoClipError:', message)
         const errorMsg = message.message || '视频生成失败，请稍后重试'
         showToast(errorMsg, 'error')
@@ -103,12 +101,9 @@ export function VideoComponent({
 
       try {
         // Send WebSocket request
-        await wsManager.sendCreateVideoClip(
+        await wsManager.createVideoClip(
           storyboardId,
           videoPrompt,
-          projectDetail?.id || 0, // project_id will be passed from parent
-          projectDetail?.stage_id || 0, // stage_id will be passed from parent
-          projectDetail?.user_id || 0,
           image_id
         )
 
@@ -128,7 +123,9 @@ export function VideoComponent({
     projectDetail,
     onUpdateVideoPrompt,
     onUpdateVideoUrl,
-    onUpdateVideoTaskId
+    onUpdateVideoTaskId,
+    videoPrompt,
+    image_id
   ])
 
   return (
@@ -155,80 +152,68 @@ export function VideoComponent({
           ) : video_url ? (
             <video
               src={video_url}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
               controls
             />
           ) : (
-            <div className="flex flex-col items-center justify-center text-gray-600 gap-3">
-              <Play className="w-12 h-12 opacity-80 mix-blend-screen" />
-              <p className="text-xs font-semibold tracking-widest uppercase text-gray-700">No Video Available</p>
-            </div>
+            <div className="text-gray-400 text-sm">No video generated yet</div>
           )}
         </div>
 
-        {/* Model / Vendor Selection & Generate Video Prompt button */}
-        <div className="flex items-center justify-between gap-2">
-          {/* <Select
-            value={currentVideoModel}
-            onValueChange={(v: string) => {
-              if (storyboardConfig) {
-                storyboardConfig.video_settings = {
-                  ...storyboardConfig.video_settings,
-                  model: v
-                }
-              }
-            }}
-          >
-            <SelectTrigger className="w-32 h-9 text-xs font-bold rounded-xl bg-gray-50 border-gray-100 focus:ring-purple-200">
-              <SelectValue placeholder="Model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="MINMAX" className="text-xs font-bold">MINMAX</SelectItem>
-              <SelectItem value="RUNNINGHUB" className="text-xs font-bold">WAN</SelectItem>
-            </SelectContent>
-          </Select>
- */}
+        {/* Video Settings Form */}
+        <div className="space-y-3">
+          {/* Video Prompt */}
+          <div className="space-y-2">
+            <Label htmlFor="video-prompt">视频提示词</Label>
+            <Textarea
+              id="video-prompt"
+              value={videoPrompt}
+              onChange={(e) => setVideoPrompt(e.target.value)}
+              placeholder="请输入视频提示词..."
+              rows={3}
+              disabled={isGeneratingVideo || isLoading}
+            />
+          </div>
+
+          {/* Generate Prompt Button */}
           <Button
+            onClick={handleGenerateVideoPrompt}
             disabled={isLoading}
             variant="outline"
-            size="sm"
-            className="h-9 text-xs font-bold rounded-xl text-purple-600 border-purple-200 hover:bg-purple-50 px-4"
-            onClick={handleGenerateVideoPrompt}
+            className="w-full"
           >
-            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : 'Generate Prompt'}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                生成中...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                生成提示词
+              </>
+            )}
+          </Button>
+
+          {/* Generate Video Button */}
+          <Button
+            onClick={handleGenerateVideo}
+            disabled={!videoPrompt || isGeneratingVideo}
+            className="w-full"
+          >
+            {isGeneratingVideo ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                生成中...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                生成视频
+              </>
+            )}
           </Button>
         </div>
-
-        {/* Video Prompt */}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-gray-700 uppercase tracking-widest pl-1">Director&apos;s Script</Label>
-          <Textarea
-            value={videoPrompt}
-            className="min-h-[140px] text-sm bg-gray-50/50 border-none resize-none focus:bg-white transition-colors p-4 rounded-xl focus-visible:ring-1 focus-visible:ring-purple-200 leading-relaxed font-mono shadow-inner"
-            onChange={(e) => {
-              const val = e.target.value
-              if (storyboard) {
-                storyboard.video_prompt = val
-              }
-              setVideoPrompt(val)
-            }}
-            placeholder="Describe precise camera movements, cinematic effects, and atmosphere..."
-          />
-        </div>
-      </div>
-
-      {/* Generate Video Action Button */}
-      <div className="pt-3 border-t border-gray-100">
-        <Button
-          size="lg"
-          className="w-full h-[52px] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-base font-black tracking-widest rounded-xl shadow-[0_8px_20px_-6px_rgba(147,51,234,0.4)] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-          disabled={isGeneratingVideo || !storyboard?.video_prompt}
-          title={!storyboard?.video_prompt ? "Please enter a video prompt first" : ""}
-          onClick={() => handleGenerateVideo()}
-        >
-          {isGeneratingVideo ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <span className="text-xl mr-2">🎬</span>}
-          GENERATE VIDEO
-        </Button>
       </div>
     </div>
   )

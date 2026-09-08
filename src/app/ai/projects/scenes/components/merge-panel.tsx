@@ -179,7 +179,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
       unsubscribeComplete()
       unsubscribeError()
     }
-  }, [isOpen, projectId, stageId, selectedStoryboards.size, mergeTask.status, onMergeComplete])
+  }, [isOpen, projectId, stageId, selectedStoryboards.size, mergeTask.status, onMergeComplete, wsManager])
 
   // 切换单个storyboard选择
   const toggleStoryboardSelection = (storyboardId: number) => {
@@ -230,11 +230,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
 
     try {
       // 提交合并任务
-      await wsManager.sendCreateVideoCombination(
-        Number(projectId),
-        Number(stageId),
-        readyToMerge.map(s => s.id)
-      )
+      await wsManager.createVideoCombination(selectedStoryboards.map(s => s.id))
     } catch (error: any) {
       showToast(`合并任务启动失败: ${error.message || '未知错误'}`, 'error', 5000)
     }
@@ -242,7 +238,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
 
   // 取消合并任务
   const handleCancelMerge = () => {
-    wsManager.cancelVideoCombination?.()
+    wsManager.cancelVideoCombination()
     setMergeTask({
       isMerging: false,
       progress: 0,

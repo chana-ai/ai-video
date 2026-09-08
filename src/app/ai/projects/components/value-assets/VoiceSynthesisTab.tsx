@@ -26,6 +26,11 @@ export const VoiceSynthesisTab: React.FC<VoiceSynthesisTabProps> = ({
     isGeneratingAudio,
     audioPreviewUrl
 }) => {
+    // Log voice_config whenever it changes
+    React.useEffect(() => {
+        console.log('voice_config:', voiceConfig);
+    }, [voiceConfig]);
+
     const updateTtsConfig = (updates: Partial<NonNullable<VoiceSetting['tts']>>) => {
         onVoiceConfigChange({
             ...voiceConfig,

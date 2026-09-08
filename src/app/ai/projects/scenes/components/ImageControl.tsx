@@ -25,22 +25,21 @@ export function ImageControl({
     selectedImageId,
     onImageSelect,
     focusedIndex = 0,
-    onPrevious,
-    onNext,
-    showArrows = true,
-    className
+    showArrows = true
 }: ImageControlProps) {
-    const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
     const [zoomImageIndex, setZoomImageIndex] = useState<number>(0)
+    const [isZoomed, setIsZoomed] = useState<boolean>(false)
 
     // Sync focused index with parent
     useEffect(() => {
         setZoomImageIndex(focusedIndex)
+        setIsZoomed(false)
     }, [focusedIndex])
 
     const handleImageClick = (index: number) => {
         setZoomImageIndex(index)
-        setZoomImageUrl(images[index]?.url || null)
+        // If clicking the same image and it's zoomed in, zoom out; otherwise zoom in
+        setIsZoomed(!isZoomed)
     }
 
     const handlePreviousImage = (e: React.MouseEvent | React.KeyboardEvent) => {
@@ -62,16 +61,24 @@ export function ImageControl({
     return (
         <>
             {/* Main Image Display */}
-            <div className="group/preview relative h-[350px] w-full rounded-xl overflow-hidden bg-black flex items-center justify-center border border-gray-100">
+            <div className="group/preview relative h-[350px] w-full rounded-xl bg-black flex items-center justify-center border border-gray-100">
                 {images.length > 0 ? (
                     <>
-                        {/* Main Image */}
-                        <img
-                            src={images[zoomImageIndex]?.url}
-                            alt={`Selected image ${zoomImageIndex + 1}`}
-                            className="w-full h-full object-contain transition-all duration-700 hover:scale-[1.02] cursor-zoom-in"
-                            onClick={() => handleImageClick(zoomImageIndex)}
-                        />
+                        {/* Zoom Container - allows image to overflow outside the box */}
+                        <div className={cn(
+                            "transition-all duration-700",
+                            isZoomed ? "scale-[1.25]" : "hover:scale-[1.02]"
+                        )}>
+                            <img
+                                src={images[zoomImageIndex]?.url}
+                                alt={`Selected image ${zoomImageIndex + 1}`}
+                                className={cn(
+                                    "object-contain transition-all duration-700 cursor-zoom-in",
+                                    isZoomed ? "cursor-zoom-out" : ""
+                                )}
+                                onClick={() => handleImageClick(zoomImageIndex)}
+                            />
+                        </div>
 
                         {/* Selection Circle */}
                         <button
@@ -133,7 +140,7 @@ export function ImageControl({
                                 ? "border-green-500 ring-2 ring-green-100"
                                 : "border-transparent hover:border-gray-300"
                         )}
-                        onClick={() => onImageSelect(img.id)}
+                        onClick={() => handleImageClick(idx)}
                     >
                         <img
                             src={img.url}
@@ -147,6 +154,22 @@ export function ImageControl({
                                 </div>
                             </div>
                         )}
+                        {/* Selection Indicator Circle */}
+                        <button
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all z-10"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onImageSelect(img.id)
+                            }}
+                            style={{
+                                borderColor: selectedImageId === img.id ? '#22c55e' : '#9ca3af',
+                                backgroundColor: selectedImageId === img.id ? '#22c55e' : '#f3f4f6',
+                            }}
+                        >
+                            {selectedImageId === img.id && (
+                                <Check className="w-3 h-3 text-white" />
+                            )}
+                        </button>
                     </div>
                 ))}
             </div>

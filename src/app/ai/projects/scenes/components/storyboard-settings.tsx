@@ -20,7 +20,6 @@ import instance from "@/lib/axios"
 import { PromptChatbox } from "./PromptChatbox"
 import { VoiceComponent } from "./VoiceComponent"
 import { VideoComponent } from "./video-component"
-import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
 
 
@@ -632,7 +631,7 @@ export function StoryboardSettings({
               </div>
 
               <VoiceComponent
-                storyboardId={storyDetail?.scene_id}
+                storyboardId={storyboard.id}
                 storyboardConfig={storyDetail?.config}
                 projectDetail={projectDetail || null}
                 characters={characters}

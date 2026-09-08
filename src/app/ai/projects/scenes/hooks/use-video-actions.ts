@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { wsManagerEnhanced, type WsMessage } from '@/lib/websocket-enhanced'
+import { wsManager, type WsMessage } from '@/lib/websocket'
 import { showToast } from '@/lib/toast-helpers'
 
 interface VideoActionOptions {
@@ -42,7 +42,7 @@ export function useVideoActions(options: VideoActionOptions) {
 
       options.onActionStart?.('videoClip', sceneId.toString())
 
-      await wsManagerEnhanced.executeAction('videoClip', {
+      await wsManager.executeAction('videoClip', {
         scene_id: sceneId,
         video_prompt: videoPrompt,
         project_id: Number(options.projectId),
@@ -91,9 +91,10 @@ export function useVideoActions(options: VideoActionOptions) {
 
       options.onActionStart?.('videoCombination')
 
-      await wsManagerEnhanced.executeAction('videoCombination', {
+      await wsManager.executeAction('videoCombination', {
         project_id: Number(options.projectId),
-        stage_id: Number(options.stageId)
+        stage_id: Number(options.stageId),
+        scene_ids: selectedSceneIds
       }, {
         timeout: 60000,
         retryCount: 2,
@@ -119,7 +120,7 @@ export function useVideoActions(options: VideoActionOptions) {
   }
 
   const cancelVideoCombination = () => {
-    wsManagerEnhanced.cancelVideoCombination()
+    wsManager.cancelVideoCombination()
     showToast('已取消合并任务', 'info', 3000)
   }
 
@@ -151,7 +152,7 @@ export function useVideoActions(options: VideoActionOptions) {
   // WebSocket订阅设置
   const setupSubscriptions = () => {
     // 视频片段生成订阅
-    const unsubscribeClipAccepted = wsManagerEnhanced.subscribe('createVideoClipAccepted', (message: WsMessage) => {
+    const unsubscribeClipAccepted = wsManager.subscribe('createVideoClipAccepted', (message: WsMessage) => {
       const actionId = `clip_${message.scene_id}_${Date.now()}`
       updateActionState(actionId, {
         taskId: message.task_id
@@ -159,7 +160,7 @@ export function useVideoActions(options: VideoActionOptions) {
       options.onActionStart?.('videoClip', message.task_id)
     })
 
-    const unsubscribeClipProgress = wsManagerEnhanced.subscribe('createVideoClipProgress', (message: WsMessage) => {
+    const unsubscribeClipProgress = wsManager.subscribe('createVideoClipProgress', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('clip_'))
       if (actionId) {
         updateActionState(actionId, {
@@ -171,7 +172,7 @@ export function useVideoActions(options: VideoActionOptions) {
       }
     })
 
-    const unsubscribeClipComplete = wsManagerEnhanced.subscribe('createVideoClipComplete', (message: WsMessage) => {
+    const unsubscribeClipComplete = wsManager.subscribe('createVideoClipComplete', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('clip_'))
       if (actionId) {
         updateActionState(actionId, {
@@ -185,7 +186,7 @@ export function useVideoActions(options: VideoActionOptions) {
       }
     })
 
-    const unsubscribeClipError = wsManagerEnhanced.subscribe('createVideoClipError', (message: WsMessage) => {
+    const unsubscribeClipError = wsManager.subscribe('createVideoClipError', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('clip_'))
       if (actionId) {
         updateActionState(actionId, {
@@ -198,7 +199,7 @@ export function useVideoActions(options: VideoActionOptions) {
     })
 
     // 视频合并订阅
-    const unsubscribeCombinationAccepted = wsManagerEnhanced.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
+    const unsubscribeCombinationAccepted = wsManager.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
       if (actionId) {
         updateActionState(actionId, {
@@ -208,7 +209,7 @@ export function useVideoActions(options: VideoActionOptions) {
       }
     })
 
-    const unsubscribeCombinationProgress = wsManagerEnhanced.subscribe('createVideoCombinationProgress', (message: WsMessage) => {
+    const unsubscribeCombinationProgress = wsManager.subscribe('createVideoCombinationProgress', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
       if (actionId) {
         updateActionState(actionId, {
@@ -220,7 +221,7 @@ export function useVideoActions(options: VideoActionOptions) {
       }
     })
 
-    const unsubscribeCombinationComplete = wsManagerEnhanced.subscribe('createVideoCombinationComplete', (message: WsMessage) => {
+    const unsubscribeCombinationComplete = wsManager.subscribe('createVideoCombinationComplete', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
       if (actionId) {
         updateActionState(actionId, {
@@ -234,7 +235,7 @@ export function useVideoActions(options: VideoActionOptions) {
       }
     })
 
-    const unsubscribeCombinationError = wsManagerEnhanced.subscribe('createVideoCombinationError', (message: WsMessage) => {
+    const unsubscribeCombinationError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
       const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
       if (actionId) {
         updateActionState(actionId, {

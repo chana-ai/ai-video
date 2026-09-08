@@ -40,6 +40,7 @@ export default function ValueAssets() {
     const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set())
 
 
+
     // Save history to localStorage (can be used as a local cache/fallback)
     useEffect(() => {
         if (!selectedAsset) return;
@@ -366,22 +367,22 @@ export default function ValueAssets() {
         setUploadingImage(true);
         const file = e.target.files[0];
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('image', file);
         formData.append('project_id', projectId || '');
         formData.append('stage_id', stageId || '');
-        formData.append('reference_id', selectedAsset.id.toString());
-        formData.append('scenario', selectedAsset.type === 'character' ? 'CHARACTER' : 'RESOURCE');
+        formData.append('user_id', String(projectDetail?.user_id || 0))
+        formData.append('asset_id', selectedAsset.id.toString());
 
         try {
-            const res: any = await instance.post('/api/v2/image/upload', formData, {
+            const res: any = await instance.post('/api/v2/file/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             const newImg: ImageInfo = {
                 id: res.id,
                 url: res.signed_url || res.uri,
-                oss_path: res.oss_path,
-                is_selected: false
+                // oss_path: res.oss_path,
+                is_selected: true
             };
 
             // Add new image to current batch

@@ -496,14 +496,23 @@ export default function ScriptConfiguration() {
 
 
                             {/* Dialogue Section */}
-                            {scene.dialogue && (
+                            {scene.dialogue && scene.dialogue.length > 0 && (
                               <div>
                                 <label className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1 block">
                                   Dialogue
                                 </label>
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-white/50 p-2 rounded">
-                                  {scene.dialogue}
-                                </p>
+                                <div className="space-y-2">
+                                  {scene.dialogue.map((line: any, idx: number) => (
+                                    <div key={idx} className="p-2 bg-white/50 rounded">
+                                      <span className="font-semibold text-purple-700">
+                                        {line.speaker || `Speaker ${idx + 1}`}
+                                      </span>
+                                      <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+                                        {line.text}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
 

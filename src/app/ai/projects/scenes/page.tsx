@@ -13,12 +13,12 @@ import { useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 
-import ExportUrlPanel from "./components/export_url_panel"
+// import ExportUrlPanel from "./components/export_url_panel"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 import { MergePanel, type MergePanelRef } from "./components/merge-panel"
 import { MergeButton } from "./components/merge-button"
 import { VideoProgressList } from "./components/video-progress"
-import { useWebSocketManager } from "@/lib/websocket-manager"
+import { wsManager } from "@/lib/websocket"
 import { useVideoActions } from "./hooks/use-video-actions"
 import { showToast } from "@/lib/toast-helpers"
 import { getUserId } from "@/lib/localcache"
@@ -121,22 +121,44 @@ export default function ScenePage() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project_id')
   const stageId = searchParams.get('stage_id')
+  const userId = getUserId() ? Number(getUserId()) : undefined
 
   const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null)
 
-  const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
+  // const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
 
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)
   const [combinedVideos, setCombinedVideos] = useState<CombinedVideo[]>([])
   const [isCombiningTaskRunning, setIsCombiningTaskRunning] = useState(false)
   const [combine_error_message, setCombineErrorMessage] = useState<string>()
 
-  // 缓存WebSocket选项，避免不必要的重新连接
-  const wsOptions = useMemo(() => ({
-    projectId: projectId && stageId ? Number(projectId) : undefined,
-    stageId: projectId && stageId ? Number(stageId) : undefined,
-    userId: getUserId() ? Number(getUserId()) : undefined
-  }), [projectId, stageId])
+  // WebSocket 连接管理 - 只在 scenes 页面使用
+  useEffect(() => {
+    if (!projectId || !stageId) return
+
+    console.log('WebSocket: Connecting to scenes page...', { projectId, stageId })
+
+    // 设置连接回调
+    wsManager.setConnectionCallbacks({
+      onConnect: () => {
+        console.log('WebSocket: Connected successfully')
+      },
+      onDisconnect: () => {
+        console.log('WebSocket: Disconnected')
+      },
+      onError: (error) => {
+        console.error('WebSocket: Error occurred', error)
+      }
+    })
+
+    // 建立连接
+    wsManager.connect(Number(projectId), Number(stageId), userId)
+
+    return () => {
+      console.log('WebSocket: Cleaning up connection')
+      wsManager.disconnect()
+    }
+  }, [projectId, stageId, userId])
 
 
   // 缓存视频操作选项，避免不必要的重新创建
@@ -160,13 +182,6 @@ export default function ScenePage() {
       setCombineErrorMessage(error)
     }
   }), [projectId, stageId])
-
-
-  // WebSocket管理器 - 在顶层调用
-  const wsManager = useWebSocketManager(
-    wsOptions,
-    videoActionsOptions
-  )
 
 
   // 视频操作集成
@@ -225,7 +240,7 @@ export default function ScenePage() {
         stage_id: Number(stageId)
       })
 
-      const videoResults = response || {}
+      const videoResults = (response as any) || {}
 
       // 更新 scenes 的 video_url
       setScenes(prev => prev.map(s => {
@@ -258,7 +273,7 @@ export default function ScenePage() {
     return () => {
       unsubscribe()
     }
-  }, [projectId, stageId, videoActions])
+  }, [projectId, stageId, videoActions, wsManager])
 
   useEffect(() => {
     if (!projectId || !stageId) return
@@ -267,8 +282,8 @@ export default function ScenePage() {
     Promise.all([
       instance.get(`/api/v2/scene/list?project_id=${projectId}&stage_id=${stageId}`),
       instance.get(`/api/v2/project/detail?project_id=${projectId}&stage_id=${stageId}`)
-    ]).then(([scenesRes, projectRes]) => {
-      const flat_scenes: Scene[] = scenesRes as Scene[] || []
+    ]).then(([scenesRes, projectRes]: [any, any]) => {
+      const flat_scenes: Scene[] = (scenesRes as any) || []
       // Group storyboards into children lists for scenes
       const scene_map = new Map<number, Scene>()
       const top_level: Scene[] = []
@@ -344,7 +359,7 @@ export default function ScenePage() {
     return () => {
       unsubscribe()
     }
-  }, [projectId, stageId, projectDetail?.user_id])
+  }, [projectId, stageId, projectDetail?.user_id, wsManager])
 
   // ─── DnD ────────────────────────────────────────────────────────────────────
 
