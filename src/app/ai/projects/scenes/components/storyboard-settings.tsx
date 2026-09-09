@@ -299,8 +299,8 @@ export function StoryboardSettings({
       onUpdate("image_prompt", prompt)
 
       // Handle response with data.images structure
-      if (res && res.data && res.data.images && Array.isArray(res.data.images)) {
-        const newImages = res.data.images.map((item: any) => ({
+      if (res && res.images && Array.isArray(res.images)) {
+        const newImages = res.images.map((item: any) => ({
           id: item.id,
           url: item.signed_url
         }))
@@ -333,7 +333,7 @@ export function StoryboardSettings({
       setIsGeneratingImage(false)
     } catch (error: any) {
       console.error("Failed to generate image:", error)
-      console.error("Error details:", error.response?.data)
+      console.error("Error details:", error.response)
       setIsGeneratingImage(false)
     }
   }
@@ -436,7 +436,7 @@ export function StoryboardSettings({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only intercept arrow keys if the image editor has focus
       const isEditorFocused = document.activeElement?.classList?.contains('ProseMirror') ||
-                               document.activeElement?.closest('.ProseMirror');
+        document.activeElement?.closest('.ProseMirror');
 
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         // Let the editor handle cursor movement if it has focus
