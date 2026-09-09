@@ -126,7 +126,14 @@ export default (assetsRef: MutableRefObject<Asset[]>) => ({
           popup[0].hide()
           return true
         }
-        return component.ref?.onKeyDown(props)
+
+        // Only intercept up/down/enter for suggestion navigation
+        // Let left/right arrow keys pass through to editor for cursor movement
+        if (props.event.key === 'ArrowUp' || props.event.key === 'ArrowDown' || props.event.key === 'Enter') {
+          return component.ref?.onKeyDown(props)
+        }
+
+        return false
       },
 
       onExit() {

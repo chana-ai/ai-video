@@ -434,7 +434,16 @@ export function StoryboardSettings({
   // Keyboard navigation for images
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Only intercept arrow keys if the image editor has focus
+      const isEditorFocused = document.activeElement?.classList?.contains('ProseMirror') ||
+                               document.activeElement?.closest('.ProseMirror');
+
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        // Let the editor handle cursor movement if it has focus
+        if (isEditorFocused) {
+          return
+        }
+        // Otherwise, intercept for image navigation
         e.preventDefault()
         if (e.key === 'ArrowLeft') handlePreviousImage(e as any)
         if (e.key === 'ArrowRight') handleNextImage(e as any)

@@ -136,7 +136,7 @@ export function PromptChatbox({
         const regex = new RegExp(`@(${escapedNames.join('|')})`, 'g')
 
         // 3. Replace @name with mention nodes
-        const newContent = prompt.replace(regex, (match: string, assetName: string) => {
+        const newContent = editorRef.current.getText().replace(regex, (match: string, assetName: string) => {
             // Check if this asset has an image assigned
             const isResolved = asset_image_map && asset_image_map[assetName] && 'image_id' in asset_image_map[assetName] && asset_image_map[assetName]['image_id'] != 0
             return isResolved
@@ -181,13 +181,15 @@ export function PromptChatbox({
                     if (asset) {
                         setActiveAsset(asset)
                         setIsAssetDialogOpen(true)
-                        return true
+                        // Don't prevent default behavior - let the cursor be positioned
                     }
                 }
+                // Return false to indicate this click wasn't handled by the extension
                 return false
             },
             handleKeyDown(_view: any, _event: any) {
-                // Allow all default keyboard shortcuts
+                // Allow all default keyboard shortcuts and cursor movement
+                // Don't intercept any keys - let Tiptap handle everything
                 return false
             },
         }
@@ -374,7 +376,7 @@ export function PromptChatbox({
 
             <style jsx global>{`
         .mention {
-          cursor: pointer;
+          cursor: text;
           color: #a855f7;
           background: #fdf4ff;
           padding: 0 4px;
@@ -382,6 +384,7 @@ export function PromptChatbox({
           font-weight: 600;
           transition: all 0.2s;
           display: inline-block;
+          pointer-events: auto;
         }
         .mention[data-resolved="false"] {
           text-decoration: underline;
@@ -391,6 +394,17 @@ export function PromptChatbox({
         .mention:hover {
           background: #fae8ff;
           color: #9333ea;
+        }
+        // Ensure the editor can receive keyboard input
+        .ProseMirror {
+          outline: none;
+        }
+        .ProseMirror p {
+          min-height: 1.25em;
+          margin: 0;
+        }
+        .ProseMirror [contenteditable] {
+          outline: none;
         }
       `}</style>
         </>
