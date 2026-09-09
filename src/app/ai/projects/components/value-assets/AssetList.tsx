@@ -1,13 +1,14 @@
 'use client'
 
 import React from 'react'
-import { User, Package, Plus } from 'lucide-react'
-import { Asset, ResourceAsset, SelectedAsset } from '../../value-assets/types'
+import { User, Plus } from 'lucide-react'
+import { Asset, SelectedAsset } from '../../value-assets/types'
+import { Package } from 'lucide-react'
 
 interface AssetListProps {
     characters: Asset[]
-    resourceAssets: ResourceAsset[]
-    selectedAsset: SelectedAsset
+    resourceAssets: Asset[]
+    selectedAsset: SelectedAsset | null
     onSelectAsset: (asset: Asset) => void
     onAddResource: () => void
 }
@@ -34,7 +35,7 @@ export const AssetList: React.FC<AssetListProps> = ({
                         <div
                             key={char.id}
                             onClick={() => onSelectAsset(char)}
-                            className={`p-3 rounded-md cursor-pointer transition-all mb-1 ${selectedAsset.id === char.id
+                            className={`p-3 rounded-md cursor-pointer transition-all mb-1 ${selectedAsset && selectedAsset.id === char.id
                                 ? 'bg-blue-100 border-2 border-blue-500'
                                 : 'hover:bg-gray-100 border-2 border-transparent'
                                 }`}
@@ -65,8 +66,8 @@ export const AssetList: React.FC<AssetListProps> = ({
                     {resourceAssets?.map((resource) => (
                         <div
                             key={resource.id}
-                            onClick={() => onSelectAsset('resource', resource)}
-                            className={`p-3 rounded-md cursor-pointer transition-all mb-1 ${selectedAsset.id === resource.id
+                            onClick={() => onSelectAsset(resource)}
+                            className={`p-3 rounded-md cursor-pointer transition-all mb-1 ${selectedAsset && selectedAsset.id === resource.id
                                 ? 'bg-green-100 border-2 border-green-500'
                                 : 'hover:bg-gray-100 border-2 border-transparent'
                                 }`}

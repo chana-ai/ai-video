@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Package } from 'lucide-react'
 import Header from "../../header"
 import { instance } from '@/lib/axios'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Asset, ResourceAsset, SelectedAsset, Batch, ImageInfo, VoiceSetting } from './types'
+import { Asset, SelectedAsset, Batch, ImageInfo, VoiceSetting } from './types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AssetList } from '../components/value-assets/AssetList'
 import { AssetDetail } from '../components/value-assets/AssetDetail'
@@ -19,7 +18,7 @@ export default function ValueAssets() {
     const router = useRouter()
 
     const [characters, setCharacters] = useState<Asset[]>([])
-    const [resourceAssets, setResourceAssets] = useState<ResourceAsset[]>([])
+    const [resourceAssets, setResourceAssets] = useState<Asset[]>([])
     const [selectedAsset, setSelectedAsset] = useState<SelectedAsset>()
     const [isGenerating, setIsGenerating] = useState(false)
     const [promptChanged, setPromptChanged] = useState(false)
@@ -118,8 +117,11 @@ export default function ValueAssets() {
             if (config.back) initialSelected.add(config.back);
             setSelectedImageIds(initialSelected);
 
-            setAudioPreviewUrl_tts(asset.config?.voice_setting?.tts?.url || '');
-            setAudioPreviewUrl_clone(asset.config?.voice_setting?.clone?.url || '');
+            const voiceSetting = asset.config && typeof asset.config === 'object' && 'voice_setting' in asset.config
+                ? (asset.config as any).voice_setting
+                : undefined;
+            setAudioPreviewUrl_tts(voiceSetting?.tts?.url || '');
+            setAudioPreviewUrl_clone(voiceSetting?.clone?.url || '');
         } else {
             setSelectedImageIds(new Set());
             setAudioPreviewUrl_tts('');
@@ -204,11 +206,14 @@ export default function ValueAssets() {
     const handleVoiceSettingChange = (newSetting: VoiceSetting) => {
         if (!selectedAsset) return;
 
+        const config = selectedAsset.config;
+        const isConfigObject = typeof config === 'object' && config !== null;
+
         const updatedAsset: SelectedAsset = {
             ...selectedAsset,
             voice_setting: newSetting,
             config: {
-                ...(selectedAsset.config || {}),
+                ...(isConfigObject ? config : {}),
                 voice_setting: newSetting
             }
         };
@@ -336,7 +341,7 @@ export default function ValueAssets() {
             await instance.post('/api/v2/asset/save_selected_images', {
                 project_id: Number(projectId),
                 stage_id: Number(stageId),
-                asset_id: selectedAsset.asset.id,
+                asset_id: selectedAsset.id,
                 front_image_id: ids[0],
                 side_image_id: ids[1],
                 back_image_id: ids[2]
@@ -430,11 +435,21 @@ export default function ValueAssets() {
         }
 
         // Create a new resource asset locally
-        const newResource: ResourceAsset = {
+        const newResource: Asset = {
             id: Date.now(), // Temporary ID
             name: newResourceName,
             description: '',
-            images: []
+            prompt: '',
+            prompt_flag: false,
+            create_time: new Date().toISOString(),
+            selected_image_id: 0,
+            images: [],
+            version: 0,
+            gender: '',
+            timbre: '',
+            type: 1, // Resource type
+            project_id: Number(projectId || 0),
+            stage_id: Number(stageId || 0)
         };
 
         setResourceAssets([...resourceAssets, newResource]);
@@ -446,7 +461,10 @@ export default function ValueAssets() {
 
     const handleAudioPreview = async () => {
         if (!selectedAsset) return;
-        const voiceSetting = selectedAsset.config.voice_setting || {
+
+        const config = selectedAsset.config;
+        const isConfigObject = typeof config === 'object' && config !== null;
+        const voiceSetting = (isConfigObject && 'voice_setting' in config) ? (config as any).voice_setting : {
             gender: 'female',
             emotion: 'neutral',
             vendor: 'azure',
@@ -676,14 +694,14 @@ export default function ValueAssets() {
                     <AssetList
                         characters={characters}
                         resourceAssets={resourceAssets}
-                        selectedAsset={selectedAsset}
+                        selectedAsset={selectedAsset || null}
                         onSelectAsset={selectAsset}
                         onAddResource={() => setIsResourceDialogOpen(true)}
                     />
 
                     <div className="flex-1 flex flex-col min-h-0">
                         <AssetDetail
-                            selectedAsset={selectedAsset}
+                            selectedAsset={selectedAsset || null}
                             voiceModels={voiceModels}
                             isGenerating={isGenerating}
                             isGeneratingAudio={isGeneratingAudio}

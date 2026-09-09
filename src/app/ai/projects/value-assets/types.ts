@@ -67,14 +67,6 @@ export interface Asset {
     };
 }
 
-export interface ResourceAsset extends Asset {
-    id: number;
-    name: string;
-    description: string;
-    images: ImageInfo[];
-    prompt?: string;
-}
-
 export interface SceneImage {
     id: number;
     name: string;

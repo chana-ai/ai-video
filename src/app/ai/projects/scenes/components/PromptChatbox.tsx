@@ -82,13 +82,13 @@ export function PromptChatbox({
 
     const currentRawPromptRef = useRef<string>(prompt) // Store raw prompt ref
 
-    // Auto-hide hint popup after 5 seconds
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowHintPopup(false)
-        }, 5000)
-        return () => clearTimeout(timer)
-    }, [])
+    // // Auto-hide hint popup after 5 seconds
+    // useEffect(() => {
+    //     const timer = setTimeout(() => {
+    //         setShowHintPopup(false)
+    //     }, 5000)
+    //     return () => clearTimeout(timer)
+    // }, [])
 
     // Initialize resolved assets from asset_image_map
     useEffect(() => {
@@ -119,31 +119,29 @@ export function PromptChatbox({
     useEffect(() => {
         if (!editorRef.current) return
 
-        // Only process prompt if editor is empty
-        const currentText = editorRef.current.getText().trim()
-        // if (currentText) {
-        //     // Store current raw text for submission
-        //     currentRawPromptRef.current = currentText
-        //     return
-        // }
-
         if (!prompt) {
             currentRawPromptRef.current = ""
             return
         }
 
-        // Replace @name with mention nodes
-        const regex = /@(\S+)/g
+        // 1. Construct asset names array from assets
+        const assetNames = assets.map(a => a.name)
+        if (assetNames.length === 0) {
+            currentRawPromptRef.current = prompt
+            return
+        }
+
+        // 2. Construct regex to match all @assetName patterns
+        const escapedNames = assetNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        const regex = new RegExp(`@(${escapedNames.join('|')})`, 'g')
+
+        // 3. Replace @name with mention nodes
         const newContent = prompt.replace(regex, (match: string, assetName: string) => {
-            const asset = assets.find(a => a.name === assetName)
-            if (asset) {
-                // Check if this asset has an image assigned
-                const isResolved = asset_image_map && asset_image_map[assetName] && 'image_id' in asset_image_map[assetName] && asset_image_map[assetName]['image_id'] != 0
-                return isResolved
-                    ? `<span class="mention" data-resolved="true" data-asset-name="${assetName}">@${assetName}</span>`
-                    : `<span class="mention" data-resolved="false" data-asset-name="${assetName}">@${assetName}</span>`
-            }
-            return match
+            // Check if this asset has an image assigned
+            const isResolved = asset_image_map && asset_image_map[assetName] && 'image_id' in asset_image_map[assetName] && asset_image_map[assetName]['image_id'] != 0
+            return isResolved
+                ? `<span class="mention" data-resolved="true" data-asset-name="${assetName}">@${assetName}</span>`
+                : `<span class="mention" data-resolved="false" data-asset-name="${assetName}">@${assetName}</span>`
         })
 
         // Update editor content only if it's different from current prompt
@@ -165,45 +163,13 @@ export function PromptChatbox({
                 suggestion: useMemo(() => suggestion(assetsRef), [assetsRef]),
             }),
         ],
-        immediatelyRender: false,
-        // Use appendTransaction to monitor all editor transactions
-        // appendTransaction: (transactions, oldState, newState) => {
-        //     // Create a transaction to update mentions based on resolvedAssets
-        //     let transaction = newState.tr
-
-        //     // Check if any mentions were added or modified
-        //     let needsUpdate = false
-
-        //     newState.doc.descendants((node, pos) => {
-        //         if (node.type.name === 'mention') {
-        //             const assetName = node.attrs.label || node.attrs.dataAssetName
-
-        //             // Check if this asset is resolved
-        //             const isResolved = resolvedAssetsRef.current[assetName] !== undefined
-
-        //             // Check if the resolved attribute needs to be updated
-        //             const currentResolved = node.attrs.resolved === true
-        //             if (currentResolved !== isResolved) {
-        //                 transaction = transaction.setNodeMarkup(pos, undefined, {
-        //                     ...node.attrs,
-        //                     resolved: isResolved
-        //                 })
-        //                 needsUpdate = true
-        //             }
-        //         }
-        //     })
-
-        //     // Return the transaction only if updates are needed
-        //     if (needsUpdate) {
-        //         return transaction
-        //     }
-        //     return null
-        // },
+        autofocus: true,
+        immediatelyRender: true,
         editorProps: {
             attributes: {
-                class: 'prose prose-sm focus:outline-none max-w-none min-h-[60px] p-4 text-sm leading-relaxed text-gray-700 font-mono',
+                class: 'prose prose-sm focus:outline-none min-h-[60px] p-4 text-sm leading-relaxed text-gray-700 font-mono',
             },
-            handleClick(view: any, _pos: number, event: any) {
+            handleClick(_view: any, _pos: number, event: any) {
                 // 1. 查找被点击的元素是否属于 mention 标签
                 const mentionEl = (event.target as HTMLElement).closest('.mention')
 
@@ -220,6 +186,10 @@ export function PromptChatbox({
                 }
                 return false
             },
+            handleKeyDown(_view: any, _event: any) {
+                // Allow all default keyboard shortcuts
+                return false
+            },
         }
     })
 
@@ -227,6 +197,15 @@ export function PromptChatbox({
     useEffect(() => {
         if (editor) {
             editorRef.current = editor
+            // Focus the editor after it's mounted
+            editor.commands.focus()
+        }
+    }, [editor])
+
+    // Ensure editor stays focused
+    useEffect(() => {
+        if (editor && document.activeElement !== editor.view.dom) {
+            editor.commands.focus()
         }
     }, [editor])
 
@@ -329,13 +308,15 @@ export function PromptChatbox({
 
     return (
         <>
-            <div className="flex flex-col h-[400px] bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden relative">
-                <div className="flex-1 p-4 relative">
-                    <EditorContent editor={editor} />
+            <div className="flex flex-col h-[220px] bg-white border border-gray-100 rounded-2xl shadow-sm relative pb-2 z-20">
+                <div className="flex-1 p-4 relative overflow-hidden">
+                    <div className="h-full overflow-y-auto">
+                        <EditorContent editor={editor} />
+                    </div>
                 </div>
 
                 {showHintPopup && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 w-72 bg-white border border-gray-100 rounded-xl shadow-2xl p-5 animate-in fade-in slide-in-from-right-4 duration-300 z-10">
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 w-72 bg-white border border-gray-100 rounded-xl shadow-2xl p-5 animate-in fade-in slide-in-from-right-4 duration-300 z-30">
                         <div className="flex items-start justify-between mb-3">
                             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
                                 <Info className="h-4 w-4 text-blue-500" />
@@ -357,7 +338,7 @@ export function PromptChatbox({
                     </div>
                 )}
 
-                <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                <div className="absolute right-3 bottom-3 flex items-center gap-2 z-30">
                     {unresolvedMentions.length > 0 && (
                         <span className="text-[9px] text-red-500 font-bold bg-white border border-red-100 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
                             <Info className="h-2.5 w-2.5" /> Resolve {unresolvedMentions.length}
