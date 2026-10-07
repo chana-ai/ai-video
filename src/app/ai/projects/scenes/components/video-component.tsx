@@ -73,6 +73,11 @@ export function VideoComponent({
   const handleGenerateVideo = useCallback(async () => {
     if (!storyboardId) return
 
+    if (image_id == -1) {
+      alert('Select image first ')
+      return
+    }
+
     setIsGeneratingVideo(true)
 
     try {

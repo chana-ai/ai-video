@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { Triangle, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { MergeSelection } from './hooks/use-merge-adapter'
+import type { MergeSelection } from '../hooks/use-merge-adapter'
 
 interface MergeButtonProps {
   onClick: () => void

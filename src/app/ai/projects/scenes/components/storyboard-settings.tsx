@@ -316,7 +316,8 @@ export function StoryboardSettings({
             resource: {
               ...prev.resource,
               images: [...(prev.resource.images || []), ...newImages]
-            }
+            },
+            image_prompt: prompt
           }
         })
 
@@ -705,8 +706,8 @@ export function StoryboardSettings({
               storyboardId={storyboard?.id}
               storyboard={storyDetail}
               projectDetail={projectDetail}
-              image_id={storyDetail?.resource?.images[selectedImageIndex]?.id}
-              video_url={storyDetail?.resource?.video_url || storyDetail?.resource?.videos}
+              image_id={storyDetail?.resource?.images?.[selectedImageIndex]?.id || -1}
+              video_url={storyDetail?.resource?.video_url}
               isDialogue={isDialogue}
               onUpdateVideoPrompt={(prompt) => {
                 // That's OK. 

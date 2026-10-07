@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import config from '@/app/settings/config'
 
 export interface WsMessage {
@@ -16,6 +16,7 @@ export interface WsMessage {
   message?: string
   code?: number
   data?: any
+  user_id?: string | number
 }
 
 export interface WsCallback {
@@ -44,7 +45,12 @@ class UnifiedWebSocketManager {
   private wsUrl = `${this.appHost.replace('http://', 'ws://')}/api/v2/video/ws_connect`
 
   // Connection status
-  private isConnectedRef = false
+  private isConnectedRef = { current: false }
+
+  // Current connection context
+  private currentProjectId?: string | number
+  private currentStageId?: string | number
+  private currentUserId?: string | number
 
   /**
    * Connect to WebSocket server
@@ -56,7 +62,11 @@ class UnifiedWebSocketManager {
     }
 
     this.shouldReconnect = true
-    console.log('Connecting to WebSocket server...', { projectId, stageId })
+    this.currentProjectId = projectId
+    this.currentStageId = stageId
+    this.currentUserId = userId
+
+    console.log('Connecting to WebSocket server...', { projectId, stageId, userId })
 
     const ws = new WebSocket(this.wsUrl)
 
@@ -72,7 +82,13 @@ class UnifiedWebSocketManager {
 
     ws.onopen = () => {
       console.log('WebSocket connected successfully')
-      this.isConnectedRef = true
+      const initMessage = {
+        user_id: userId,
+        project_id: projectId,
+        stage_id: stageId,
+      }
+      ws.send(JSON.stringify(initMessage))
+      this.isConnectedRef.current = true
 
       if (this.connectionTimer) {
         clearTimeout(this.connectionTimer)
@@ -94,6 +110,34 @@ class UnifiedWebSocketManager {
         const message: WsMessage = JSON.parse(event.data)
         console.log('WebSocket message received:', message.event, message)
 
+        // For non-ping messages, validate that project_id, stage_id, user_id match current connection
+        if (message.event !== 'ping' &&
+          message.project_id !== undefined &&
+          message.project_id !== this.currentProjectId) {
+          console.log('Discarding WebSocket message for different project:',
+            'message.project_id:', message.project_id,
+            'currentProjectId:', this.currentProjectId)
+          return
+        }
+
+        if (message.event !== 'ping' &&
+          message.stage_id !== undefined &&
+          message.stage_id !== this.currentStageId) {
+          console.log('Discarding WebSocket message for different stage:',
+            'message.stage_id:', message.stage_id,
+            'currentStageId:', this.currentStageId)
+          return
+        }
+
+        if (message.event !== 'ping' &&
+          message.user_id !== undefined &&
+          message.user_id !== this.currentUserId) {
+          console.log('Discarding WebSocket message for different user:',
+            'message.user_id:', message.user_id,
+            'currentUserId:', this.currentUserId)
+          return
+        }
+
         // Call all callbacks for this event type
         const eventCallbacks = this.callbacks.get(message.event) || new Set()
         eventCallbacks.forEach(callback => callback(message))
@@ -104,7 +148,7 @@ class UnifiedWebSocketManager {
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error)
-      this.isConnectedRef = false
+      this.isConnectedRef.current = false
 
       if (this.connectionTimer) {
         clearTimeout(this.connectionTimer)
@@ -122,7 +166,7 @@ class UnifiedWebSocketManager {
         reason: event.reason,
         wasClean: event.wasClean
       })
-      this.isConnectedRef = false
+      this.isConnectedRef.current = false
 
       if (this.connectionTimer) {
         clearTimeout(this.connectionTimer)
@@ -174,7 +218,7 @@ class UnifiedWebSocketManager {
       this.ws = null
     }
 
-    this.isConnectedRef = false
+    this.isConnectedRef.current = false
     console.log('WebSocket disconnected')
   }
 
@@ -244,8 +288,11 @@ class UnifiedWebSocketManager {
   /**
    * Send createVideoCombination request
    * @param sceneIds - Array of scene IDs to combine
+   * @param projectId - Project ID
+   * @param stageId - Stage ID
+   * @param userId - User ID
    */
-  createVideoCombination(sceneIds: number[]): Promise<WsMessage> {
+  createVideoCombination(sceneIds: number[], projectId?: string | number, stageId?: string | number, userId?: string | number): Promise<WsMessage> {
     return new Promise((_resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         reject(new Error('WebSocket is not connected'))
@@ -254,7 +301,10 @@ class UnifiedWebSocketManager {
 
       const payload = {
         request_type: 'createVideoCombination',
-        scene_ids: sceneIds
+        scene_ids: sceneIds,
+        project_id: projectId ? Number(projectId) : this.currentProjectId,
+        stage_id: stageId ? Number(stageId) : this.currentStageId,
+        user_id: userId ? Number(userId) : this.currentUserId
       }
 
       console.log('Sending createVideoCombination request:', payload)
@@ -293,7 +343,12 @@ class UnifiedWebSocketManager {
             payload.image_id
           )
         } else {
-          return await this.createVideoCombination(payload.scene_ids || [])
+          return await this.createVideoCombination(
+            payload.scene_ids || [],
+            payload.project_id,
+            payload.stage_id,
+            payload.user_id
+          )
         }
       } catch (error) {
         if (retryCount < (finalOptions.retryCount || 3)) {
@@ -336,6 +391,17 @@ class UnifiedWebSocketManager {
       isConnected: this.isConnected,
       hasConnectionTimer: !!this.connectionTimer,
       hasReconnectTimer: !!this.reconnectTimer
+    }
+  }
+
+  /**
+   * Get current connection context for validation
+   */
+  getConnectionContext() {
+    return {
+      projectId: this.currentProjectId,
+      stageId: this.currentStageId,
+      userId: this.currentUserId
     }
   }
 }

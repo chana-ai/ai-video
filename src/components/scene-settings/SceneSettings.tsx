@@ -76,7 +76,7 @@ export function SceneSettings({ scene, onUpdate }: SceneSettingsProps) {
       </div>
 
       {/* Assets & Base Reference - Compact Grid */}
-      <div className="grid grid-cols-12 gap-3 min-h-[240px]">
+      <div className="grid grid-cols-12 gap-3 min-h-[160px]">
         <div className="col-span-4 space-y-2">
           <AssetReferenceMap assets={assets} />
         </div>

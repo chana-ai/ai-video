@@ -11,6 +11,7 @@ import { PreviewImageList } from './ImageControl'
 import type { AssetImage } from '@/app/ai/projects/types'
 
 import suggestion from './suggestion'
+import { showToast } from "@/lib/toast-helpers"
 
 interface Asset {
     id: number
@@ -293,8 +294,14 @@ export function PromptChatbox({
             }
         })
 
+        let updatedPrompt = editorRef.current?.getText().trim()
+        if (!updatedPrompt) {
+            showToast("请输入prompt", "error")
+            return
+        }
+
         // Don't clear editor content - keep it for further editing
-        await onGenerate(rawText, mergedAssetImageMap)
+        await onGenerate(updatedPrompt, mergedAssetImageMap)
     }, [editor, isGenerating, unresolvedMentions, assets, onGenerate, resolvedAssets, asset_image_map, onImagePromptChange])
 
     const selectAssetImage = (imageId: number) => {

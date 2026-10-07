@@ -20,7 +20,7 @@ export function SceneMetaSection({
   return (
     <section className="space-y-2">
       <div className="space-y-1">
-        <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Scene Name</Label>
+        {/* <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Scene Name</Label> */}
         <Input
           value={title}
           className="text-sm font-bold border-none px-0 focus-visible:ring-0 placeholder:text-gray-200 py-2"

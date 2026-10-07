@@ -18,16 +18,16 @@ export function AssetReferenceMap({ assets, onSelectAsset }: AssetReferenceMapPr
         </Label>
       </div>
 
-      <div className="border rounded-lg divide-y divide-gray-100 bg-gray-50/20 max-h-[200px] overflow-y-auto">
+      <div className="border rounded-lg divide-y divide-gray-100 bg-gray-50/20 max-h-[120px] overflow-y-auto">
         {assets.map((asset: any) => (
-          <div key={asset.id} className="grid grid-cols-12 gap-1.5 items-center p-2 hover:bg-white transition-colors">
-            <div className="col-span-1 text-[9px] font-mono text-gray-400">#{asset.id}</div>
-            <div className="col-span-3 text-[10px] font-bold text-gray-600 truncate">{asset.name}</div>
-            <div className="col-span-8 flex gap-1 overflow-visible">
+          <div key={asset.id} className="grid grid-cols-12 gap-1 items-center p-1.5 hover:bg-white transition-colors">
+            <div className="col-span-1 text-[8px] font-mono text-gray-400">#{asset.id}</div>
+            <div className="col-span-3 text-[9px] font-bold text-gray-600 truncate">{asset.name}</div>
+            <div className="col-span-8 flex gap-0.5 overflow-visible">
               {asset?.images?.slice(0, 6).map((img: any) => (
                 <div key={img.id} className="relative">
                   <div
-                    className="w-6 h-6 rounded overflow-hidden border border-white bg-white shadow-sm transition-all duration-200 hover:scale-[3] hover:z-[50] cursor-zoom-in"
+                    className="w-4 h-4 rounded overflow-hidden border border-white bg-white shadow-sm transition-all duration-200 hover:scale-[3] hover:z-[50] cursor-zoom-in"
                     onClick={() => onSelectAsset?.(asset.id, img.id)}
                   >
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
@@ -35,13 +35,13 @@ export function AssetReferenceMap({ assets, onSelectAsset }: AssetReferenceMapPr
                 </div>
               ))}
               {asset?.images?.length > 6 && (
-                <div className="text-[9px] text-gray-400 flex items-center">+{asset.images.length - 6}</div>
+                <div className="text-[8px] text-gray-400 flex items-center">+{asset.images.length - 6}</div>
               )}
             </div>
           </div>
         ))}
         {assets.length === 0 && (
-          <div className="p-3 text-center text-[10px] text-gray-400 italic">No assets</div>
+          <div className="p-2 text-center text-[9px] text-gray-400 italic">No assets</div>
         )}
       </div>
     </section>

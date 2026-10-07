@@ -91,7 +91,7 @@ export function useWebSocketManager(): WebSocketContextValue {
  * Hook for component-level WebSocket access
  * @deprecated Use useWebSocketManager instead for better context management
  */
-export function useWebSocket() {
-  const { wsManager } = useWebSocketManager()
-  return wsManager
-}
+// export function useWebSocket() {
+//   const { wsManager } = useWebSocketManager()
+//   return wsManager
+// }

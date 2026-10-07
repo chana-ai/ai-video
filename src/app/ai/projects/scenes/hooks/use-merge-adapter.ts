@@ -13,7 +13,7 @@ interface MergeAdapterOptions {
   onMergeAccepted?: (taskId: string) => void
 }
 
-interface MergeSelection {
+export interface MergeSelection {
   storyboardIds: number[]
   readyCount: number
   totalCount: number

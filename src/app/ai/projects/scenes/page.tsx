@@ -693,10 +693,10 @@ export default function ScenePage() {
 
   // 取消视频操作
   const handleCancelVideoAction = (_actionId: string) => {
-    if (_actionId.startsWith('combine_')) {
-      videoActions.cancelVideoCombination()
-    }
-    videoActions.clearActionState(_actionId)
+    // if (_actionId.startsWith('combine_')) {
+    //   videoActions.cancelVideoCombination()
+    // }
+    // videoActions.clearActionState(_actionId)
   }
 
   // 完成视频操作
