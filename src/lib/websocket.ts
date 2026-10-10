@@ -73,7 +73,7 @@ class UnifiedWebSocketManager {
     // Connection timeout
     this.connectionTimer = setTimeout(() => {
       if (ws.readyState !== WebSocket.OPEN) {
-        console.error('WebSocket connection timeout')
+        // console.error('WebSocket connection timeout')
         if (this.connectionCallbacks.onError) {
           this.connectionCallbacks.onError(new Event('timeout'))
         }

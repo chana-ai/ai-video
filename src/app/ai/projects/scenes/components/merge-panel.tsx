@@ -6,9 +6,9 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, Clock, Loader2, Video, Download } from "lucide-react"
 import type { Scene } from "@/app/ai/projects/types"
-import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
-import { getUserId } from '@/lib/localcache'
+import { getUserId } from "@/lib/localcache"
+import { wsManager } from "@/lib/websocket"
 
 // Storyboard状态类型
 interface StoryboardStatus {
@@ -113,75 +113,6 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
     }
   }, [isOpen, mergeTask.status, storyboardsByStatus.complete, storyboards.length])
 
-  // 订阅WebSocket事件
-  useEffect(() => {
-    if (!isOpen || !projectId || !stageId) return
-
-    // 订阅合并任务相关事件
-    const unsubscribeAccepted = wsManager.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
-      console.log('合并任务已接受:', message)
-      if (message.task_id) {
-        setMergeTask(prev => ({
-          ...prev,
-          isMerging: true,
-          progress: 0,
-          processed: 0,
-          total: selectedStoryboards.length,
-          status: 'processing'
-        }))
-      }
-    })
-
-    const unsubscribeProgress = wsManager.subscribe('createVideoCombinationProgress', (message: WsMessage) => {
-      console.log('合并进度更新:', message)
-      if (mergeTask.status === 'processing') {
-        setMergeTask((prev: MergeTask) => ({
-          ...prev!,
-          progress: message.progress || 0,
-          processed: message.processed || 0,
-          total: message.total || prev.total,
-          currentProcessing: message.current_processing
-        }))
-      }
-    })
-
-    const unsubscribeComplete = wsManager.subscribe('createVideoCombinationComplete', (message: WsMessage) => {
-      console.log('合并完成:', message)
-      if (message.result_url) {
-        setMergeTask({
-          isMerging: false,
-          progress: 100,
-          processed: mergeTask.total,
-          total: mergeTask.total,
-          status: 'completed',
-          resultUrl: message.result_url
-        })
-
-        // 通知父组件合并完成
-        onMergeComplete?.(message.result_url)
-
-        // 显示成功提示
-        showToast('视频合并成功！', 'success')
-      }
-    })
-
-    const unsubscribeError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
-      console.error('合并失败:', message)
-      setMergeTask(prev => ({
-        ...prev!,
-        status: 'failed'
-      }))
-      showToast(`视频合并失败: ${message.message || '未知错误'}`, 'error')
-    })
-
-    return () => {
-      unsubscribeAccepted()
-      unsubscribeProgress()
-      unsubscribeComplete()
-      unsubscribeError()
-    }
-  }, [isOpen, projectId, stageId, selectedStoryboards.length, mergeTask.status, onMergeComplete, wsManager])
-
   // 切换单个storyboard选择
   const toggleStoryboardSelection = (storyboardId: number) => {
     if (!storyboards.find(s => s.id === storyboardId)?.canSelect) return
@@ -240,7 +171,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
         userId ? Number(userId) : undefined
       )
     } catch (error: any) {
-      showToast(`合并任务启动失败: ${error.message || '未知错误'}`, 'error', 5000)
+      showToast(`合并任务启动失败: ${error.message || '未知错误'}`)
     }
   }
 
