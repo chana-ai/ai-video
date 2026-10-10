@@ -279,7 +279,7 @@ export interface StoryboardCardProps {
   onSelect: (id: number) => void
   onAddStoryboard: (storyboard: Scene) => void
   onDelete: (storyboard: Scene) => void
-  onGenerateVideo: (storyboard: Scene) => void
+  // onGenerateVideo: (storyboard: Scene) => void
 }
 
 export interface VideoSettingsProps {

@@ -27,14 +27,15 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
   const [styles, setStyles] = useState<any[]>([])
   const [isLoadingStyles, setIsLoadingStyles] = useState(false)
 
-  // Fetch themes and styles on mount and populate cache
+  // Load themes and styles once on mount
   useEffect(() => {
-    const fetchThemes = async () => {
+    const loadData = async () => {
       try {
-        const res: any = await instance.get('/api/v2/project/themes')
-        const fetchedThemes = res || []
+        // Fetch themes
+        const themesRes: any = await instance.get('/api/v2/project/themes')
+        const fetchedThemes = themesRes || []
 
-        // Update local state
+        // Set themes
         setThemes(fetchedThemes)
 
         // Populate themeMap cache
@@ -44,13 +45,13 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
         })
         setThemeMap(themeMapData)
 
-        // Set initial background info from first theme
+        // Set default theme if available
         if (fetchedThemes.length > 0) {
           const defaultTheme = fetchedThemes[0]
-          if (defaultTheme) {
-            setBackgroundInfo(defaultTheme.description)
-          }
+          setSelectedTheme(defaultTheme.value)
+          setBackgroundInfo(defaultTheme.description)
         }
+
       } catch (err) {
         console.error('Failed to fetch themes:', err)
         // Fallback to default
@@ -58,21 +59,31 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
       }
     }
 
+    loadData()
+  }, [])
+
+  // Fetch styles once on mount
+  useEffect(() => {
     const fetchStyles = async () => {
       try {
+        setIsLoadingStyles(true)
         const res: any = await instance.get('/api/v2/project/styles')
         const fetchedStyles = res || []
         setStyles(fetchedStyles)
+
+        // Set default style if available
+        if (fetchedStyles.length > 0) {
+          setSelectedStyle(fetchedStyles[0].value)
+        }
       } catch (err) {
         console.error('Failed to fetch styles:', err)
+      } finally {
+        setIsLoadingStyles(false)
       }
     }
 
-    if (open) {
-      fetchThemes()
-      fetchStyles()
-    }
-  }, [open])
+    fetchStyles()
+  }, [])
 
   const aspectRatios = [
     { id: '1:1', label: '1:1', style: 'w-12 h-12' },
@@ -82,46 +93,6 @@ export function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onO
     { id: '16:9', label: '16:9', style: 'w-16 h-9' },
     { id: '9:16', label: '9:16', style: 'w-9 h-16' },
   ]
-
-  useEffect(() => {
-    setIsLoadingThemes(true)
-    instance.get('/api/v2/project/themes')
-      .then((res: any) => {
-        const fetchedThemes = res || []
-        setThemes(fetchedThemes)
-        // Set initial background info from first theme
-        if (fetchedThemes.length > 0) {
-          const defaultTheme = fetchedThemes[0]
-          if (defaultTheme) {
-            setBackgroundInfo(defaultTheme.description)
-          }
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch themes:', err)
-        // Fallback to default
-        setBackgroundInfo("请补充额外的一些信息，比如产品简洁，最重要的功能和卖点，产品使用场景，解决的痛点等")
-      })
-      .finally(() => {
-        setIsLoadingThemes(false)
-      })
-  }, [])
-
-  useEffect(() => {
-    const fetchStyles = async () => {
-      try {
-        const res: any = await instance.get('/api/v2/project/styles')
-        const fetchedStyles = res || []
-        setStyles(fetchedStyles)
-      } catch (err) {
-        console.error('Failed to fetch styles:', err)
-      }
-    }
-
-    if (open) {
-      fetchStyles()
-    }
-  }, [open])
 
 
   const handleSubmit = () => {

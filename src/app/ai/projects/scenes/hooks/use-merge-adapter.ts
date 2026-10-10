@@ -5,7 +5,6 @@ import { showToast } from '@/lib/toast-helpers'
 interface MergeAdapterOptions {
   projectId: string
   stageId: string
-  projectUserId?: string
   onMergeStart?: () => void
   onMergeProgress?: (progress: number, processed: number, total: number) => void
   onMergeComplete?: (resultUrl: string) => void
@@ -22,7 +21,6 @@ export interface MergeSelection {
 export function useMergeAdapter({
   projectId,
   stageId,
-  projectUserId,
   onMergeStart,
   onMergeProgress,
   onMergeComplete,
@@ -139,11 +137,27 @@ export function useMergeAdapter({
 
   // WebSocket事件订阅
   useEffect(() => {
+    // Early return if projectId or stageId is missing
     if (!projectId || !stageId) return
 
-    // 合并任务接受
+    // Check if wsManager is available
+    if (!wsManager) {
+      console.warn('useMergeAdapter: wsManager is not available')
+      return
+    }
+
+    // Helper function to validate project/stage context
+    const isContextValid = (message: WsMessage) => {
+      return message.project_id != projectId || message.stage_id != stageId
+    }
+
+    console.log('useMergeAdapter: Subscribing to WebSocket events for project:', projectId, 'stage:', stageId)
+
+    // 合并任务接受 - Force subscribe even if WebSocket is not connected yet
     const unsubscribeAccepted = wsManager.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
       console.log('合并任务已接受:', message)
+      if (isContextValid(message)) return
+
       if (message.task_id) {
         setMergeTaskId(message.task_id)
         setIsMerging(true)
@@ -151,17 +165,21 @@ export function useMergeAdapter({
       }
     })
 
-    // 合并进度更新
+    // 合并进度更新 - Force subscribe even if WebSocket is not connected yet
     const unsubscribeProgress = wsManager.subscribe('createVideoCombinationProgress', (message: WsMessage) => {
       console.log('合并进度更新:', message)
+      if (isContextValid(message)) return
+
       if (message.progress !== undefined || message.processed !== undefined) {
         onMergeProgress?.(message.progress || 0, message.processed || 0, message.total || 0)
       }
     })
 
-    // 合并完成
+    // 合并完成 - Force subscribe even if WebSocket is not connected yet
     const unsubscribeComplete = wsManager.subscribe('createVideoCombinationComplete', (message: WsMessage) => {
       console.log('合并完成:', message)
+      if (isContextValid(message)) return
+
       if (message.result_url) {
         setIsMerging(false)
         setMergeTaskId(null)
@@ -171,9 +189,11 @@ export function useMergeAdapter({
       }
     })
 
-    // 合并错误
+    // 合并错误 - Force subscribe even if WebSocket is not connected yet
     const unsubscribeError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
       console.error('合并失败:', message)
+      if (isContextValid(message)) return
+
       const errorMessage = message.message || '视频合并失败'
       setCombineErrorMessage(errorMessage)
       setIsMerging(false)
@@ -188,7 +208,7 @@ export function useMergeAdapter({
       unsubscribeComplete()
       unsubscribeError()
     }
-  }, [projectId, stageId, onMergeProgress, onMergeComplete, onMergeError, closeMergePanel, onMergeAccepted])
+  }, [projectId, stageId])
 
   return {
     // 状态

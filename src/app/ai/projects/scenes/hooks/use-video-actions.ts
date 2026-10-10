@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { wsManager, type WsMessage } from '@/lib/websocket'
+import { wsManager } from '@/lib/websocket'
 import { showToast } from '@/lib/toast-helpers'
+import { useEffect, useRef } from 'react'
 
 interface VideoActionOptions {
   projectId: string
@@ -10,45 +10,136 @@ interface VideoActionOptions {
   onActionProgress?: (action: string, progress: number, processed: number, total: number) => void
   onActionComplete?: (action: string, result?: any) => void
   onActionError?: (action: string, error: string) => void
+  // Video clip specific callbacks
+  onVideoClipAccepted?: (scene_id: string) => void
+  onVideoClipComplete?: (resultUrl: string) => void
+  onVideoClipError?: (errorMsg: string) => void
 }
 
-interface VideoActionState {
-  isProcessing: boolean
-  taskId: string | null
-  progress: number
-  processed: number
-  total: number
-  error: string | null
-}
+/**
+ * Hook for video action operations (createVideoClip and createVideoCombination)
+ * Manages both action triggering AND WebSocket subscriptions for video clip events.
+ * Subscriptions are scoped to the current project/stage and automatically cleaned up.
+ */
+export function useVideoActions(options?: VideoActionOptions) {
+  // Generate scoped action ID for proper project/stage scoping
+  const generateActionId = (sceneId: number, actionType: string) => {
+    const projectId = options?.projectId ? Number(options.projectId) : 0
+    const stageId = options?.stageId ? Number(options.stageId) : 0
+    const timestamp = Date.now()
+    return `${projectId}_${stageId}_${sceneId}_${actionType}_${timestamp}`
+  }
 
-export function useVideoActions(options: VideoActionOptions) {
-  const [videoActions, setVideoActions] = useState<Record<string, VideoActionState>>({})
+  // Use ref to maintain stable reference to options for subscription closures
+  const optionsRef = useRef<VideoActionOptions | undefined>(options)
+
+  // Update ref whenever options changes
+  useEffect(() => {
+    optionsRef.current = options
+  }, [options])
+
+  // Derived values that should trigger subscription changes
+  const projectId = optionsRef.current?.projectId
+  const stageId = optionsRef.current?.stageId
+  const onVideoClipError = optionsRef.current?.onVideoClipError
+
+  // WebSocket subscription for video clip accepted event
+  useEffect(() => {
+    // Check if wsManager is available and WebSocket is connected
+    // Use the isConnected property that is properly exposed by wsManager
+    if (!wsManager) {
+      console.warn('useVideoActions: wsManager is not available')
+      return
+    }
+
+    // Force subscribe even if WebSocket is not connected yet
+    // This ensures callbacks are registered when page loads/refreshes
+    console.log('useVideoActions: Subscribing to createVideoClipAccepted event')
+
+    const unsubscribeAccepted = wsManager.subscribe('createVideoClipAccepted', (message: any) => {
+      // Use optionsRef.current to access latest options
+      const currentOptions = optionsRef.current
+      if (!currentOptions?.projectId || !currentOptions?.stageId) return
+      if (message.project_id != currentOptions.projectId || message.stage_id != currentOptions.stageId) return
+
+      if (message.scene_id && currentOptions.onVideoClipAccepted) {
+        currentOptions.onVideoClipAccepted(message.scene_id)
+      }
+    })
+
+    return () => {
+      unsubscribeAccepted()
+    }
+  }, []) // Only run once when wsManager is available
+
+  // WebSocket subscription for video clip complete event
+  useEffect(() => {
+    // Check if wsManager is available and WebSocket is connected
+    // Use the isConnected property that is properly exposed by wsManager
+    if (!wsManager) {
+      console.warn('useVideoActions: wsManager is not available')
+      return
+    }
+
+    // Force subscribe even if WebSocket is not connected yet
+    // This ensures callbacks are registered when page loads/refreshes
+    console.log('useVideoActions: Subscribing to createVideoClipComplete event')
+
+    const unsubscribeComplete = wsManager.subscribe('createVideoClipComplete', (message: any) => {
+      // Use optionsRef.current to access latest options
+      const currentOptions = optionsRef.current
+      console.log("---->", currentOptions)
+      if (!currentOptions?.projectId || !currentOptions?.stageId) return
+      if (message.project_id != currentOptions.projectId || message.stage_id != currentOptions.stageId) return
+
+      currentOptions.onVideoClipComplete?.(message)
+    })
+
+    return () => {
+      unsubscribeComplete()
+    }
+  }, []) // Only run once when wsManager is available
+
+  // WebSocket subscription for video clip error event
+  useEffect(() => {
+    // Check if wsManager is available and WebSocket is connected
+    // Use the isConnected property that is properly exposed by wsManager
+    if (!wsManager) {
+      console.warn('useVideoActions: wsManager is not available')
+      return
+    }
+
+    // Force subscribe even if WebSocket is not connected yet
+    // This ensures callbacks are registered when page loads/refreshes
+    console.log('useVideoActions: Subscribing to createVideoClipError event')
+
+    const unsubscribeError = wsManager.subscribe('createVideoClipError', (message: any) => {
+      // Verify message belongs to current project/stage
+      const currentOptions = optionsRef.current
+      if (!currentOptions?.projectId || !currentOptions?.stageId) return
+      if (message.project_id != currentOptions.projectId || message.stage_id != currentOptions.stageId) return
+
+      const errorMsg = message.message || '视频生成失败'
+      currentOptions.onVideoClipError?.(errorMsg)
+    })
+
+    return () => {
+      unsubscribeError()
+    }
+  }, [projectId, stageId, onVideoClipError]) // Re-run when projectId/stageId/onVideoClipError changes
 
   const createVideoClip = async (sceneId: number, videoPrompt: string, imageId: number) => {
-    const actionId = `clip_${sceneId}_${Date.now()}`
-
+    const actionId = generateActionId(sceneId, 'clip')
     try {
-      setVideoActions(prev => ({
-        ...prev,
-        [actionId]: {
-          isProcessing: true,
-          taskId: null,
-          progress: 0,
-          processed: 0,
-          total: 1,
-          error: null
-        }
-      }))
-
-      options.onActionStart?.('videoClip', sceneId.toString())
+      options?.onActionStart?.('videoClip', actionId)
 
       await wsManager.executeAction('videoClip', {
         scene_id: sceneId,
         video_prompt: videoPrompt,
-        project_id: Number(options.projectId),
-        stage_id: Number(options.stageId),
-        user_id: options.userId,
-        image_id: imageId
+        image_id: imageId,
+        project_id: Number(options?.projectId || 0),
+        stage_id: Number(options?.stageId || 0),
+        user_id: options?.userId ? Number(options.userId) : undefined
       }, {
         timeout: 30000,
         retryCount: 3,
@@ -56,44 +147,23 @@ export function useVideoActions(options: VideoActionOptions) {
       })
 
       showToast('视频生成任务已提交', 'success', 3000)
-      return actionId
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '视频生成失败'
-      setVideoActions(prev => ({
-        ...prev,
-        [actionId]: {
-          ...prev[actionId],
-          isProcessing: false,
-          error: errorMessage
-        }
-      }))
-      options.onActionError?.('videoClip', errorMessage)
+      options?.onActionError?.('videoClip', errorMessage)
       showToast(errorMessage, 'error', 5000)
       throw error
     }
   }
 
   const createVideoCombination = async (selectedSceneIds: number[]) => {
-    const actionId = `combine_${Date.now()}`
-
+    const actionId = generateActionId(0, 'combine')
     try {
-      setVideoActions(prev => ({
-        ...prev,
-        [actionId]: {
-          isProcessing: true,
-          taskId: null,
-          progress: 0,
-          processed: 0,
-          total: selectedSceneIds.length,
-          error: null
-        }
-      }))
-
-      options.onActionStart?.('videoCombination')
+      options?.onActionStart?.('videoCombination', actionId)
 
       await wsManager.executeAction('videoCombination', {
-        project_id: Number(options.projectId),
-        stage_id: Number(options.stageId),
+        project_id: Number(options?.projectId || 0),
+        stage_id: Number(options?.stageId || 0),
+        user_id: options?.userId ? Number(options.userId) : undefined,
         scene_ids: selectedSceneIds
       }, {
         timeout: 60000,
@@ -102,18 +172,9 @@ export function useVideoActions(options: VideoActionOptions) {
       })
 
       showToast(`已提交 ${selectedSceneIds.length} 个storyboard 进行合并`, 'success', 3000)
-      return actionId
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '视频合并失败'
-      setVideoActions(prev => ({
-        ...prev,
-        [actionId]: {
-          ...prev[actionId],
-          isProcessing: false,
-          error: errorMessage
-        }
-      }))
-      options.onActionError?.('videoCombination', errorMessage)
+      options?.onActionError?.('videoCombination', errorMessage)
       showToast(errorMessage, 'error', 5000)
       throw error
     }
@@ -124,148 +185,9 @@ export function useVideoActions(options: VideoActionOptions) {
     showToast('已取消合并任务', 'info', 3000)
   }
 
-  // 更新处理
-  const updateActionState = (actionId: string, updates: Partial<VideoActionState>) => {
-    setVideoActions(prev => ({
-      ...prev,
-      [actionId]: {
-        ...prev[actionId],
-        ...updates
-      }
-    }))
-  }
-
-  // 获取单个action的状态
-  const getActionState = (actionId: string) => {
-    return videoActions[actionId]
-  }
-
-  // 清除action状态
-  const clearActionState = (actionId: string) => {
-    setVideoActions(prev => {
-      const next = { ...prev }
-      delete next[actionId]
-      return next
-    })
-  }
-
-  // WebSocket订阅设置
-  const setupSubscriptions = () => {
-    // 视频片段生成订阅
-    const unsubscribeClipAccepted = wsManager.subscribe('createVideoClipAccepted', (message: WsMessage) => {
-      const actionId = `clip_${message.scene_id}_${Date.now()}`
-      updateActionState(actionId, {
-        taskId: message.task_id
-      })
-      options.onActionStart?.('videoClip', message.task_id)
-    })
-
-    const unsubscribeClipProgress = wsManager.subscribe('createVideoClipProgress', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('clip_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          progress: message.progress || 0,
-          processed: message.processed || 0,
-          total: message.total || 1
-        })
-        options.onActionProgress?.('videoClip', message.progress || 0, message.processed || 0, message.total || 1)
-      }
-    })
-
-    const unsubscribeClipComplete = wsManager.subscribe('createVideoClipComplete', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('clip_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          isProcessing: false,
-          progress: 100,
-          processed: 1,
-          total: 1
-        })
-        options.onActionComplete?.('videoClip', message)
-        setTimeout(() => clearActionState(actionId), 3000)
-      }
-    })
-
-    const unsubscribeClipError = wsManager.subscribe('createVideoClipError', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('clip_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          isProcessing: false,
-          error: message.message || '视频生成失败'
-        })
-        options.onActionError?.('videoClip', message.message || '视频生成失败')
-        setTimeout(() => clearActionState(actionId), 5000)
-      }
-    })
-
-    // 视频合并订阅
-    const unsubscribeCombinationAccepted = wsManager.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          taskId: message.task_id
-        })
-        options.onActionStart?.('videoCombination', message.task_id)
-      }
-    })
-
-    const unsubscribeCombinationProgress = wsManager.subscribe('createVideoCombinationProgress', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          progress: message.progress || 0,
-          processed: message.processed || 0,
-          total: message.total || 1
-        })
-        options.onActionProgress?.('videoCombination', message.progress || 0, message.processed || 0, message.total || 1)
-      }
-    })
-
-    const unsubscribeCombinationComplete = wsManager.subscribe('createVideoCombinationComplete', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          isProcessing: false,
-          progress: 100,
-          processed: 1,
-          total: 1
-        })
-        options.onActionComplete?.('videoCombination', message)
-        setTimeout(() => clearActionState(actionId), 3000)
-      }
-    })
-
-    const unsubscribeCombinationError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
-      const actionId = Object.keys(videoActions).find(id => id.startsWith('combine_'))
-      if (actionId) {
-        updateActionState(actionId, {
-          isProcessing: false,
-          error: message.message || '视频合并失败'
-        })
-        options.onActionError?.('videoCombination', message.message || '视频合并失败')
-        setTimeout(() => clearActionState(actionId), 5000)
-      }
-    })
-
-    return () => {
-      unsubscribeClipAccepted()
-      unsubscribeClipProgress()
-      unsubscribeClipComplete()
-      unsubscribeClipError()
-      unsubscribeCombinationAccepted()
-      unsubscribeCombinationProgress()
-      unsubscribeCombinationComplete()
-      unsubscribeCombinationError()
-    }
-  }
-
   return {
-    videoActions,
     createVideoClip,
     createVideoCombination,
-    cancelVideoCombination,
-    getActionState,
-    clearActionState,
-    setupSubscriptions
+    cancelVideoCombination
   }
 }

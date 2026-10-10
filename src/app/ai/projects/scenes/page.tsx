@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useMemo } from "react"
+import React, { useState, useRef, useEffect, useCallback } from "react"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
 import { SceneCard, StoryboardCard } from "./components/scene-card"
@@ -17,9 +17,9 @@ import { Input } from "@/components/ui/input"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 import { MergePanel, type MergePanelRef } from "./components/merge-panel"
 import { MergeButton } from "./components/merge-button"
-import { VideoProgressList } from "./components/video-progress"
-import { wsManager } from "@/lib/websocket"
 import { useVideoActions } from "./hooks/use-video-actions"
+import { useMergeAdapter } from "./hooks/use-merge-adapter"
+import { WebSocketProvider } from "@/lib/websocket-context"
 import { showToast } from "@/lib/toast-helpers"
 import { getUserId } from "@/lib/localcache"
 
@@ -121,7 +121,6 @@ export default function ScenePage() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project_id')
   const stageId = searchParams.get('stage_id')
-  const userId = getUserId() ? Number(getUserId()) : undefined
 
   const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null)
 
@@ -132,64 +131,37 @@ export default function ScenePage() {
   const [isCombiningTaskRunning, setIsCombiningTaskRunning] = useState(false)
   const [combine_error_message, setCombineErrorMessage] = useState<string>()
 
-  // WebSocket 连接管理 - 只在 scenes 页面使用
-  useEffect(() => {
-    if (!projectId || !stageId) return
-
-    console.log('WebSocket: Connecting to scenes page...', { projectId, stageId })
-
-    // 设置连接回调
-    wsManager.setConnectionCallbacks({
-      onConnect: () => {
-        console.log('WebSocket: Connected successfully')
-      },
-      onDisconnect: () => {
-        console.log('WebSocket: Disconnected')
-      },
-      onError: (error) => {
-        console.error('WebSocket: Error occurred', error)
-      }
-    })
-
-    // 建立连接
-    wsManager.connect(Number(projectId), Number(stageId), userId)
-
-    return () => {
-      console.log('WebSocket: Cleaning up connection')
-      wsManager.disconnect()
-    }
-  }, [projectId, stageId, userId])
-
-
-  // 缓存视频操作选项，避免不必要的重新创建
-  const videoActionsOptions = useMemo(() => ({
-    projectId: projectId || '',
-    stageId: stageId || '',
-    userId: getUserId() || undefined,
-    onActionStart: (_action: string, _taskId?: string) => {
-      if (_action === 'videoCombination') {
-        setIsCombiningTaskRunning(true)
-      }
-    },
-    onActionComplete: (_action: string, result?: any) => {
-      if (_action === 'videoCombination' && result?.result_url) {
-        setCombinedVideos(prev => [...prev, { version: Date.now(), url: result.result_url }])
-      }
-      setIsCombiningTaskRunning(false)
-    },
-    onActionError: (_action: string, error: string) => {
-      setIsCombiningTaskRunning(false)
-      setCombineErrorMessage(error)
-    }
-  }), [projectId, stageId])
-
-
-  // 视频操作集成
-  const videoActions = useVideoActions(videoActionsOptions)
+  // WebSocket 连接由 WebSocketProvider 管理
+  // Connection is managed by the WebSocketProvider component
 
   // 合并功能适配器 - 为保持兼容性
   const [isMergePanelOpen, setIsMergePanelOpen] = useState(false)
   const mergePanelRef = useRef<MergePanelRef>(null)
+
+  // Initialize merge adapter with WebSocket callbacks
+  useMergeAdapter({
+    projectId: projectId || '',
+    stageId: stageId || '',
+    onMergeStart: () => {
+      console.log('[page.tsx] Merge started, isCombiningTaskRunning set to true')
+      setIsCombiningTaskRunning(true)
+    },
+    onMergeComplete: (resultUrl: string) => {
+      console.log('[page.tsx] Merge complete:', resultUrl)
+      setCombinedVideos(prev => [...prev, { version: Date.now(), url: resultUrl }])
+      setIsCombiningTaskRunning(false)
+    },
+    onMergeError: (error: string) => {
+      console.log('[page.tsx] Merge error:', error)
+      setIsCombiningTaskRunning(false)
+      setCombineErrorMessage(error)
+      showToast(error, "error", 5000)
+    },
+    onMergeAccepted: (taskId: string) => {
+      console.log('[page.tsx] Merge task accepted:', taskId)
+    }
+  })
+
   const mergeAdapter = {
     toggleMergePanel: () => {
       setIsMergePanelOpen(!isMergePanelOpen)
@@ -224,6 +196,80 @@ export default function ScenePage() {
       setCombinedVideos(prev => [...prev, { version: Date.now(), url: resultUrl }])
     }
   }
+
+  // 视频生成回调处理
+  const handleVideoClipAccepted = useCallback((scene_id: string) => {
+    console.log('Video clip accepted for scene_id:', scene_id)
+
+    // 更新场景状态为 PROCESSING
+    setScenes(prev => prev.map(s => {
+      if (s.id === Number(scene_id)) {
+        return {
+          ...s,
+          status: "PROCESSING"
+        }
+      }
+      return s
+    }))
+  }, [])
+
+  const handleVideoClipComplete = useCallback((message: any) => {
+    const { scene_id, data } = message
+
+    console.log('Video clip complete:', message)
+
+    // 提取 URL（从 event.data.url，而不是 result_url）
+    const videoUrl = data?.url
+    if (!videoUrl) {
+      console.error('No video URL found in event data:', message)
+      return
+    }
+
+    // 更新场景的 video_url 和 status 为 COMPLETE
+    setScenes(prev => prev.map(s => {
+      if (s.id === scene_id) {
+        return {
+          ...s,
+          video_url: videoUrl,
+          status: "COMPLETE"
+        }
+      }
+      return s
+    }))
+  }, [selected])
+
+  const handleVideoClipError = useCallback((errorMsg: string) => {
+    console.error('Video clip error:', errorMsg)
+    showToast(errorMsg, 'error', 5000)
+  }, [])
+
+  // 视频操作集成
+  useVideoActions({
+    projectId: projectId || '',
+    stageId: stageId || '',
+    userId: getUserId() || undefined,
+    onActionStart: (_action: string, _taskId?: string) => {
+      if (_action === 'videoCombination') {
+        console.log('[page.tsx] Video action started:', _action, 'taskId:', _taskId)
+        setIsCombiningTaskRunning(true)
+      }
+    },
+    onActionComplete: (_action: string, result?: any) => {
+      if (_action === 'videoCombination' && result?.result_url) {
+        console.log('[page.tsx] Video action completed:', _action, result)
+        setCombinedVideos(prev => [...prev, { version: Date.now(), url: result.result_url }])
+      }
+      setIsCombiningTaskRunning(false)
+    },
+    onActionError: (_action: string, error: string) => {
+      console.log('[page.tsx] Video action error:', _action, error)
+      setIsCombiningTaskRunning(false)
+      setCombineErrorMessage(error)
+    },
+    onVideoClipAccepted: handleVideoClipAccepted,
+    onVideoClipComplete: handleVideoClipComplete,
+    onVideoClipError: handleVideoClipError
+  })
 
   // 检查并更新 video_url
   const checkAndUpdateVideoUrls = async () => {
@@ -263,17 +309,6 @@ export default function ScenePage() {
   const [currentSceneForAdd, setCurrentSceneForAdd] = useState<Scene | null>(null)
 
   // ─── Data loading ───────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!projectId || !stageId) return
-
-    // 设置视频操作订阅
-    const unsubscribe = videoActions.setupSubscriptions()
-
-    return () => {
-      unsubscribe()
-    }
-  }, [projectId, stageId, videoActions, wsManager])
 
   useEffect(() => {
     if (!projectId || !stageId) return
@@ -318,48 +353,6 @@ export default function ScenePage() {
     })
 
   }, [projectId, stageId])
-
-  // 注意：WebSocket事件现在由 useVideoActions 统一处理
-  // 这里保留必要的场景更新逻辑
-  useEffect(() => {
-    if (!projectId || !stageId || !projectDetail?.user_id) return
-
-    // 更新场景视频 URL（当收到完成事件时）
-    const handleSceneUpdate = (message: any) => {
-      if (message.event === 'createVideoClipComplete' && message.data?.video_url) {
-        setScenes(prev => prev.map(s => {
-          if (s.id === Number(message.scene_id)) {
-            return {
-              ...s,
-              video_url: message.data.video_url,
-              image_url: message.data.storyboard_image_url
-            }
-          }
-          return s
-        }))
-
-        // 更新选择
-        setSelected(prev => {
-          if (!prev || prev.data.id !== message.scene_id) return prev
-          return {
-            ...prev,
-            data: {
-              ...prev.data,
-              video_url: message.data.video_url,
-              image_url: message.data.storyboard_image_url
-            }
-          }
-        })
-      }
-    }
-
-    // 使用统一的WebSocket管理器订阅事件
-    const unsubscribe = wsManager.subscribe('createVideoClipComplete', handleSceneUpdate)
-
-    return () => {
-      unsubscribe()
-    }
-  }, [projectId, stageId, projectDetail?.user_id, wsManager])
 
   // ─── DnD ────────────────────────────────────────────────────────────────────
 
@@ -466,20 +459,20 @@ export default function ScenePage() {
   }
 
   // ─── Action Handlers ────────────────────────────────────────────────────────
-  // 视频生成处理器 - 处理可能为undefined的场景
-  const handleGenerateVideoSafe = async (scene: Scene | undefined) => {
-    if (!scene || !projectId || !stageId || !projectDetail?.user_id) return
+  // // 视频生成处理器 - 处理可能为undefined的场景
+  // const handleGenerateVideoSafe = async (scene: Scene | undefined) => {
+  //   if (!scene || !projectId || !stageId || !projectDetail?.user_id) return
 
-    try {
-      await videoActions.createVideoClip(
-        scene.id,
-        scene.video_prompt || scene.prompt || '',
-        scene.scene_image_id || 0
-      )
-    } catch (error) {
-      console.error('视频生成失败:', error)
-    }
-  }
+  //   try {
+  //     await videoActions.createVideoClip(
+  //       scene.id,
+  //       scene.video_prompt || scene.prompt || '',
+  //       scene.scene_image_id || 0
+  //     )
+  //   } catch (error) {
+  //     console.error('视频生成失败:', error)
+  //   }
+  // }
 
   const handleAddStoryboard = (current_scene: Scene) => {
     // Open dialog to ask for title
@@ -691,178 +684,158 @@ export default function ScenePage() {
       })
   }
 
-  // 取消视频操作
-  const handleCancelVideoAction = (_actionId: string) => {
-    // if (_actionId.startsWith('combine_')) {
-    //   videoActions.cancelVideoCombination()
-    // }
-    // videoActions.clearActionState(_actionId)
-  }
-
-  // 完成视频操作
-  const handleCompleteVideoAction = (_actionId: string) => {
-    videoActions.clearActionState(_actionId)
-  }
-
   return (
-    <>
-      <Header title="Project Scenes" />
-      <div className="min-h-screen bg-gray-100 flex flex-col">
+    <WebSocketProvider>
+      <>
+        <Header title="Project Scenes" />
+        <div className="min-h-screen bg-gray-100 flex flex-col">
 
 
-        <div className="flex-grow flex overflow-hidden">
-          {/* ── Left Panel (20%) ── */}
-          <div className="w-[20%] min-w-[250px] p-0 overflow-y-auto bg-gray-100 border-r flex flex-col">
-            {/* 进度条显示区域 */}
-            <div className="border-b bg-white px-4 py-3 flex-shrink-0">
-              <VideoProgressList
-                videoActions={videoActions.videoActions}
-                onCancel={handleCancelVideoAction}
-                onComplete={handleCompleteVideoAction}
-              />
-            </div>
-
-            {/* 顶部控制栏 */}
-            <div className="bg-white border-b px-4 py-3 flex items-center justify-between flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800">Scenes</h2>
-              <MergeButton
-                onClick={mergeAdapter.toggleMergePanel}
-                isPanelOpen={mergeAdapter.isMergePanelOpen}
-                isMerging={mergeAdapter.isMerging}
-                selection={mergeAdapter.getSelectionState(sortedScenes)}
-                disabled={mergeAdapter.getSelectionState(sortedScenes).readyCount === 0}
-              />
-            </div>
-
-            {/* Scene 列表 */}
-            <div className="p-4 overflow-y-auto flex-grow">
-              {combine_error_message && <div className="text-red-500 text-xs mb-2">{combine_error_message}</div>}
-
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="scenes">
-                  {(provided) => (
-                    <div
-                      ref={(el) => { provided.innerRef(el); (scenesContainerRef as any).current = el }}
-                      {...provided.droppableProps}
-                      className="space-y-3"
-                    >
-                      {/* Use globally sorted scenes then filter for top-level display */}
-                      {sortedScenes.filter((s: Scene) => !s.storyboard).map((scene: Scene, index: number) => (
-                        <Draggable key={scene.id} draggableId={String(scene.id)} index={index}>
-                          {(provided) => (
-                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                              <SceneCard
-                                scene={scene}
-                                isSelected={selected?.type === "scene" && selected.data.id === scene.id}
-                                isExpanded={expandedSceneIds.has(scene.id)}
-                                storyboardCount={scene.children?.length || 0}
-                                hasChildren={scene.children && scene.children.length > 0}
-                                onSelect={() => handleSceneSelect(scene)}
-                                onSave={() => { }}
-                                onAddStoryboard={() => handleAddStoryboard(scene)}
-                                onGenerateStoryboards={() => handleGenerateStoryboards(scene)}
-                                // onGenerateVideo={() => handleGenerateVideoSafe(scene)}
-                                onDelete={() => handleSceneDelete(scene)}
-                                generatingStoryboards={generatingStoryboards}
-                              />
-                              {expandedSceneIds.has(scene.id) && (scene.children && scene.children.length > 0) && (
-                                <div className="space-y-1 mt-1">
-                                  {/* Storyboards are also part of the globally sorted list */}
-                                  {sortedScenes.filter((s: Scene) => s.storyboard && s.parent_id === scene.id).map((board: Scene) => (
-                                    <StoryboardCard
-                                      key={board.id}
-                                      storyboard={board}
-                                      isSelected={selected?.type === "storyboard" && selected.data.id === board.id}
-                                      onSelect={() => handleStoryboardSelect(board)}
-                                      onAddStoryboard={() => handleAddStoryboard(board)}
-                                      onDelete={() => handleSceneDelete(board)}
-                                      onGenerateVideo={() => handleGenerateVideoSafe(board)}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            </div>
-          </div>
-
-          {/* ── Right Panel (80%) ── */}
-          <div className="flex-1 min-w-0 bg-white overflow-y-auto">
-            {selected?.type === "scene" ? (
-              <SceneSettings
-                scene={selected.data}
-                projectDetail={projectDetail}
-                onUpdate={(key, val) => handleUpdate("scene", selected.data, key, val)}
-              />
-            ) : selected?.type === "storyboard" ? (
-              <>
-                {console.log('selected.data', selected.data)}
-                <StoryboardSettings
-                  storyboard={selected.data}
-                  projectDetail={projectDetail}
-                  onUpdate={(key, val) => handleUpdate("storyboard", selected.data, key, val)}
+          <div className="flex-grow flex overflow-hidden">
+            {/* ── Left Panel (20%) ── */}
+            <div className="w-[20%] min-w-[250px] p-0 overflow-y-auto bg-gray-100 border-r flex flex-col">
+              {/* 顶部控制栏 */}
+              <div className="bg-white border-b px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <h2 className="text-xl font-bold text-gray-800">Scenes</h2>
+                <MergeButton
+                  onClick={mergeAdapter.toggleMergePanel}
+                  isPanelOpen={mergeAdapter.isMergePanelOpen}
+                  isMerging={mergeAdapter.isMerging}
+                  selection={mergeAdapter.getSelectionState(sortedScenes)}
+                  disabled={mergeAdapter.getSelectionState(sortedScenes).readyCount === 0}
                 />
-              </>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-                <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse" />
-                <p>Select a scene or storyboard to get started</p>
               </div>
-            )}
-          </div>
 
-          {/* {showExportUrlPanel && projectId && stageId && (
+              {/* Scene 列表 */}
+              <div className="p-4 overflow-y-auto flex-grow">
+                {combine_error_message && <div className="text-red-500 text-xs mb-2">{combine_error_message}</div>}
+
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="scenes">
+                    {(provided) => (
+                      <div
+                        ref={(el) => { provided.innerRef(el); (scenesContainerRef as any).current = el }}
+                        {...provided.droppableProps}
+                        className="space-y-3"
+                      >
+                        {/* Use globally sorted scenes then filter for top-level display */}
+                        {sortedScenes.filter((s: Scene) => !s.storyboard).map((scene: Scene, index: number) => (
+                          <Draggable key={scene.id} draggableId={String(scene.id)} index={index}>
+                            {(provided) => (
+                              <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+                                <SceneCard
+                                  scene={scene}
+                                  isSelected={selected?.type === "scene" && selected.data.id === scene.id}
+                                  isExpanded={expandedSceneIds.has(scene.id)}
+                                  storyboardCount={scene.children?.length || 0}
+                                  hasChildren={scene.children && scene.children.length > 0}
+                                  onSelect={() => handleSceneSelect(scene)}
+                                  onSave={() => { }}
+                                  onAddStoryboard={() => handleAddStoryboard(scene)}
+                                  onGenerateStoryboards={() => handleGenerateStoryboards(scene)}
+                                  // onGenerateVideo={() => handleGenerateVideoSafe(scene)}
+                                  onDelete={() => handleSceneDelete(scene)}
+                                  generatingStoryboards={generatingStoryboards}
+                                />
+                                {expandedSceneIds.has(scene.id) && (scene.children && scene.children.length > 0) && (
+                                  <div className="space-y-1 mt-1">
+                                    {/* Storyboards are also part of the globally sorted list */}
+                                    {sortedScenes.filter((s: Scene) => s.storyboard && s.parent_id === scene.id).map((board: Scene) => (
+                                      <StoryboardCard
+                                        key={board.id}
+                                        storyboard={board}
+                                        isSelected={selected?.type === "storyboard" && selected.data.id === board.id}
+                                        onSelect={() => handleStoryboardSelect(board)}
+                                        onAddStoryboard={() => handleAddStoryboard(board)}
+                                        onDelete={() => handleSceneDelete(board)}
+                                      // onGenerateVideo={() => handleGenerateVideoSafe(board)}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </div>
+            </div>
+
+            {/* ── Right Panel (80%) ── */}
+            <div className="flex-1 min-w-0 bg-white overflow-y-auto">
+              {selected?.type === "scene" ? (
+                <SceneSettings
+                  scene={selected.data}
+                  projectDetail={projectDetail}
+                  onUpdate={(key, val) => handleUpdate("scene", selected.data, key, val)}
+                />
+              ) : selected?.type === "storyboard" ? (
+                <>
+                  {console.log('selected.data', selected.data)}
+                  <StoryboardSettings
+                    storyboard={selected.data}
+                    projectDetail={projectDetail}
+                    onUpdate={(key, val) => handleUpdate("storyboard", selected.data, key, val)}
+                  />
+                </>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+                  <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse" />
+                  <p>Select a scene or storyboard to get started</p>
+                </div>
+              )}
+            </div>
+
+            {/* {showExportUrlPanel && projectId && stageId && (
             <ExportUrlPanel open={showExportUrlPanel} project_id={projectId} stage_id={stageId} onClose={() => setShowExportUrlPanel(false)} />
           )} */}
 
-          {isPreviewingVideo && combinedVideos.length > 0 && (
-            <MultiVideoDisplayPanel combinedVideos={combinedVideos} isGenerating={isCombiningTaskRunning} onClose={() => setIsPreviewingVideo(false)} />
+            {isPreviewingVideo && combinedVideos.length > 0 && (
+              <MultiVideoDisplayPanel combinedVideos={combinedVideos} isGenerating={isCombiningTaskRunning} onClose={() => setIsPreviewingVideo(false)} />
+            )}
+
+            {/* Add Scene/Storyboard Dialog */}
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{currentSceneForAdd?.storyboard ? "添加 Storyboard" : "添加 Scene"}</DialogTitle>
+                  <DialogDescription>
+                    请输入新场景/分镜的名称
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <Input
+                    placeholder="输入名称..."
+                    value={newSceneTitle}
+                    onChange={(e) => setNewSceneTitle(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowAddDialog(false)}>取消</Button>
+                  <Button onClick={handleConfirmAddScene}>确定</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Merge Panel */}
+          {mergeAdapter.isMergePanelOpen && projectId && stageId && (
+            <MergePanel
+              isOpen={mergeAdapter.isMergePanelOpen}
+              onClose={mergeAdapter.closeMergePanel}
+              projectId={projectId}
+              stageId={stageId}
+              scenes={sortedScenes}
+              onMergeComplete={mergeAdapter.onMergeComplete}
+            />
           )}
-
-          {/* Add Scene/Storyboard Dialog */}
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{currentSceneForAdd?.storyboard ? "添加 Storyboard" : "添加 Scene"}</DialogTitle>
-                <DialogDescription>
-                  请输入新场景/分镜的名称
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <Input
-                  placeholder="输入名称..."
-                  value={newSceneTitle}
-                  onChange={(e) => setNewSceneTitle(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowAddDialog(false)}>取消</Button>
-                <Button onClick={handleConfirmAddScene}>确定</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
-
-        {/* Merge Panel */}
-        {mergeAdapter.isMergePanelOpen && projectId && stageId && (
-          <MergePanel
-            isOpen={mergeAdapter.isMergePanelOpen}
-            onClose={mergeAdapter.closeMergePanel}
-            projectId={projectId}
-            stageId={stageId}
-            scenes={sortedScenes}
-            onMergeComplete={mergeAdapter.onMergeComplete}
-          />
-        )}
-      </div>
-    </>
+      </>
+    </WebSocketProvider>
   )
 }

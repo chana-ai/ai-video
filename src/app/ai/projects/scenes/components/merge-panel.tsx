@@ -8,6 +8,7 @@ import { CheckCircle, XCircle, Clock, Loader2, Video, Download } from "lucide-re
 import type { Scene } from "@/app/ai/projects/types"
 import { wsManager, type WsMessage } from "@/lib/websocket"
 import { showToast } from "@/lib/toast-helpers"
+import { getUserId } from '@/lib/localcache'
 
 // Storyboard状态类型
 interface StoryboardStatus {
@@ -52,7 +53,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
   onClose
 }, ref) => {
   // 面板状态
-  const [selectedStoryboards, setSelectedStoryboards] = useState<Set<number>>(new Set())
+  const [selectedStoryboards, setSelectedStoryboards] = useState<number[]>([])
 
   // 合并任务状态
   const [mergeTask, setMergeTask] = useState<MergeTask>({
@@ -108,7 +109,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
     if (isOpen && mergeTask.status === 'idle') {
       // 自动选择所有已就绪的storyboard
       const readyIds = storyboardsByStatus.complete.map(s => s.id)
-      setSelectedStoryboards(new Set(readyIds))
+      setSelectedStoryboards(readyIds)
     }
   }, [isOpen, mergeTask.status, storyboardsByStatus.complete, storyboards.length])
 
@@ -125,7 +126,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
           isMerging: true,
           progress: 0,
           processed: 0,
-          total: selectedStoryboards.size,
+          total: selectedStoryboards.length,
           status: 'processing'
         }))
       }
@@ -179,18 +180,19 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
       unsubscribeComplete()
       unsubscribeError()
     }
-  }, [isOpen, projectId, stageId, selectedStoryboards.size, mergeTask.status, onMergeComplete, wsManager])
+  }, [isOpen, projectId, stageId, selectedStoryboards.length, mergeTask.status, onMergeComplete, wsManager])
 
   // 切换单个storyboard选择
   const toggleStoryboardSelection = (storyboardId: number) => {
     if (!storyboards.find(s => s.id === storyboardId)?.canSelect) return
 
-    setSelectedStoryboards((prev: Set<number>) => {
-      const next = new Set(prev)
-      if (next.has(storyboardId)) {
-        next.delete(storyboardId)
+    setSelectedStoryboards((prev: number[]) => {
+      const next = [...prev]
+      const index = next.indexOf(storyboardId)
+      if (index >= 0) {
+        next.splice(index, 1)
       } else {
-        next.add(storyboardId)
+        next.push(storyboardId)
       }
       return next
     })
@@ -203,24 +205,24 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
   // }
 
   const handleDeselectAll = () => {
-    setSelectedStoryboards(new Set())
+    setSelectedStoryboards([])
   }
 
   const handleSelectReadyOnly = () => {
     const readyIds = storyboardsByStatus.complete.map(s => s.id)
-    setSelectedStoryboards(new Set(readyIds))
+    setSelectedStoryboards(readyIds)
   }
 
   // 开始合并
   const handleStartMerge = async () => {
-    if (selectedStoryboards.size === 0) {
+    if (selectedStoryboards.length === 0) {
       showToast("请至少选择1个storyboard", "error")
       return
     }
 
     // 过滤出已就绪的storyboard
     const readyToMerge = storyboards.filter(s =>
-      selectedStoryboards.has(s.id) && s.canSelect
+      selectedStoryboards.includes(s.id) && s.canSelect
     )
 
     if (readyToMerge.length === 0) {
@@ -230,7 +232,13 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
 
     try {
       // 提交合并任务
-      await wsManager.createVideoCombination(selectedStoryboards.map(s => s.id))
+      const userId = getUserId()
+      await wsManager.createVideoCombination(
+        selectedStoryboards,
+        projectId,
+        stageId,
+        userId ? Number(userId) : undefined
+      )
     } catch (error: any) {
       showToast(`合并任务启动失败: ${error.message || '未知错误'}`, 'error', 5000)
     }
@@ -246,6 +254,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
       total: 0,
       status: 'idle'
     })
+    setSelectedStoryboards([])
   }
 
   // 渲染内容
@@ -274,7 +283,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
             <h4 className="text-sm font-medium text-gray-700">处理状态:</h4>
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {storyboards.map(s => {
-                const isSelected = selectedStoryboards.has(s.id)
+                const isSelected = selectedStoryboards.includes(s.id)
                 const statusIcon = getStatusIcon(s.status, isSelected)
                 return (
                   <div key={s.id} className="flex items-center gap-2 text-sm">
@@ -384,7 +393,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
               <StoryboardItem
                 key={s.id}
                 storyboard={s}
-                isSelected={selectedStoryboards.has(s.id)}
+                isSelected={selectedStoryboards.includes(s.id)}
                 onSelect={toggleStoryboardSelection}
                 canSelect={s.canSelect}
               />
@@ -410,7 +419,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
         {/* 开始合并按钮 */}
         <Button
           onClick={handleStartMerge}
-          disabled={selectedStoryboards.size === 0}
+          disabled={selectedStoryboards.length === 0}
           className="w-full"
         >
           开始合并
@@ -430,7 +439,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
         total: 0,
         status: 'idle'
       }))
-      setSelectedStoryboards(new Set())
+      setSelectedStoryboards([])
       onClose?.()
     }
   }))
@@ -453,8 +462,6 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
     </div>
   )
 })
-
-MergePanel.displayName = 'MergePanel'
 
 MergePanel.displayName = 'MergePanel'
 

@@ -107,12 +107,17 @@ class UnifiedWebSocketManager {
 
     ws.onmessage = (event) => {
       try {
-        const message: WsMessage = JSON.parse(event.data)
-        console.log('WebSocket message received:', message.event, message)
+        const message: any = JSON.parse(event.data)
+
+        const eventType = message.eventtype || message.event
+
+        if (eventType == "ping") {
+          return
+        }
+        console.log('WebSocket message received:', message.eventtype || message.event, message)
 
         // For non-ping messages, validate that project_id, stage_id, user_id match current connection
-        if (message.event !== 'ping' &&
-          message.project_id !== undefined &&
+        if (message.project_id !== undefined &&
           message.project_id !== this.currentProjectId) {
           console.log('Discarding WebSocket message for different project:',
             'message.project_id:', message.project_id,
@@ -120,7 +125,7 @@ class UnifiedWebSocketManager {
           return
         }
 
-        if (message.event !== 'ping' &&
+        if (
           message.stage_id !== undefined &&
           message.stage_id !== this.currentStageId) {
           console.log('Discarding WebSocket message for different stage:',
@@ -129,8 +134,7 @@ class UnifiedWebSocketManager {
           return
         }
 
-        if (message.event !== 'ping' &&
-          message.user_id !== undefined &&
+        if (message.user_id !== undefined &&
           message.user_id !== this.currentUserId) {
           console.log('Discarding WebSocket message for different user:',
             'message.user_id:', message.user_id,
@@ -139,7 +143,7 @@ class UnifiedWebSocketManager {
         }
 
         // Call all callbacks for this event type
-        const eventCallbacks = this.callbacks.get(message.event) || new Set()
+        const eventCallbacks = this.callbacks.get(eventType) || new Set()
         eventCallbacks.forEach(callback => callback(message))
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error)
@@ -273,10 +277,10 @@ class UnifiedWebSocketManager {
         request_type: 'createVideoClip',
         scene_id: sceneId,
         video_prompt: videoPrompt,
+        image_id: imageId,
         project_id: projectId ? Number(projectId) : undefined,
         stage_id: stageId ? Number(stageId) : undefined,
         user_id: userId ? Number(userId) : undefined,
-        image_id: imageId
       }
 
       console.log('Sending createVideoClip request:', payload)
@@ -326,7 +330,7 @@ class UnifiedWebSocketManager {
   ): Promise<WsMessage> {
     const finalOptions = {
       timeout: 30000,
-      retryCount: 3,
+      retryCount: 1,
       retryDelay: 1000,
       ...options
     }
@@ -337,10 +341,10 @@ class UnifiedWebSocketManager {
           return await this.createVideoClip(
             payload.scene_id,
             payload.video_prompt,
+            payload.image_id,
             payload.project_id,
             payload.stage_id,
-            payload.user_id,
-            payload.image_id
+            payload.user_id
           )
         } else {
           return await this.createVideoCombination(
