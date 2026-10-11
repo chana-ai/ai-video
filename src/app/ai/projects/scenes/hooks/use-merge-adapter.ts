@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { wsManager, type WsMessage } from '@/lib/websocket'
 import { showToast } from '@/lib/toast-helpers'
+import type { TaskStatusItem } from '@/app/ai/projects/types'
 
 interface MergeAdapterOptions {
   projectId: string
@@ -18,6 +19,16 @@ export interface MergeSelection {
   totalCount: number
 }
 
+export interface MergeTask {
+  isMerging: boolean
+  progress: number
+  processed: number
+  total: number
+  status: 'idle' | 'processing' | 'completed' | 'failed'
+  resultUrl?: string
+  currentProcessing?: string
+}
+
 export function useMergeAdapter({
   projectId,
   stageId,
@@ -32,6 +43,17 @@ export function useMergeAdapter({
   const [isMerging, setIsMerging] = useState(false)
   const [mergeTaskId, setMergeTaskId] = useState<string | null>(null)
   const [combineErrorMessage, setCombineErrorMessage] = useState<string>('')
+
+  // 合并任务状态（导出给父组件使用）
+  const [mergeTask, setMergeTask] = useState<MergeTask>({
+    isMerging: false,
+    progress: 0,
+    processed: 0,
+    total: Array.from(selectedStoryboards).length,
+    status: 'idle' as const,
+    resultUrl: undefined,
+    currentProcessing: undefined
+  })
 
   // 自动选择已就绪的storyboard
   const selectReadyStoryboards = useCallback((scenes: any[]) => {
@@ -107,7 +129,14 @@ export function useMergeAdapter({
     }
 
     try {
-      setIsMerging(true)
+      setMergeTask(prev => ({
+        ...prev,
+        isMerging: true,
+        progress: 0,
+        processed: 0,
+        total: readyToMerge.length,
+        status: 'processing'
+      }))
       setCombineErrorMessage('')
       onMergeStart?.()
 
@@ -117,8 +146,12 @@ export function useMergeAdapter({
       showToast(`已提交 ${readyToMerge.length} 个storyboard 进行合并`, "success", 3000)
     } catch (error: any) {
       const errorMessage = error.message || '合并任务启动失败'
+      setMergeTask(prev => ({
+        ...prev,
+        isMerging: false,
+        status: 'failed'
+      }))
       setCombineErrorMessage(errorMessage)
-      setIsMerging(false)
       showToast(errorMessage, "error", 5000)
       onMergeError?.(errorMessage)
     }
@@ -153,34 +186,54 @@ export function useMergeAdapter({
 
     console.log('useMergeAdapter: Subscribing to WebSocket events for project:', projectId, 'stage:', stageId)
 
-    // 合并任务接受 - Force subscribe even if WebSocket is not connected yet
+    // 合并任务接受
     const unsubscribeAccepted = wsManager.subscribe('createVideoCombinationAccepted', (message: WsMessage) => {
       console.log('合并任务已接受:', message)
       if (isContextValid(message)) return
 
       if (message.task_id) {
         setMergeTaskId(message.task_id)
+        setMergeTask(prev => ({
+          ...prev,
+          isMerging: true,
+          status: 'processing'
+        }))
         setIsMerging(true)
         onMergeAccepted?.(message.task_id)
       }
     })
 
-    // 合并进度更新 - Force subscribe even if WebSocket is not connected yet
+    // 合并进度更新
     const unsubscribeProgress = wsManager.subscribe('createVideoCombinationProgress', (message: WsMessage) => {
       console.log('合并进度更新:', message)
       if (isContextValid(message)) return
 
       if (message.progress !== undefined || message.processed !== undefined) {
+        setMergeTask(prev => ({
+          ...prev,
+          progress: message.progress || 0,
+          processed: message.processed || 0,
+          total: message.total || prev.total,
+          currentProcessing: message.current_processing
+        }))
         onMergeProgress?.(message.progress || 0, message.processed || 0, message.total || 0)
       }
     })
 
-    // 合并完成 - Force subscribe even if WebSocket is not connected yet
+    // 合并完成
     const unsubscribeComplete = wsManager.subscribe('createVideoCombinationComplete', (message: WsMessage) => {
       console.log('合并完成:', message)
       if (isContextValid(message)) return
 
       if (message.result_url) {
+        setMergeTask({
+          isMerging: false,
+          progress: 100,
+          processed: mergeTask.total,
+          total: mergeTask.total,
+          status: 'completed',
+          resultUrl: message.result_url
+        })
         setIsMerging(false)
         setMergeTaskId(null)
         showToast('视频合并成功！', 'success', 3000)
@@ -189,12 +242,18 @@ export function useMergeAdapter({
       }
     })
 
-    // 合并错误 - Force subscribe even if WebSocket is not connected yet
+    // 合并错误
     const unsubscribeError = wsManager.subscribe('createVideoCombinationError', (message: WsMessage) => {
       console.error('合并失败:', message)
       if (isContextValid(message)) return
 
       const errorMessage = message.message || '视频合并失败'
+      setMergeTask({
+        ...mergeTask,
+        isMerging: false,
+        status: 'failed',
+        currentProcessing: undefined
+      })
       setCombineErrorMessage(errorMessage)
       setIsMerging(false)
       setMergeTaskId(null)
@@ -208,10 +267,11 @@ export function useMergeAdapter({
       unsubscribeComplete()
       unsubscribeError()
     }
-  }, [projectId, stageId])
+  }, [projectId, stageId, mergeTask, selectedStoryboards, onMergeProgress, onMergeComplete, onMergeError, closeMergePanel])
 
   return {
     // 状态
+    mergeTask,
     isMergePanelOpen,
     selectedStoryboards,
     isMerging,

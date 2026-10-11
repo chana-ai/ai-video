@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input"
 import { MultiVideoDisplayPanel } from "./components/multi-video-display-panel"
 import { MergePanel, type MergePanelRef } from "./components/merge-panel"
 import { MergeButton } from "./components/merge-button"
+import { CombineTasksPanel } from "./components/combine-tasks-panel"
+import { CombineTasksQuickView } from "./components/combine-tasks-quick-view"
 import { useVideoActions } from "./hooks/use-video-actions"
 import { useMergeAdapter } from "./hooks/use-merge-adapter"
 import { WebSocketProvider } from "@/lib/websocket-context"
@@ -121,10 +123,9 @@ export default function ScenePage() {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project_id')
   const stageId = searchParams.get('stage_id')
+  const userId = getUserId() ? Number(getUserId()) : 0
 
   const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null)
-
-  // const [showExportUrlPanel, setShowExportUrlPanel] = useState(false)
 
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false)
   const [combinedVideos, setCombinedVideos] = useState<CombinedVideo[]>([])
@@ -134,33 +135,98 @@ export default function ScenePage() {
   // WebSocket 连接由 WebSocketProvider 管理
   // Connection is managed by the WebSocketProvider component
 
+  // Task Stats for combine tasks quick summary
+  const [taskStats, setTaskStats] = useState({
+    total: 0,
+    completed: 0,
+    running: 0,
+    failed: 0
+  })
+  const [isTaskStatsLoading, setIsTaskStatsLoading] = useState(false)
+
+  // Fetch quick summary from /api/v2/task/quick_summary
+  const fetchTaskStats = useCallback(async () => {
+    if (!projectId || !stageId) return
+    const uid = projectDetail?.user_id || userId
+    if (!uid) return
+
+    setIsTaskStatsLoading(true)
+    try {
+      const res: any = await instance.get('/api/v2/task/quick_summary', {
+        params: {
+          project_id: Number(projectId),
+          stage_id: Number(stageId),
+          user_id: Number(uid),
+          with_combination: true
+        }
+      })
+      const summary = res?.summary || res || {}
+      const failCount = Number(summary.failed ?? summary.fail ?? 0)
+      setTaskStats({
+        total: Number(summary.total ?? 0),
+        completed: Number(summary.completed ?? 0),
+        running: Number(summary.running ?? 0),
+        failed: failCount
+      })
+    } catch (error) {
+      console.error('Failed to fetch task quick summary:', error)
+    } finally {
+      setIsTaskStatsLoading(false)
+    }
+  }, [projectId, stageId, userId])
+
+  // Initialize and refresh task_stats when project/stage/user are available
+  useEffect(() => {
+    if (!projectId || !stageId) return
+    const uid = projectDetail?.user_id || userId
+    if (!uid) return
+
+    fetchTaskStats()
+  }, [projectId, stageId, projectDetail?.user_id, userId, fetchTaskStats])
+
   // 合并功能适配器 - 为保持兼容性
   const [isMergePanelOpen, setIsMergePanelOpen] = useState(false)
+  const [isCombineTasksPanelOpen, setIsCombineTasksPanelOpen] = useState(false)
   const mergePanelRef = useRef<MergePanelRef>(null)
 
   // Initialize merge adapter with WebSocket callbacks
-  useMergeAdapter({
+  const {
+    mergeTask,
+    closeMergePanel
+  } = useMergeAdapter({
     projectId: projectId || '',
     stageId: stageId || '',
     onMergeStart: () => {
       console.log('[page.tsx] Merge started, isCombiningTaskRunning set to true')
       setIsCombiningTaskRunning(true)
+      fetchTaskStats()
     },
     onMergeComplete: (resultUrl: string) => {
       console.log('[page.tsx] Merge complete:', resultUrl)
       setCombinedVideos(prev => [...prev, { version: Date.now(), url: resultUrl }])
       setIsCombiningTaskRunning(false)
+      // Close combine tasks panel when a merge completes
+      setIsCombineTasksPanelOpen(false)
+      fetchTaskStats()
     },
     onMergeError: (error: string) => {
       console.log('[page.tsx] Merge error:', error)
       setIsCombiningTaskRunning(false)
       setCombineErrorMessage(error)
       showToast(error, "error", 5000)
+      fetchTaskStats()
     },
     onMergeAccepted: (taskId: string) => {
       console.log('[page.tsx] Merge task accepted:', taskId)
+      fetchTaskStats()
     }
   })
+
+  // Handle close combine tasks panel
+  const handleCloseCombineTasksPanel = useCallback(() => {
+    setIsCombineTasksPanelOpen(false)
+    fetchTaskStats()
+  }, [fetchTaskStats])
 
   const mergeAdapter = {
     toggleMergePanel: () => {
@@ -252,6 +318,7 @@ export default function ScenePage() {
       if (_action === 'videoCombination') {
         console.log('[page.tsx] Video action started:', _action, 'taskId:', _taskId)
         setIsCombiningTaskRunning(true)
+        fetchTaskStats()
       }
     },
     onActionComplete: (_action: string, result?: any) => {
@@ -260,11 +327,13 @@ export default function ScenePage() {
         setCombinedVideos(prev => [...prev, { version: Date.now(), url: result.result_url }])
       }
       setIsCombiningTaskRunning(false)
+      fetchTaskStats()
     },
     onActionError: (_action: string, error: string) => {
       console.log('[page.tsx] Video action error:', _action, error)
       setIsCombiningTaskRunning(false)
       setCombineErrorMessage(error)
+      fetchTaskStats()
     },
     onVideoClipAccepted: handleVideoClipAccepted,
     onVideoClipComplete: handleVideoClipComplete,
@@ -692,18 +761,27 @@ export default function ScenePage() {
 
 
           <div className="flex-grow flex overflow-hidden">
-            {/* ── Left Panel (20%) ── */}
-            <div className="w-[20%] min-w-[250px] p-0 overflow-y-auto bg-gray-100 border-r flex flex-col">
+            {/* ── Left Panel (25%) ── */}
+            <div className="w-[25%] min-w-[280px] p-0 overflow-y-auto bg-gray-100 border-r flex flex-col">
               {/* 顶部控制栏 */}
-              <div className="bg-white border-b px-4 py-3 flex items-center justify-between flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-800">Scenes</h2>
-                <MergeButton
-                  onClick={mergeAdapter.toggleMergePanel}
-                  isPanelOpen={mergeAdapter.isMergePanelOpen}
-                  isMerging={mergeAdapter.isMerging}
-                  selection={mergeAdapter.getSelectionState(sortedScenes)}
-                  disabled={mergeAdapter.getSelectionState(sortedScenes).readyCount === 0}
-                />
+              <div className="bg-white border-b px-3 py-2.5 flex items-center justify-between flex-shrink-0">
+                <h2 className="text-lg font-bold text-gray-800">Scenes</h2>
+                <div className="flex items-center gap-1">
+                  <MergeButton
+                    onClick={mergeAdapter.toggleMergePanel}
+                    isPanelOpen={mergeAdapter.isMergePanelOpen}
+                    isMerging={mergeAdapter.isMerging}
+                    selection={mergeAdapter.getSelectionState(sortedScenes)}
+                    disabled={mergeAdapter.getSelectionState(sortedScenes).readyCount === 0}
+                  />
+                  {projectDetail && projectId && stageId && (
+                    <CombineTasksQuickView
+                      taskStats={taskStats}
+                      isLoading={isTaskStatsLoading}
+                      onOpenPanel={() => setIsCombineTasksPanelOpen(true)}
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Scene 列表 */}
@@ -790,12 +868,19 @@ export default function ScenePage() {
               )}
             </div>
 
-            {/* {showExportUrlPanel && projectId && stageId && (
-            <ExportUrlPanel open={showExportUrlPanel} project_id={projectId} stage_id={stageId} onClose={() => setShowExportUrlPanel(false)} />
-          )} */}
-
             {isPreviewingVideo && combinedVideos.length > 0 && (
               <MultiVideoDisplayPanel combinedVideos={combinedVideos} isGenerating={isCombiningTaskRunning} onClose={() => setIsPreviewingVideo(false)} />
+            )}
+
+            {/* Option B: Detailed Panel */}
+            {isCombineTasksPanelOpen && projectId && stageId && projectDetail?.user_id && (
+              <CombineTasksPanel
+                isOpen={isCombineTasksPanelOpen}
+                onClose={handleCloseCombineTasksPanel}
+                projectId={projectId}
+                stageId={stageId}
+                userId={projectDetail.user_id}
+              />
             )}
 
             {/* Add Scene/Storyboard Dialog */}
@@ -827,10 +912,11 @@ export default function ScenePage() {
           {mergeAdapter.isMergePanelOpen && projectId && stageId && (
             <MergePanel
               isOpen={mergeAdapter.isMergePanelOpen}
-              onClose={mergeAdapter.closeMergePanel}
+              onClose={closeMergePanel}
               projectId={projectId}
               stageId={stageId}
               scenes={sortedScenes}
+              mergeTask={mergeTask}
               onMergeComplete={mergeAdapter.onMergeComplete}
             />
           )}

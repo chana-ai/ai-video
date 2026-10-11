@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, Clock, Loader2, Video, Download } from "lucide-react"
 import type { Scene } from "@/app/ai/projects/types"
 import { showToast } from "@/lib/toast-helpers"
-import { getUserId } from "@/lib/localcache"
 import { wsManager } from "@/lib/websocket"
+import { getUserId } from "@/lib/localcache"
 
 // Storyboard状态类型
 interface StoryboardStatus {
@@ -20,23 +20,22 @@ interface StoryboardStatus {
   canSelect: boolean
 }
 
-// 合并任务状态
-interface MergeTask {
-  isMerging: boolean
-  progress: number // 0-100
-  processed: number // 已处理数量
-  total: number // 总数量
-  status: 'idle' | 'processing' | 'completed' | 'failed'
-  resultUrl?: string // 合并完成的视频URL
-  currentProcessing?: string // 当前处理的场景标题
-}
-
 interface MergePanelProps {
   isOpen: boolean
   projectId: string
   stageId: string
   scenes: Scene[]
+  mergeTask?: {
+    isMerging: boolean
+    progress: number
+    processed: number
+    total: number
+    status: 'idle' | 'processing' | 'completed' | 'failed'
+    resultUrl?: string
+    currentProcessing?: string
+  }
   onMergeComplete?: (resultUrl: string) => void
+  onCancel?: () => void
   onClose?: () => void
 }
 
@@ -49,20 +48,13 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
   projectId,
   stageId,
   scenes,
+  mergeTask,
   onMergeComplete,
+  onCancel,
   onClose
 }, ref) => {
   // 面板状态
   const [selectedStoryboards, setSelectedStoryboards] = useState<number[]>([])
-
-  // 合并任务状态
-  const [mergeTask, setMergeTask] = useState<MergeTask>({
-    isMerging: false,
-    progress: 0,
-    processed: 0,
-    total: 0,
-    status: 'idle'
-  })
 
   // 处理storyboards数据
   const storyboards = useMemo(() => {
@@ -106,12 +98,12 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
 
   // 打开面板时的初始化
   useEffect(() => {
-    if (isOpen && mergeTask.status === 'idle') {
+    if (isOpen) {
       // 自动选择所有已就绪的storyboard
       const readyIds = storyboardsByStatus.complete.map(s => s.id)
       setSelectedStoryboards(readyIds)
     }
-  }, [isOpen, mergeTask.status, storyboardsByStatus.complete, storyboards.length])
+  }, [isOpen, storyboardsByStatus.complete, storyboards.length])
 
   // 切换单个storyboard选择
   const toggleStoryboardSelection = (storyboardId: number) => {
@@ -177,20 +169,23 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
 
   // 取消合并任务
   const handleCancelMerge = () => {
-    wsManager.cancelVideoCombination()
-    setMergeTask({
-      isMerging: false,
-      progress: 0,
-      processed: 0,
-      total: 0,
-      status: 'idle'
-    })
+    onCancel?.()
     setSelectedStoryboards([])
   }
 
   // 渲染内容
   const renderContent = () => {
-    if (mergeTask.status === 'processing') {
+    const { isMerging, progress, processed, total, status, resultUrl, currentProcessing } = mergeTask || {
+      isMerging: false,
+      progress: 0,
+      processed: 0,
+      total: 0,
+      status: 'idle' as const,
+      resultUrl: undefined,
+      currentProcessing: undefined
+    }
+
+    if (isMerging) {
       return (
         <div className="space-y-6">
           {/* 进度区域 */}
@@ -198,13 +193,13 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">合并任务进行中...</h3>
               <span className="text-sm text-gray-500">
-                {mergeTask.progress}% ({mergeTask.processed}/{mergeTask.total})
+                {progress}% ({processed}/{total})
               </span>
             </div>
-            <Progress value={mergeTask.progress} className="w-full" />
-            {mergeTask.currentProcessing && (
+            <Progress value={progress} className="w-full" />
+            {currentProcessing && (
               <p className="text-sm text-blue-600">
-                正在处理: {mergeTask.currentProcessing}
+                正在处理: {currentProcessing}
               </p>
             )}
           </div>
@@ -243,7 +238,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
       )
     }
 
-    if (mergeTask.status === 'completed' && mergeTask.resultUrl) {
+    if (status === 'completed' && resultUrl) {
       return (
         <div className="space-y-6">
           {/* 完成状态 */}
@@ -259,7 +254,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
           <div className="space-y-3">
             <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
               <video
-                src={mergeTask.resultUrl}
+                src={resultUrl}
                 className="w-full h-full object-cover"
                 controls
                 autoPlay
@@ -269,7 +264,7 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
             {/* 操作按钮 */}
             <div className="flex gap-2">
               <a
-                href={mergeTask.resultUrl}
+                href={resultUrl}
                 download={`merged-video-${Date.now()}.mp4`}
                 className="flex-1"
               >
@@ -362,14 +357,6 @@ export const MergePanel = forwardRef<MergePanelRef, MergePanelProps>(({
   // 暴露方法给父组件
   useImperativeHandle(ref, () => ({
     closePanel: () => {
-      setMergeTask(prev => ({
-        ...prev,
-        isMerging: false,
-        progress: 0,
-        processed: 0,
-        total: 0,
-        status: 'idle'
-      }))
       setSelectedStoryboards([])
       onClose?.()
     }

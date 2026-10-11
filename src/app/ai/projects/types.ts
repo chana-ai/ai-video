@@ -359,3 +359,36 @@ export interface ProjectMetaInfo {
   aspect: string
   narration: boolean
 }
+
+// Combine Task Types
+export interface TaskStatusItem {
+  id: number
+  task_id: string
+  vendor: string
+  progress: number
+  type: string
+  message: string
+  status: string
+  scene_id: number
+  video_url: string | null
+  create_time: string | null
+  update_time: string | null
+}
+
+export interface TaskStatusResponseList {
+  tasks: TaskStatusItem[]
+}
+
+export interface TaskQuickSummary {
+  total: number
+  completed: number
+  running: number
+  fail: number
+}
+
+export interface TaskStats {
+  total: number
+  completed: number
+  running: number
+  failed: number
+}

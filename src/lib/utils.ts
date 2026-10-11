@@ -36,3 +36,12 @@ export function formatDateTimeUTC8(ts: number | string | Date) {
 
   return `${y}-${mo}-${d} ${h}:${m}:${s}`;
 }
+
+/**
+ * Format duration in seconds to MM:SS format
+ */
+export function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
